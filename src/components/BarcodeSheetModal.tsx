@@ -77,22 +77,22 @@ function BarcodeTagItem({
     }
   }, [product.barcode, preset, rotation]);
 
-  // Dimension classes based on roll preset
-  const getDimensionClass = () => {
+  // Use inline style for exact mm control instead of Tailwind for print precision
+  const getDimensionStyle = (): React.CSSProperties => {
     switch (preset) {
       case "tvs-50x38-2up":
-        return "w-[48.5mm] h-[36.5mm] p-1 text-[8.5px]";
+        return { width: "48.5mm", height: "37mm", padding: "0.6mm 1mm 0.8mm 1mm", fontSize: "8px" };
       case "tvs-50x25-2up":
-        return "w-[49mm] h-[23.5mm] p-1 text-[8px]";
+        return { width: "48.5mm", height: "23mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "tvs-75x50-1up":
-        return "w-[73mm] h-[48mm] p-2 text-[10px]";
+        return { width: "73mm", height: "48mm", padding: "1.5mm 2mm", fontSize: "9.5px" };
       case "tvs-100x50-1up":
-        return "w-[98mm] h-[48mm] p-2 text-[11px]";
+        return { width: "98mm", height: "48mm", padding: "1.5mm 2mm", fontSize: "10.5px" };
       case "a4-40":
-        return "w-[48mm] h-[25mm] p-1 text-[8px]";
+        return { width: "48mm", height: "25mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "a4-24":
       default:
-        return "w-[64mm] h-[34mm] p-1.5 text-[9.5px]";
+        return { width: "64mm", height: "34mm", padding: "1mm 1.5mm", fontSize: "9px" };
     }
   };
 
@@ -108,46 +108,46 @@ function BarcodeTagItem({
 
   return (
     <div
-      className={`border border-dashed border-stone-300 print:border-none bg-white rounded-xs flex flex-col justify-between items-center text-center overflow-hidden break-inside-avoid print:rounded-none select-none ${getDimensionClass()}`}
-      style={{ boxSizing: "border-box" }}
+      className="border border-dashed border-stone-300 print:border-none bg-white flex flex-col justify-between items-center text-center overflow-hidden break-inside-avoid print:rounded-none select-none"
+      style={{ boxSizing: "border-box", ...getDimensionStyle() }}
     >
       <div className="w-full h-full flex flex-col justify-between items-center" style={getRotationStyle()}>
         {/* Brand & Store Header */}
         {showShopName && (
-          <div className="w-full border-b border-stone-200 print:border-black/50 pb-0.5 mb-0.5 leading-tight">
-            <span className="font-serif font-black tracking-wider uppercase text-stone-900 block leading-tight text-[1.15em]">
+          <div style={{ width: "100%", borderBottom: "0.5px solid #999", paddingBottom: "0.3mm", marginBottom: "0.3mm", lineHeight: 1.1, textAlign: "center", flexShrink: 0 }}>
+            <span style={{ fontFamily: "serif", fontWeight: 900, letterSpacing: "0.05em", textTransform: "uppercase", display: "block", fontSize: "1.05em", lineHeight: 1 }}>
               RAJNANDNI
             </span>
-            <span className="text-[0.8em] text-stone-600 print:text-black tracking-tight block font-semibold">
+            <span style={{ fontSize: "0.78em", display: "block", fontWeight: 600, letterSpacing: "-0.01em", color: "#444", lineHeight: 1 }}>
               Darshan Enterprises · Haridwar
             </span>
           </div>
         )}
 
         {/* Item Details */}
-        <div className="w-full px-0.5 leading-snug">
-          <p className="font-bold text-stone-950 truncate leading-tight">
+        <div style={{ width: "100%", padding: "0 1mm", lineHeight: 1.1, flexShrink: 0 }}>
+          <p style={{ fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "1em" }}>
             {product.name}
           </p>
-          <p className="font-mono text-stone-600 print:text-black text-[0.85em] truncate">
+          <p style={{ fontFamily: "monospace", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.82em", color: "#555" }}>
             SKU: {product.sku} {showSize && `· ${product.sizes?.[0] || "Std"}`}
           </p>
         </div>
 
         {/* Barcode Graphic */}
-        <div className="my-0.5 flex justify-center items-center w-full overflow-hidden">
-          <svg ref={svgRef} className="max-w-full h-auto" />
+        <div style={{ margin: "0.3mm 0", display: "flex", justifyContent: "center", alignItems: "center", width: "100%", overflow: "hidden", flexShrink: 1 }}>
+          <svg ref={svgRef} style={{ maxWidth: "100%", height: "auto", display: "block" }} />
         </div>
 
         {/* Price & MRP Footer */}
-        <div className="w-full flex items-center justify-between border-t border-stone-200 print:border-black/50 pt-0.5 px-0.5 text-[0.9em] leading-tight">
+        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "0.5px solid #999", paddingTop: "0.3mm", padding: "0.3mm 1mm 0", fontSize: "0.9em", lineHeight: 1, flexShrink: 0 }}>
           {showMrp && (
-            <span className="text-stone-500 print:text-black line-through text-[0.85em]">
+            <span style={{ textDecoration: "line-through", fontSize: "0.85em", color: "#666" }}>
               MRP: ₹{product.mrp}
             </span>
           )}
           {showPrice && (
-            <span className="font-black text-stone-950 ml-auto text-[1.1em]">
+            <span style={{ fontWeight: 900, marginLeft: "auto", fontSize: "1.05em" }}>
               ₹{product.price.toLocaleString("en-IN")}
             </span>
           )}
