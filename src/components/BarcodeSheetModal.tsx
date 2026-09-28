@@ -115,7 +115,7 @@ function BarcodeTagItem({
         {/* Brand & Store Header */}
         {showShopName && (
           <div style={{ width: "100%", borderBottom: "0.5px solid #999", paddingBottom: "0.3mm", marginBottom: "0.3mm", lineHeight: 1.1, textAlign: "center", flexShrink: 0 }}>
-            <span style={{ fontFamily: "serif", fontWeight: 900, letterSpacing: "0.05em", textTransform: "uppercase", display: "block", fontSize: "1.05em", lineHeight: 1 }}>
+            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", fontSize: "1.25em", lineHeight: 1 }}>
               RAJNANDNI
             </span>
             <span style={{ fontSize: "0.78em", display: "block", fontWeight: 600, letterSpacing: "-0.01em", color: "#444", lineHeight: 1 }}>
@@ -147,7 +147,7 @@ function BarcodeTagItem({
             </span>
           )}
           {showPrice && (
-            <span style={{ fontWeight: 900, marginLeft: "auto", fontSize: "1.05em" }}>
+            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, marginLeft: "auto", fontSize: "1.3em", letterSpacing: "0.02em" }}>
               ₹{product.price.toLocaleString("en-IN")}
             </span>
           )}
