@@ -81,7 +81,7 @@ function BarcodeTagItem({
   const getDimensionClass = () => {
     switch (preset) {
       case "tvs-50x38-2up":
-        return "w-[49mm] h-[36.5mm] p-1.5 text-[9px]";
+        return "w-[48.5mm] h-[36.5mm] p-1 text-[8.5px]";
       case "tvs-50x25-2up":
         return "w-[49mm] h-[23.5mm] p-1 text-[8px]";
       case "tvs-75x50-1up":
@@ -198,7 +198,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
       case "tvs-50x38-2up":
         return `
           @page {
-            size: 104mm 38mm;
+            size: 100mm 38mm;
             margin: 0mm !important;
           }
           .thermal-row {
@@ -208,8 +208,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
             break-inside: avoid !important;
             height: 38mm !important;
             max-height: 38mm !important;
-            width: 104mm !important;
-            max-width: 104mm !important;
+            width: 100mm !important;
+            max-width: 100mm !important;
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
