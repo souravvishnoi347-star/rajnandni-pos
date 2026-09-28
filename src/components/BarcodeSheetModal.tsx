@@ -52,9 +52,9 @@ function BarcodeTagItem({
           barHeight = 16;
           fontSize = 8;
         } else if (preset === "tvs-50x38-2up") {
-          barWidth = 1.35;
-          barHeight = 26;
-          fontSize = 10;
+          barWidth = 1.25;
+          barHeight = 20;
+          fontSize = 9;
         } else if (preset === "tvs-75x50-1up" || preset === "tvs-100x50-1up") {
           barWidth = 1.7;
           barHeight = 36;
@@ -81,7 +81,7 @@ function BarcodeTagItem({
   const getDimensionStyle = (): React.CSSProperties => {
     switch (preset) {
       case "tvs-50x38-2up":
-        return { width: "48.5mm", height: "37mm", padding: "0.6mm 1mm 0.8mm 1mm", fontSize: "8px" };
+        return { width: "48.5mm", height: "35.5mm", padding: "1.5mm 1mm 1mm 1mm", fontSize: "8px" };
       case "tvs-50x25-2up":
         return { width: "48.5mm", height: "23mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "tvs-75x50-1up":
@@ -114,40 +114,40 @@ function BarcodeTagItem({
       <div className="w-full h-full flex flex-col justify-between items-center" style={getRotationStyle()}>
         {/* Brand & Store Header */}
         {showShopName && (
-          <div style={{ width: "100%", borderBottom: "0.5px solid #999", paddingBottom: "0.3mm", marginBottom: "0.3mm", lineHeight: 1.1, textAlign: "center", flexShrink: 0 }}>
-            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", fontSize: "1.25em", lineHeight: 1 }}>
+          <div style={{ width: "100%", borderBottom: "0.5px solid #222", paddingBottom: "0.4mm", marginBottom: "0.3mm", lineHeight: 1.1, textAlign: "center", flexShrink: 0 }}>
+            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", fontSize: "1.1em", lineHeight: 1, color: "#000" }}>
               RAJNANDNI
             </span>
-            <span style={{ fontSize: "0.78em", display: "block", fontWeight: 600, letterSpacing: "-0.01em", color: "#444", lineHeight: 1 }}>
+            <span style={{ fontSize: "0.75em", display: "block", fontWeight: 700, letterSpacing: "-0.01em", color: "#111", lineHeight: 1 }}>
               Darshan Enterprises · Haridwar
             </span>
           </div>
         )}
 
         {/* Item Details */}
-        <div style={{ width: "100%", padding: "0 1mm", lineHeight: 1.1, flexShrink: 0 }}>
-          <p style={{ fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "1em" }}>
+        <div style={{ width: "100%", padding: "0 0.5mm", lineHeight: 1.1, flexShrink: 0 }}>
+          <p style={{ fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.95em", color: "#000" }}>
             {product.name}
           </p>
-          <p style={{ fontFamily: "monospace", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.82em", color: "#555" }}>
+          <p style={{ fontFamily: "monospace", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8em", color: "#222" }}>
             SKU: {product.sku} {showSize && `· ${product.sizes?.[0] || "Std"}`}
           </p>
         </div>
 
         {/* Barcode Graphic */}
-        <div style={{ margin: "0.3mm 0", display: "flex", justifyContent: "center", alignItems: "center", width: "100%", overflow: "hidden", flexShrink: 1 }}>
+        <div style={{ margin: "0.2mm 0", display: "flex", justifyContent: "center", alignItems: "center", width: "100%", overflow: "hidden", flexShrink: 1 }}>
           <svg ref={svgRef} style={{ maxWidth: "100%", height: "auto", display: "block" }} />
         </div>
 
         {/* Price & MRP Footer */}
-        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "0.5px solid #999", paddingTop: "0.3mm", padding: "0.3mm 1mm 0", fontSize: "0.9em", lineHeight: 1, flexShrink: 0 }}>
+        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "0.5px solid #222", paddingTop: "0.4mm", padding: "0.4mm 0.5mm 0", fontSize: "0.9em", lineHeight: 1, flexShrink: 0 }}>
           {showMrp && (
-            <span style={{ textDecoration: "line-through", fontSize: "0.85em", color: "#666" }}>
+            <span style={{ textDecoration: "line-through", fontSize: "0.85em", color: "#444" }}>
               MRP: ₹{product.mrp}
             </span>
           )}
           {showPrice && (
-            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, marginLeft: "auto", fontSize: "1.3em", letterSpacing: "0.02em" }}>
+            <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, marginLeft: "auto", fontSize: "1.2em", letterSpacing: "0.02em", color: "#000" }}>
               ₹{product.price.toLocaleString("en-IN")}
             </span>
           )}
@@ -202,21 +202,27 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
             margin: 0mm !important;
           }
           .thermal-row {
-            page-break-after: always !important;
-            break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            height: 38mm !important;
-            max-height: 38mm !important;
+            height: 36mm !important;
+            max-height: 36mm !important;
             width: 100mm !important;
             max-width: 100mm !important;
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
             box-sizing: border-box !important;
-            padding: 0.5mm 1mm !important;
+            padding: 0 0.5mm !important;
             margin: 0 auto !important;
             overflow: hidden !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .thermal-row:not(:last-child) {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+          .thermal-row:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         `;
       case "tvs-50x25-2up":
