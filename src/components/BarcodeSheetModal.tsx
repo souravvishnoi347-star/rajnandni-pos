@@ -29,6 +29,8 @@ function BarcodeTagItem({
   showMrp,
   showPrice,
   showSize,
+  topOffsetMm = 5,
+  rightInsetMm = 3.5,
 }: {
   product: ProductItem;
   preset: RollPreset;
@@ -37,6 +39,8 @@ function BarcodeTagItem({
   showMrp: boolean;
   showPrice: boolean;
   showSize: boolean;
+  topOffsetMm?: number;
+  rightInsetMm?: number;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -53,8 +57,8 @@ function BarcodeTagItem({
           fontSize = 8;
         } else if (preset === "tvs-50x38-2up") {
           barWidth = 1.25;
-          barHeight = 20;
-          fontSize = 9;
+          barHeight = 19;
+          fontSize = 10;
         } else if (preset === "tvs-75x50-1up" || preset === "tvs-100x50-1up") {
           barWidth = 1.7;
           barHeight = 36;
@@ -66,7 +70,8 @@ function BarcodeTagItem({
           width: barWidth,
           height: barHeight,
           displayValue: true,
-          font: "monospace",
+          font: "Arial, sans-serif",
+          fontOptions: "bold",
           fontSize: fontSize,
           textMargin: 1,
           margin: 0,
@@ -81,8 +86,7 @@ function BarcodeTagItem({
   const getDimensionStyle = (): React.CSSProperties => {
     switch (preset) {
       case "tvs-50x38-2up":
-        // Full 38mm height, NO overflow hidden — let printer clip naturally at edges
-        return { width: "48.5mm", height: "38mm", padding: "0", fontSize: "8px" };
+        return { width: "46.5mm", height: "37mm", padding: "0", fontSize: "9px" };
       case "tvs-50x25-2up":
         return { width: "48.5mm", height: "23mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "tvs-75x50-1up":
@@ -107,138 +111,191 @@ function BarcodeTagItem({
     return {};
   };
 
-  // For tvs-50x38-2up, use fixed mm heights for each section to prevent clipping
+  // For tvs-50x38-2up, use calibrated physical offsets and compact, bold sections
   const isTvs50x38 = preset === "tvs-50x38-2up";
 
   if (isTvs50x38) {
-    // Total sticker = 38mm. Layout:
-    // Top safe margin: 1mm
-    // Brand header: 7mm  (RAJNANDNI + Darshan Enterprises)
-    // Product info: 5mm  (name + SKU)
-    // Barcode:     17mm  (barcode SVG)
-    // Price footer: 6mm  (MRP + Price)
-    // Bottom safe margin: 2mm
-    // Total = 1+7+5+17+6+2 = 38mm
+    // Calibrated from actual physical print on SNBC TVSE LP46 Dlite:
+    // - Printer starts 0mm-4.5mm in the top backing gap, leaving 5.5mm blank at bottom of sticker.
+    //   So topOffsetMm (default 5mm) pushes RAJNANDNI down squarely onto the white sticker.
+    // - Printer shifts ~2.5mm right, so width is 46.5mm with rightInsetMm (default 3.5mm)
+    //   so the last digit of Price (₹1,118) is never clipped on the right edge.
+    // - Compact 11mm barcode section eliminates empty white gaps and allows BIG, BOLD text.
     return (
       <div
         className="border border-dashed border-stone-300 print:border-none bg-white break-inside-avoid print:rounded-none select-none"
         style={{
           boxSizing: "border-box",
-          width: "48.5mm",
-          height: "38mm",
-          padding: "0",
+          width: "46.5mm",
+          height: "37mm",
+          padding: `0 ${rightInsetMm}mm 0 1mm`,
           margin: "0",
           position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", ...getRotationStyle() }}>
-          {/* Top safe margin */}
-          <div style={{ height: "1mm", flexShrink: 0 }} />
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            ...getRotationStyle(),
+          }}
+        >
+          {/* Calibrated Top Offset so RAJNANDNI prints inside the white sticker, below the top gap */}
+          <div style={{ height: `${topOffsetMm}mm`, flexShrink: 0 }} />
 
-          {/* Brand & Store Header — fixed 7mm */}
-          {showShopName ? (
-            <div style={{
-              height: "7mm",
+          {/* Brand & Store Header — 6.5mm */}
+          {showShopName && (
+            <div
+              style={{
+                height: "6.5mm",
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                borderBottom: "1px solid #000",
+                paddingBottom: "0.4mm",
+                marginBottom: "0.4mm",
+                boxSizing: "border-box",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "'Arial Black', Impact, Arial, sans-serif",
+                  fontWeight: 900,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  fontSize: "12px",
+                  lineHeight: 1.05,
+                  color: "#000",
+                  display: "block",
+                  textAlign: "center",
+                }}
+              >
+                RAJNANDNI
+              </span>
+              <span
+                style={{
+                  fontFamily: "Arial, Helvetica, sans-serif",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  color: "#000",
+                  lineHeight: 1.05,
+                  display: "block",
+                  textAlign: "center",
+                }}
+              >
+                Darshan Enterprises · Haridwar
+              </span>
+            </div>
+          )}
+
+          {/* Item Details — 5.5mm (Big & Bold) */}
+          <div
+            style={{
+              height: "5.5mm",
               flexShrink: 0,
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
-              alignItems: "center",
-              borderBottom: "0.5px solid #000",
-              padding: "0 1mm",
               boxSizing: "border-box",
-            }}>
-              <span style={{
-                fontFamily: "'Arial Black', Arial, sans-serif",
-                fontWeight: 900,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
+              marginBottom: "0.3mm",
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "Arial, Helvetica, sans-serif",
+                fontWeight: 800,
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
                 fontSize: "9.5px",
-                lineHeight: 1.1,
                 color: "#000",
-                display: "block",
-                textAlign: "center",
-              }}>
-                RAJNANDNI
-              </span>
-              <span style={{
-                fontSize: "6.5px",
-                fontWeight: 700,
-                color: "#000",
-                lineHeight: 1,
-                display: "block",
-                textAlign: "center",
-              }}>
-                Darshan Enterprises · Haridwar
-              </span>
-            </div>
-          ) : (
-            <div style={{ height: "0mm", flexShrink: 0 }} />
-          )}
-
-          {/* Item Details — fixed 5mm */}
-          <div style={{
-            height: "5mm",
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "0 1mm",
-            boxSizing: "border-box",
-          }}>
-            <p style={{ fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "7.5px", color: "#000", lineHeight: 1.15 }}>
+                lineHeight: 1.15,
+              }}
+            >
               {product.name}
             </p>
-            <p style={{ fontFamily: "monospace", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "6.5px", color: "#222", lineHeight: 1.15 }}>
+            <p
+              style={{
+                fontFamily: "Arial, Helvetica, sans-serif",
+                fontWeight: 700,
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "8px",
+                color: "#000",
+                lineHeight: 1.15,
+              }}
+            >
               SKU: {product.sku} {showSize && `· ${product.sizes?.[0] || "Std"}`}
             </p>
           </div>
 
-          {/* Barcode Graphic — fixed 17mm */}
-          <div style={{
-            height: "17mm",
-            flexShrink: 0,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "0 1mm",
-            boxSizing: "border-box",
-            overflow: "hidden",
-          }}>
+          {/* Barcode Graphic — Compact 11mm (No wasted blank gap!) */}
+          <div
+            style={{
+              height: "11mm",
+              flexShrink: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              boxSizing: "border-box",
+              overflow: "hidden",
+              margin: "0.2mm 0",
+            }}
+          >
             <svg ref={svgRef} style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }} />
           </div>
 
-          {/* Price & MRP Footer — fixed 6mm */}
-          <div style={{
-            height: "6mm",
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderTop: "0.5px solid #000",
-            padding: "0 1mm",
-            boxSizing: "border-box",
-          }}>
+          {/* Price & MRP Footer — 6mm (Big, Bold & Safe from Right Edge) */}
+          <div
+            style={{
+              height: "6mm",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderTop: "1px solid #000",
+              paddingTop: "0.4mm",
+              paddingRight: "1.5mm",
+              boxSizing: "border-box",
+            }}
+          >
             {showMrp && (
-              <span style={{ textDecoration: "line-through", fontSize: "6.5px", color: "#333" }}>
-                MRP: ₹{product.mrp}
+              <span
+                style={{
+                  fontFamily: "Arial, Helvetica, sans-serif",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  color: "#000",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                MRP: <span style={{ textDecoration: "line-through" }}>₹{product.mrp}</span>
               </span>
             )}
             {showPrice && (
-              <span style={{
-                fontFamily: "'Arial Black', Arial, sans-serif",
-                fontWeight: 900,
-                marginLeft: "auto",
-                fontSize: "10px",
-                color: "#000",
-              }}>
+              <span
+                style={{
+                  fontFamily: "'Arial Black', Impact, Arial, sans-serif",
+                  fontWeight: 900,
+                  marginLeft: "auto",
+                  fontSize: "13px",
+                  color: "#000",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 ₹{product.price.toLocaleString("en-IN")}
               </span>
             )}
           </div>
-
-          {/* Bottom safe margin */}
-          <div style={{ height: "2mm", flexShrink: 0 }} />
         </div>
       </div>
     );
@@ -303,6 +360,10 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
   const [rotation, setRotation] = useState<RotationMode>("0");
   const [labelCount, setLabelCount] = useState<number>(4);
 
+  // Calibrated hardware offsets (in mm) for TVS 50x38 2-Up roll
+  const [topOffsetMm, setTopOffsetMm] = useState<number>(5);
+  const [rightInsetMm, setRightInsetMm] = useState<number>(3.5);
+
   // Content Visibility Toggles
   const [showShopName, setShowShopName] = useState<boolean>(true);
   const [showMrp, setShowMrp] = useState<boolean>(true);
@@ -341,16 +402,17 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
             margin: 0mm !important;
           }
           .thermal-row {
-            height: 36mm !important;
-            max-height: 36mm !important;
-            width: 100mm !important;
-            max-width: 100mm !important;
+            height: 37mm !important;
+            max-height: 37mm !important;
+            width: 97mm !important;
+            max-width: 97mm !important;
             display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
+            justify-content: flex-start !important;
+            align-items: flex-start !important;
+            gap: 3mm !important;
             box-sizing: border-box !important;
-            padding: 0 0.5mm !important;
-            margin: 0 auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
             overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -753,6 +815,57 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                 </div>
               </div>
 
+              {/* Physical Roll Position Calibration (Top & Right Margin) */}
+              {preset === "tvs-50x38-2up" && (
+                <div className="space-y-1.5 pt-1.5 border-t border-stone-200">
+                  <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+                    Sticker Alignment (Calibrated for 50×38):
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white border border-stone-200 rounded-lg p-1.5 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-stone-700">Top Push:</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setTopOffsetMm(v => Math.max(0, Number((v - 0.5).toFixed(1))))}
+                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 font-bold text-stone-800 cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-bold text-stone-900 w-9 text-center">{topOffsetMm}mm</span>
+                        <button
+                          type="button"
+                          onClick={() => setTopOffsetMm(v => Math.min(10, Number((v + 0.5).toFixed(1))))}
+                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 font-bold text-stone-800 cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <div className="bg-white border border-stone-200 rounded-lg p-1.5 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-stone-700">Right Safe:</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setRightInsetMm(v => Math.max(0, Number((v - 0.5).toFixed(1))))}
+                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 font-bold text-stone-800 cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-bold text-stone-900 w-9 text-center">{rightInsetMm}mm</span>
+                        <button
+                          type="button"
+                          onClick={() => setRightInsetMm(v => Math.min(8, Number((v + 0.5).toFixed(1))))}
+                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 font-bold text-stone-800 cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Big Print Button */}
               <button
                 onClick={handlePrint}
@@ -795,6 +908,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                             showMrp={showMrp}
                             showPrice={showPrice}
                             showSize={showSize}
+                            topOffsetMm={topOffsetMm}
+                            rightInsetMm={rightInsetMm}
                           />
                           {hasSecond ? (
                             <BarcodeTagItem
@@ -805,9 +920,11 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                               showMrp={showMrp}
                               showPrice={showPrice}
                               showSize={showSize}
+                              topOffsetMm={topOffsetMm}
+                              rightInsetMm={rightInsetMm}
                             />
                           ) : (
-                            <div className="w-[49mm] h-[36.5mm] border border-dashed border-stone-300 rounded-xs flex items-center justify-center text-[10px] text-stone-400">
+                            <div className="w-[46.5mm] h-[37mm] border border-dashed border-stone-300 rounded-xs flex items-center justify-center text-[10px] text-stone-400">
                               (Blank / Empty)
                             </div>
                           )}
@@ -828,6 +945,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                         showMrp={showMrp}
                         showPrice={showPrice}
                         showSize={showSize}
+                        topOffsetMm={topOffsetMm}
+                        rightInsetMm={rightInsetMm}
                       />
                     ))}
                   </div>
@@ -903,7 +1022,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
 
         {isTwoUp ? (
           /* Render rows for 2-Up Thermal printing */
-          <div className="w-full flex flex-col items-center">
+          <div className="w-full flex flex-col items-start">
             {Array.from({ length: numRows }).map((_, rIdx) => {
               const firstIdx = rIdx * 2;
               const hasSecond = firstIdx + 1 < labelCount;
@@ -917,6 +1036,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                     showMrp={showMrp}
                     showPrice={showPrice}
                     showSize={showSize}
+                    topOffsetMm={topOffsetMm}
+                    rightInsetMm={rightInsetMm}
                   />
                   {hasSecond ? (
                     <BarcodeTagItem
@@ -927,9 +1048,11 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                       showMrp={showMrp}
                       showPrice={showPrice}
                       showSize={showSize}
+                      topOffsetMm={topOffsetMm}
+                      rightInsetMm={rightInsetMm}
                     />
                   ) : (
-                    <div style={{ width: "49mm", height: "36.5mm" }} />
+                    <div style={{ width: "46.5mm", height: "37mm" }} />
                   )}
                 </div>
               );
@@ -948,6 +1071,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                   showMrp={showMrp}
                   showPrice={showPrice}
                   showSize={showSize}
+                  topOffsetMm={topOffsetMm}
+                  rightInsetMm={rightInsetMm}
                 />
               </div>
             ))}
@@ -969,6 +1094,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                 showMrp={showMrp}
                 showPrice={showPrice}
                 showSize={showSize}
+                topOffsetMm={topOffsetMm}
+                rightInsetMm={rightInsetMm}
               />
             ))}
           </div>
