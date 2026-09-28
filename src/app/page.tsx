@@ -30,10 +30,18 @@ import {
   AlertCircle,
   Handshake,
   Edit3,
-  RotateCcw
+  RotateCcw,
+  Database,
+  Cloud,
+  FileText,
+  Check
 } from "lucide-react";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
+import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
+import BarcodeSheetModal from "@/components/BarcodeSheetModal";
+
+const INVENTORY_DATA_VERSION = "rajnandni_inventory_v3_wholesale_bills";
 
 export default function RajnandniPosPage() {
   // Navigation
@@ -76,6 +84,19 @@ export default function RajnandniPosPage() {
   const [selectedProductForBarcode, setSelectedProductForBarcode] = useState<ProductItem | null>(null);
   const [barcodeStickerCount, setBarcodeStickerCount] = useState<number>(4);
 
+  // Cloud & Database state
+  const [showDbModal, setShowDbModal] = useState<boolean>(false);
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
+  const [syncStatusText, setSyncStatusText] = useState<string>("");
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Edit Price / Offer Modal
+  const [editingPriceProduct, setEditingPriceProduct] = useState<ProductItem | null>(null);
+  const [newSellingPrice, setNewSellingPrice] = useState<number>(0);
+  const [newMrpPrice, setNewMrpPrice] = useState<number>(0);
+  const [newOfferBadge, setNewOfferBadge] = useState<string>("");
+  const [newStockQty, setNewStockQty] = useState<number>(0);
+
   // New Product Modal
   const [showNewProductModal, setShowNewProductModal] = useState<boolean>(false);
   const [newProductForm, setNewProductForm] = useState<Partial<ProductItem>>({
@@ -93,21 +114,90 @@ export default function RajnandniPosPage() {
   // Barcode quick scan input
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Load local storage on mount
+  // Load local storage & sync on mount
   useEffect(() => {
     try {
+      const currentVer = localStorage.getItem("rajnandni_data_version");
       const savedProds = localStorage.getItem("rajnandni_products");
-      if (savedProds) setProducts(JSON.parse(savedProds));
+
+      if (currentVer === INVENTORY_DATA_VERSION && savedProds) {
+        const parsed = JSON.parse(savedProds);
+        if (Array.isArray(parsed) && parsed.length > 50) {
+          setProducts(parsed);
+        } else {
+          setProducts(INITIAL_PRODUCTS);
+          localStorage.setItem("rajnandni_products", JSON.stringify(INITIAL_PRODUCTS));
+          localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
+        }
+      } else {
+        // Upgrade to real 159 wholesale bill inventory
+        setProducts(INITIAL_PRODUCTS);
+        localStorage.setItem("rajnandni_products", JSON.stringify(INITIAL_PRODUCTS));
+        localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
+      }
 
       const savedBills = localStorage.getItem("rajnandni_bills");
       if (savedBills) setCompletedBills(JSON.parse(savedBills));
 
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
+
+      // Check Supabase connection
+      if (isSupabaseConfigured()) {
+        setSupabaseConnected(true);
+        SupabaseService.fetchProducts().then((remoteProds) => {
+          if (remoteProds && remoteProds.length > 0) {
+            setProducts(remoteProds);
+            localStorage.setItem("rajnandni_products", JSON.stringify(remoteProds));
+            setSyncStatusText("Synced with Supabase Cloud");
+          } else {
+            SupabaseService.syncInitialProducts(INITIAL_PRODUCTS).then(() => {
+              setSyncStatusText("Pushed 159 products to Supabase");
+            });
+          }
+        }).catch((err) => {
+          console.warn("Supabase fetch notice:", err);
+        });
+      }
     } catch (e) {
       console.warn("Local storage parse notice:", e);
     }
   }, []);
+
+  // Force re-load 159 products from purchase bills
+  const handleReloadWholesaleInventory = () => {
+    if (confirm("Reset inventory to the 159 wholesale items parsed from supplier bills?")) {
+      saveProductsLocally(INITIAL_PRODUCTS);
+      localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
+      if (isSupabaseConfigured()) {
+        SupabaseService.syncInitialProducts(INITIAL_PRODUCTS);
+      }
+      alert("✅ Inventory successfully refreshed with 159 bill products!");
+    }
+  };
+
+  // Push current inventory to Supabase Cloud
+  const handlePushToSupabase = async () => {
+    if (!isSupabaseConfigured()) {
+      alert("Supabase keys are not configured yet.\n\nPlease add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.");
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const ok = await SupabaseService.syncInitialProducts(products);
+      if (ok) {
+        setSupabaseConnected(true);
+        setSyncStatusText(`Synced all ${products.length} items to Supabase Cloud!`);
+        alert(`✅ All ${products.length} products successfully pushed to Supabase Cloud!`);
+      } else {
+        alert("⚠️ Cloud sync did not complete. Please check table permissions or SQL schema.");
+      }
+    } catch (e: any) {
+      alert("Sync error: " + (e?.message || String(e)));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Save changes
   const saveProductsLocally = (items: ProductItem[]) => {
@@ -124,6 +214,102 @@ export default function RajnandniPosPage() {
     setAlterationsList(alts);
     localStorage.setItem("rajnandni_alterations", JSON.stringify(alts));
   };
+
+  // Open edit price modal
+  const openEditProductPrice = (p: ProductItem) => {
+    setEditingPriceProduct(p);
+    setNewSellingPrice(p.price);
+    setNewMrpPrice(p.mrp);
+    setNewOfferBadge(p.badge || "");
+    setNewStockQty(p.stock);
+  };
+
+  // Save updated product price / offer
+  const handleSaveProductPriceChange = async () => {
+    if (!editingPriceProduct) return;
+    const updatedPrice = Number(newSellingPrice);
+    const updatedMrp = Number(newMrpPrice);
+    const updatedStock = Number(newStockQty);
+
+    if (isNaN(updatedPrice) || updatedPrice <= 0) {
+      alert("Please enter a valid selling price");
+      return;
+    }
+
+    const updatedList = products.map(p => {
+      if (p.id === editingPriceProduct.id) {
+        return {
+          ...p,
+          price: updatedPrice,
+          mrp: updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
+          badge: newOfferBadge.trim() || undefined,
+          stock: updatedStock >= 0 ? updatedStock : p.stock,
+        };
+      }
+      return p;
+    });
+
+    saveProductsLocally(updatedList);
+
+    // Sync to Supabase cloud in background
+    if (isSupabaseConfigured()) {
+      SupabaseService.updateProductPrice(
+        editingPriceProduct.sku,
+        updatedPrice,
+        updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
+        newOfferBadge.trim() || undefined
+      ).catch(e => console.warn("Supabase update price warning:", e));
+    }
+
+    alert(`✅ Price updated! Barcode (${editingPriceProduct.barcode}) will now automatically scan at ₹${updatedPrice.toLocaleString("en-IN")}. Physical tag reprint NOT needed!`);
+    setEditingPriceProduct(null);
+  };
+
+  // Global Barcode Scanner Gun Listener
+  // Works from anywhere on screen when gun scans and sends Enter key
+  useEffect(() => {
+    let buffer = "";
+    let lastKeyTime = Date.now();
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (
+        activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.tagName === "SELECT"
+      );
+
+      // Don't intercept if user is typing into search or another modal input
+      if (isInputFocused && activeEl !== barcodeInputRef.current) {
+        return;
+      }
+
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime > 150) {
+        buffer = "";
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === "Enter") {
+        if (buffer.length >= 3) {
+          const scannedCode = buffer.trim();
+          const found = products.find(
+            p => p.barcode === scannedCode || p.sku.toLowerCase() === scannedCode.toLowerCase()
+          );
+          if (found) {
+            handleAddToCart(found);
+            setActiveTab("pos");
+          }
+        }
+        buffer = "";
+      } else if (e.key.length === 1) {
+        buffer += e.key;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [products]);
 
   // Calculations (Including Negotiation & Customer Bargain Totals)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -330,9 +516,31 @@ export default function RajnandniPosPage() {
     });
     saveProductsLocally(updatedProducts);
 
-    // Save Bill
+    // Save Bill locally
     const nextBills = [newBill, ...completedBills];
     saveBillsLocally(nextBills);
+
+    // If Supabase configured, push sale to cloud
+    if (isSupabaseConfigured()) {
+      SupabaseService.recordSale({
+        invoiceNumber: billNumber,
+        customerName: customer.name.trim() || "Walk-in Guest",
+        customerPhone: customer.phone.trim() || "NA",
+        subtotal,
+        discount: discountAmount,
+        tax: 0,
+        total: grandTotal,
+        paymentMode,
+        items: cart.map(ci => ({
+          id: ci.product.id,
+          name: ci.product.name,
+          sku: ci.product.sku,
+          price: ci.price,
+          quantity: ci.quantity,
+          isService: ci.product.isService
+        }))
+      }).catch(err => console.error("Cloud record error:", err));
+    }
 
     // If alteration required, add to alteration list
     if (alterationEnabled) {
@@ -385,6 +593,8 @@ export default function RajnandniPosPage() {
     const hasDiscount = bill.discount > 0 || (bill.totalSavings && bill.totalSavings > 0);
     const savings = bill.totalSavings || bill.discount;
 
+    const pdfUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invoice?id=${bill.billNo}`;
+
     const message = 
 `🌸 *RAJNANDNI ETHNIC & BEAUTY STUDIO* 🌸
 _Haridwar, Uttarakhand_
@@ -403,6 +613,9 @@ Subtotal: ₹${bill.subtotal.toLocaleString("en-IN")}${hasDiscount ? `
 🏷️ *Deal Note:* ${bill.discountReason || "Negotiated Store Offer"}` : ""}
 *Grand Total Paid:* ₹${bill.grandTotal.toLocaleString("en-IN")} (${bill.paymentMode.toUpperCase()})
 ${hasDiscount ? `🎉 *Aapki Kul Bachat (Total Savings):* ₹${savings.toLocaleString("en-IN")} ✨` : ""}
+------------------------------------
+📄 *Download Official PDF Bill:*
+${pdfUrl}
 ------------------------------------
 ${bill.alteration ? `✂️ *ALTERATION DETAILS:*
 Garment: ${bill.alteration.garmentName}
@@ -538,18 +751,36 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
           </button>
         </div>
 
-        {/* Quick Day Stats */}
-        <div className="hidden lg:flex items-center gap-4 text-right">
-          <div>
-            <span className="text-[10px] text-stone-400 uppercase font-semibold">Today's Revenue</span>
-            <p className="text-sm font-bold text-amber-400">
-              ₹{completedBills.reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
-            </p>
-          </div>
-          <div className="h-7 w-px bg-stone-800" />
-          <div>
-            <span className="text-[10px] text-stone-400 uppercase font-semibold">Bills Issued</span>
-            <p className="text-sm font-bold text-white">{completedBills.length}</p>
+        {/* Database & Cloud Sync Status + Quick Day Stats */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowDbModal(true)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+              supabaseConnected
+                ? "bg-emerald-950/50 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50"
+                : "bg-stone-900 border-stone-800 text-stone-300 hover:bg-stone-800"
+            }`}
+            title="Database & Supabase Cloud Sync"
+          >
+            <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-400" : "text-amber-400"}`} />
+            <span className="hidden sm:inline">
+              {supabaseConnected ? "Cloud Synced" : "Database & Cloud"}
+            </span>
+            <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
+          </button>
+
+          <div className="hidden lg:flex items-center gap-4 text-right">
+            <div>
+              <span className="text-[10px] text-stone-400 uppercase font-semibold">Today's Revenue</span>
+              <p className="text-sm font-bold text-amber-400">
+                ₹{completedBills.reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="h-7 w-px bg-stone-800" />
+            <div>
+              <span className="text-[10px] text-stone-400 uppercase font-semibold">Bills Issued</span>
+              <p className="text-sm font-bold text-white">{completedBills.length}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -590,9 +821,10 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
             <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
               {[
                 { id: "all", label: "✨ All Products & Services" },
+                { id: "sarees", label: "🥻 Sarees (Surat & Prints)" },
                 { id: "lehengas", label: "👗 Lehengas & Gowns" },
                 { id: "kurtis", label: "👚 Kurtis & Suits" },
-                { id: "jewellery", label: "💍 Jewellery & Sets" },
+                { id: "jewellery", label: "💍 Jewellery & Blouse Pcs" },
                 { id: "footwear", label: "👠 Footwear & Heels" },
                 { id: "parlour", label: "💄 Parlour & Beauty" }
               ].map(cat => (
@@ -1141,7 +1373,22 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleReloadWholesaleInventory}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold cursor-pointer transition"
+                  title="Reload 159 items parsed from supplier wholesale bills"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Reload 159 Bill Items</span>
+                </button>
+                <button
+                  onClick={() => setShowDbModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition"
+                >
+                  <Database className="w-3.5 h-3.5 text-stone-700" />
+                  <span>Cloud DB</span>
+                </button>
                 <button
                   onClick={() => setShowNewProductModal(true)}
                   className="flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold shadow-xs hover:bg-stone-900 cursor-pointer transition"
@@ -1177,6 +1424,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                       <td className="px-4 py-3 font-semibold text-stone-900">{p.name}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          p.category === "sarees" ? "bg-indigo-100 text-indigo-900" :
                           p.category === "lehengas" ? "bg-rose-100 text-rose-800" :
                           p.category === "kurtis" ? "bg-amber-100 text-amber-900" :
                           p.category === "jewellery" ? "bg-purple-100 text-purple-900" :
@@ -1201,16 +1449,26 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedProductForBarcode(p);
-                            setBarcodeStickerCount(4);
-                          }}
-                          className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1 ml-auto"
-                        >
-                          <Tag className="w-3 h-3 text-amber-700" />
-                          <span>Print Tags</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditProductPrice(p)}
+                            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
+                            title="Update price or add festival discount (Barcode automatically updates!)"
+                          >
+                            <Edit3 className="w-3 h-3 text-stone-600" />
+                            <span>Edit Rate / Offer</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedProductForBarcode(p);
+                              setBarcodeStickerCount(4);
+                            }}
+                            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Tag className="w-3 h-3 text-amber-700" />
+                            <span>Print Tags</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1523,21 +1781,31 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
             </div>
 
             {/* Action Buttons */}
-            <div className="p-4 bg-white flex items-center gap-3">
-              <button
-                onClick={handlePrintThermal}
-                className="flex-1 py-2.5 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Printer className="w-4 h-4 text-amber-400" />
-                <span>Print Thermal Slip</span>
-              </button>
+            <div className="p-4 bg-white flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrintThermal}
+                  className="flex-1 py-2.5 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4 text-amber-400" />
+                  <span>Print Slip</span>
+                </button>
+
+                <button
+                  onClick={() => window.open(`/invoice?id=${lastBill.billNo}`, "_blank")}
+                  className="flex-1 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4 text-amber-700" />
+                  <span>Download PDF</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => handleSendWhatsAppBill(lastBill)}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Share2 className="w-4 h-4" />
-                <span>WhatsApp Bill</span>
+                <span>Send PDF &amp; Bill on WhatsApp</span>
               </button>
             </div>
           </div>
@@ -1611,69 +1879,13 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
       )}
 
       {/* =========================================================
-          MODAL: BARCODE STICKER LABEL GENERATOR
+          MODAL: LASER PRINTER BARCODE STICKER SHEET GENERATOR
           ========================================================= */}
       {selectedProductForBarcode && (
-        <div className="no-print fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-stone-900 font-serif text-base">Print Price &amp; Barcode Stickers</h3>
-              <button
-                onClick={() => setSelectedProductForBarcode(null)}
-                className="p-1 text-slate-400 hover:text-black cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 mb-3">
-              Standard 2x1 inch adhesive price tags for garments and jewellery.
-            </p>
-
-            {/* Sticker Preview Box */}
-            <div className="bg-amber-50/60 border-2 border-dashed border-amber-300 rounded-2xl p-4 text-center mb-4">
-              <span className="text-[10px] font-black uppercase text-stone-950 tracking-wider">RAJNANDNI ETHNIC STUDIO</span>
-              <p className="text-xs font-bold text-stone-900 mt-1 line-clamp-1">{selectedProductForBarcode.name}</p>
-              
-              {/* Barcode Mock Canvas */}
-              <div className="my-2 py-1 bg-white border border-slate-200 rounded flex flex-col items-center">
-                <div className="h-8 w-44 bg-[repeating-linear-gradient(90deg,#000,#000_2px,transparent_2px,transparent_4px)]" />
-                <span className="font-mono text-[10px] tracking-widest text-slate-700 mt-0.5">
-                  *{selectedProductForBarcode.barcode}*
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-xs px-2 pt-1 font-bold">
-                <span className="text-slate-600">Size: {selectedProductForBarcode.sizes?.[0] || "Std"}</span>
-                <span className="text-stone-950 text-sm">MRP: ₹{selectedProductForBarcode.mrp}</span>
-              </div>
-            </div>
-
-            {/* Print Quantity */}
-            <div className="flex items-center justify-between text-xs mb-4">
-              <span className="font-semibold text-slate-700">Number of stickers:</span>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                value={barcodeStickerCount}
-                onChange={e => setBarcodeStickerCount(Number(e.target.value))}
-                className="w-20 px-2 py-1 border border-slate-300 rounded text-center font-bold"
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                alert(`Printing ${barcodeStickerCount} barcode labels for ${selectedProductForBarcode.name}`);
-                setSelectedProductForBarcode(null);
-              }}
-              className="w-full py-2.5 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <Printer className="w-4 h-4 text-amber-400" />
-              <span>Print {barcodeStickerCount} Label Stickers</span>
-            </button>
-          </div>
-        </div>
+        <BarcodeSheetModal
+          product={selectedProductForBarcode}
+          onClose={() => setSelectedProductForBarcode(null)}
+        />
       )}
 
       {/* =========================================================
@@ -1712,6 +1924,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                     onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value as any })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
                   >
+                    <option value="sarees">🥻 Sarees (Surat / Prints)</option>
                     <option value="lehengas">👗 Lehengas &amp; Gowns</option>
                     <option value="kurtis">👚 Kurtis &amp; Suits</option>
                     <option value="jewellery">💍 Jewellery &amp; Sets</option>
@@ -1797,6 +2010,313 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                 className="px-5 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition"
               >
                 Save Product
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: SUPABASE CLOUD DATABASE & LIVE BACKUP
+          ========================================================= */}
+      {showDbModal && (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-stone-950 text-base font-serif">Cloud Database &amp; Multi-Device Sync</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      supabaseConnected ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+                    }`}>
+                      {supabaseConnected ? "● Connected (Live Sync)" : "● Offline Local Mode"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Powered by PostgreSQL (Supabase) for cloud backups, phone billing, and multi-counter sync.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDbModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sync status info banner */}
+            <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${supabaseConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                <span className="font-semibold text-stone-800">
+                  {syncStatusText || (supabaseConnected ? "All data syncing to Supabase Cloud" : "Running on secure browser storage (159 items loaded)")}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-slate-500">{products.length} Products in Catalog</span>
+            </div>
+
+            {/* Quick Answer: Should I create a Supabase Project? */}
+            <div className="mt-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-2">
+              <div className="flex items-center gap-2 text-amber-950 font-bold">
+                <Cloud className="w-4 h-4 text-amber-700" />
+                <span>Supabase Setup Guide for Rajnandni Boutique</span>
+              </div>
+              <p className="text-slate-700 leading-relaxed">
+                <strong>Haan! Supabase me free project banana bilkul best hai.</strong> Isse shop owner laptop band hone par bhi phone ya kisi doosre computer se real-time stock, bills, aur Udhaar (Khata) check kar sakte hain.
+              </p>
+            </div>
+
+            {/* 3 Step Setup Guide */}
+            <div className="mt-4 space-y-3 text-xs">
+              <h4 className="font-bold text-stone-900 text-xs uppercase tracking-wider text-slate-400">
+                Easy 3-Step Setup Instructions:
+              </h4>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white">
+                <span className="w-5 h-5 rounded-full bg-stone-900 text-amber-300 flex items-center justify-center font-bold text-[11px] shrink-0">1</span>
+                <div>
+                  <p className="font-bold text-stone-900">Create Free Supabase Project</p>
+                  <p className="text-slate-500 text-[11px]">Go to <span className="font-mono text-amber-700">supabase.com</span>, sign in and click <strong>New Project</strong> (e.g. name it <code>rajnandni-pos</code>).</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white">
+                <span className="w-5 h-5 rounded-full bg-stone-900 text-amber-300 flex items-center justify-center font-bold text-[11px] shrink-0">2</span>
+                <div className="flex-1">
+                  <p className="font-bold text-stone-900">Run the Database Schema</p>
+                  <p className="text-slate-500 text-[11px]">In Supabase Dashboard, open <strong>SQL Editor</strong>, paste and run the provided file: <code className="font-mono text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded">supabase-schema.sql</code>.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white">
+                <span className="w-5 h-5 rounded-full bg-stone-900 text-amber-300 flex items-center justify-center font-bold text-[11px] shrink-0">3</span>
+                <div className="flex-1">
+                  <p className="font-bold text-stone-900">Add Keys to .env.local</p>
+                  <p className="text-slate-500 text-[11px]">Under Project Settings → API, copy your Project URL &amp; Anon Key into your <code className="bg-slate-100 px-1 py-0.5 rounded">.env.local</code> file:</p>
+                  <pre className="mt-1.5 p-2 bg-stone-900 text-amber-200 rounded-lg font-mono text-[10px] overflow-x-auto">
+{`NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleReloadWholesaleInventory}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-stone-800 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-stone-600" />
+                  <span>Reset 159 Bill Items</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePushToSupabase}
+                  disabled={isSyncing}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>{isSyncing ? "Syncing..." : "Push 159 Items to Supabase"}</span>
+                </button>
+                <button
+                  onClick={() => setShowDbModal(false)}
+                  className="px-4 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 rounded-xl text-xs font-bold cursor-pointer transition"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: EDIT PRODUCT PRICE & FESTIVAL OFFER
+          ========================================================= */}
+      {editingPriceProduct && (
+        <div className="no-print fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-stone-950 text-base font-serif flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-amber-600" />
+                  <span>Update Price &amp; Festival Offer</span>
+                </h3>
+                <p className="text-xs font-semibold text-stone-900 mt-1 line-clamp-1">
+                  {editingPriceProduct.name}
+                </p>
+                <p className="text-[11px] font-mono text-slate-500">
+                  Barcode: <strong className="text-stone-900">{editingPriceProduct.barcode}</strong> · SKU: {editingPriceProduct.sku}
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingPriceProduct(null)}
+                className="p-1 text-slate-400 hover:text-stone-900 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Explanation box answering user's question directly */}
+            <div className="my-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
+              <p className="font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                Physical Barcode Tag Reprint Karne Ki Zaroorat Nahi Hai!
+              </p>
+              <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                Aap kapde par jo barcode sticker laga chuke hain, usme sirf code (<strong>{editingPriceProduct.barcode}</strong>) scan hota hai. Naya price save karte hi scanner gun counter par automatically naye rate par bill karegi!
+              </p>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-3 text-xs">
+              {/* Cost vs Selling */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Wholesale Cost Price</span>
+                  <span className="text-sm font-bold text-stone-900">₹{editingPriceProduct.purchaseCost || 0}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Current Selling Rate</span>
+                  <span className="text-sm font-bold text-amber-700">₹{editingPriceProduct.price.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+
+              {/* Quick Offer Buttons */}
+              <div>
+                <span className="font-semibold text-slate-700 block mb-1.5">Quick Festival Offer Preset:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const disc = Math.round(editingPriceProduct.price * 0.90);
+                      setNewSellingPrice(disc);
+                      setNewOfferBadge("Festival 10% Off");
+                    }}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-bold text-[11px] cursor-pointer"
+                  >
+                    🎉 10% Off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const disc = Math.round(editingPriceProduct.price * 0.85);
+                      setNewSellingPrice(disc);
+                      setNewOfferBadge("Special 15% Off");
+                    }}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-bold text-[11px] cursor-pointer"
+                  >
+                    🔥 15% Off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const disc = Math.max(editingPriceProduct.purchaseCost || 0, editingPriceProduct.price - 200);
+                      setNewSellingPrice(disc);
+                      setNewOfferBadge("Flat ₹200 Off");
+                    }}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-bold text-[11px] cursor-pointer"
+                  >
+                    🏷️ Flat ₹200 Off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewSellingPrice(editingPriceProduct.price);
+                      setNewOfferBadge("");
+                    }}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-stone-700 rounded-lg font-bold text-[11px] cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Price & MRP Inputs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="font-semibold text-slate-700">New Selling Rate (₹) *</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newSellingPrice}
+                    onChange={e => setNewSellingPrice(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl mt-1 text-sm font-bold text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-700">Printed MRP (₹)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newMrpPrice}
+                    onChange={e => setNewMrpPrice(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl mt-1 text-sm font-bold text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Offer Badge & Stock */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="font-semibold text-slate-700">Festival Badge / Tag</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Karva Chauth Special"
+                    value={newOfferBadge}
+                    onChange={e => setNewOfferBadge(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl mt-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-700">Stock Qty (Pieces)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newStockQty}
+                    onChange={e => setNewStockQty(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl mt-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Live Profit Margin Calculation */}
+              {editingPriceProduct.purchaseCost > 0 && (
+                <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-[11px] flex justify-between items-center font-bold">
+                  <span className="text-amber-950">New Profit per Piece:</span>
+                  <span className={newSellingPrice - editingPriceProduct.purchaseCost < 0 ? "text-rose-600" : "text-emerald-700"}>
+                    ₹{(newSellingPrice - editingPriceProduct.purchaseCost).toLocaleString("en-IN")} ({Math.round(((newSellingPrice - editingPriceProduct.purchaseCost) / editingPriceProduct.purchaseCost) * 100)}% Margin)
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditingPriceProduct(null)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProductPriceChange}
+                className="px-5 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition shadow-xs"
+              >
+                Save &amp; Update Barcode Rate
               </button>
             </div>
           </div>
