@@ -682,7 +682,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       {/* =========================================================
           TOP LUXURY OBSIDIAN & CHAMPAGNE GOLD HEADER
           ========================================================= */}
-      <header className="no-print bg-stone-950 text-white shadow-lg border-b border-amber-500/20 px-6 py-3 flex items-center justify-between">
+      {/* MAIN SCREEN INTERACTIVE UI (HIDDEN DURING PRINTING) */}
+      <div className="no-print flex-1 flex flex-col">
+        <header className="bg-stone-950 text-white shadow-lg border-b border-amber-500/20 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-950 shadow-md shadow-amber-500/20">
             <Sparkles className="w-5 h-5 text-stone-950 font-bold" />
@@ -1814,6 +1816,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           </div>
         </div>
       )}
+      </div>
 
       {/* =========================================================
           PRINT ONLY AREA: THERMAL RECEIPT ROLL (58mm / 80mm)

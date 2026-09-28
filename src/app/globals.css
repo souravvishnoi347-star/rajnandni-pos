@@ -8,20 +8,23 @@
   }
 }
 
-/* Custom Print Optimization for 58mm / 80mm Thermal Receipt Printers */
+/* Custom Print Optimization for Barcodes & Thermal Receipts */
 @media print {
-  body * {
-    visibility: hidden;
+  /* Completely eliminate all screen UI so it generates ZERO phantom pages */
+  .no-print,
+  .no-print * {
+    display: none !important;
   }
-  
-  #thermal-receipt-area, #thermal-receipt-area * {
-    visibility: visible;
+
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   #thermal-receipt-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+    display: block !important;
+    position: static !important;
     width: 80mm;
     margin: 0;
     padding: 2mm 3mm;
@@ -32,22 +35,13 @@
     line-height: 1.25;
   }
 
-  #barcode-sheet-area, #barcode-sheet-area * {
-    visibility: visible;
-  }
-
-  #barcode-sheet-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+  #barcode-print-sheet {
+    display: block !important;
+    position: static !important;
     width: 100%;
     margin: 0;
-    padding: 5mm;
-  }
-
-  /* Hide background elements, scrollbars, headers */
-  nav, header, aside, .no-print {
-    display: none !important;
+    padding: 0;
+    background: #ffffff;
   }
 }
 
