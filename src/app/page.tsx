@@ -639,42 +639,89 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  // Add Product Form Handler
-  const handleCreateProduct = () => {
-    if (!newProductForm.name?.trim()) return;
+  // Helper: Generate next sequential SKU & Barcode per category
+  const getNextCodesForCategory = (cat: string, currentList: ProductItem[] = products) => {
+    const prefixMap: Record<string, { skuPrefix: string; barcodeBase: number; defaultSizes: string[] }> = {
+      handbags: { skuPrefix: "RJ-BAG", barcodeBase: 8906000, defaultSizes: ["Standard", "Party Clutch", "Sling Bag"] },
+      sarees: { skuPrefix: "RJ-SAR", barcodeBase: 8901000, defaultSizes: ["Free Size (5.5m + Blouse)"] },
+      kurtis: { skuPrefix: "RJ-KRT", barcodeBase: 8902000, defaultSizes: ["M", "L", "XL", "XXL"] },
+      lehengas: { skuPrefix: "RJ-LHG", barcodeBase: 8903000, defaultSizes: ["Free Size (Semi-Stitched)"] },
+      jewellery: { skuPrefix: "RJ-JWL", barcodeBase: 8904000, defaultSizes: ["Standard Set"] },
+      footwear: { skuPrefix: "RJ-FTW", barcodeBase: 8905000, defaultSizes: ["37", "38", "39", "40"] },
+      parlour: { skuPrefix: "RJ-SRV", barcodeBase: 8909000, defaultSizes: ["Standard"] },
+    };
 
+    const cfg = prefixMap[cat] || prefixMap.handbags;
+    const catItems = currentList.filter(p => p.category === cat || p.sku.startsWith(cfg.skuPrefix));
+    const nextNum = catItems.length + 1;
+    const padded = String(nextNum).padStart(3, "0");
+
+    let candidateBarcode = String(cfg.barcodeBase + nextNum);
+    while (currentList.some(p => p.barcode === candidateBarcode)) {
+      candidateBarcode = String(Number(candidateBarcode) + 1);
+    }
+
+    return {
+      sku: `${cfg.skuPrefix}-${padded}`,
+      barcode: candidateBarcode,
+      defaultSizes: cfg.defaultSizes,
+    };
+  };
+
+  const openNewProductModal = (defaultCat: ProductItem["category"] = "handbags") => {
+    const nextCodes = getNextCodesForCategory(defaultCat, products);
+    setNewProductForm({
+      name: "",
+      category: defaultCat,
+      price: 999,
+      mrp: 1299,
+      purchaseCost: 650,
+      stock: 5,
+      sku: nextCodes.sku,
+      barcode: nextCodes.barcode,
+      sizes: nextCodes.defaultSizes,
+    });
+    setShowNewProductModal(true);
+  };
+
+  // Add Product Form Handler
+  const handleCreateProduct = async () => {
+    if (!newProductForm.name?.trim()) {
+      alert("Please enter Product Name (e.g. Bridal Golden Clutch or Designer Sling Bag)");
+      return;
+    }
+
+    const cat = (newProductForm.category as ProductItem["category"]) || "handbags";
+    const autoCodes = getNextCodesForCategory(cat, products);
     const newId = `prod-${Date.now()}`;
-    const generatedSku = newProductForm.sku?.trim() || `RJ-${newProductForm.name.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
-    const generatedBarcode = newProductForm.barcode?.trim() || `${Math.floor(8900000 + Math.random() * 99999)}`;
+    const generatedSku = newProductForm.sku?.trim() || autoCodes.sku;
+    const generatedBarcode = newProductForm.barcode?.trim() || autoCodes.barcode;
 
     const prod: ProductItem = {
       id: newId,
       name: newProductForm.name.trim(),
-      category: newProductForm.category as any || "kurtis",
+      category: cat,
       price: Number(newProductForm.price) || 0,
       mrp: Number(newProductForm.mrp) || Number(newProductForm.price) || 0,
       purchaseCost: Number(newProductForm.purchaseCost) || 0,
       stock: Number(newProductForm.stock) || 1,
       sku: generatedSku,
       barcode: generatedBarcode,
-      sizes: newProductForm.sizes || ["Standard"],
-      isService: newProductForm.category === "parlour"
+      sizes: newProductForm.sizes && newProductForm.sizes.length > 0 ? newProductForm.sizes : autoCodes.defaultSizes,
+      isService: cat === "parlour"
     };
 
     const nextList = [prod, ...products];
     saveProductsLocally(nextList);
+
+    // Also sync to Supabase Cloud so new items stay permanently saved
+    if (isSupabaseConfigured()) {
+      SupabaseService.syncInitialProducts([prod]).catch(err => {
+        console.warn("Supabase new item sync notice:", err);
+      });
+    }
+
     setShowNewProductModal(false);
-    setNewProductForm({
-      name: "",
-      category: "kurtis",
-      price: 1500,
-      mrp: 1999,
-      purchaseCost: 800,
-      stock: 10,
-      sku: "",
-      barcode: "",
-      sizes: ["M", "L", "XL"]
-    });
   };
 
   return (
@@ -813,7 +860,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               {/* Quick Add Product Button */}
               <button
-                onClick={() => setShowNewProductModal(true)}
+                onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
                 className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4 text-amber-400" />
@@ -828,6 +875,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 { id: "sarees", label: "🥻 Sarees (Surat & Prints)" },
                 { id: "lehengas", label: "👗 Lehengas & Gowns" },
                 { id: "kurtis", label: "👚 Kurtis & Suits" },
+                { id: "handbags", label: "👜 Handbags & Purses" },
                 { id: "jewellery", label: "💍 Jewellery & Blouse Pcs" },
                 { id: "footwear", label: "👠 Footwear & Heels" },
                 { id: "parlour", label: "✂️ Tailoring & Fitting" }
@@ -1394,7 +1442,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <span>Cloud DB</span>
                 </button>
                 <button
-                  onClick={() => setShowNewProductModal(true)}
+                  onClick={() => openNewProductModal("handbags")}
                   className="flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold shadow-xs hover:bg-stone-900 cursor-pointer transition"
                 >
                   <Plus className="w-4 h-4 text-amber-400" />
@@ -1431,6 +1479,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           p.category === "sarees" ? "bg-indigo-100 text-indigo-900" :
                           p.category === "lehengas" ? "bg-rose-100 text-rose-800" :
                           p.category === "kurtis" ? "bg-amber-100 text-amber-900" :
+                          p.category === "handbags" ? "bg-teal-100 text-teal-900" :
                           p.category === "jewellery" ? "bg-purple-100 text-purple-900" :
                           p.category === "footwear" ? "bg-emerald-100 text-emerald-900" :
                           "bg-pink-100 text-pink-900"
@@ -1901,7 +1950,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         <div className="no-print fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-stone-900 font-serif text-lg">Add New Product / Garment</h3>
+              <div>
+                <h3 className="font-bold text-stone-900 font-serif text-lg">Add New Product / Handbag / Garment</h3>
+                <p className="text-[11px] text-slate-500">
+                  SKU aur Barcode apne aap generate ho jayenge — aap seedha Save &amp; Print Tag kar sakte hain!
+                </p>
+              </div>
               <button
                 onClick={() => setShowNewProductModal(false)}
                 className="p-1 text-slate-400 hover:text-black cursor-pointer"
@@ -1912,13 +1966,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="font-semibold text-slate-700">Product Title</span>
+                <span className="font-semibold text-slate-700">Product Title / Item Name *</span>
                 <input
                   type="text"
-                  placeholder="e.g. Georgette Sharara Suit or Dola Silk Saree"
+                  placeholder="e.g. Bridal Golden Clutch, Leather Sling Handbag, or Dola Silk Saree"
                   value={newProductForm.name}
                   onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs font-semibold focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
@@ -1927,32 +1981,72 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <span className="font-semibold text-slate-700">Category</span>
                   <select
                     value={newProductForm.category}
-                    onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                    onChange={e => {
+                      const nextCat = e.target.value as ProductItem["category"];
+                      const nextCodes = getNextCodesForCategory(nextCat, products);
+                      setNewProductForm({
+                        ...newProductForm,
+                        category: nextCat,
+                        sku: nextCodes.sku,
+                        barcode: nextCodes.barcode,
+                        sizes: nextCodes.defaultSizes,
+                      });
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs font-bold focus:ring-1 focus:ring-amber-500"
                   >
-                    <option value="sarees">🥻 Sarees (Surat / Prints)</option>
-                    <option value="lehengas">👗 Lehengas &amp; Gowns</option>
-                    <option value="kurtis">👚 Kurtis &amp; Suits</option>
-                    <option value="jewellery">💍 Jewellery &amp; Sets</option>
-                    <option value="footwear">👠 Footwear &amp; Heels</option>
-                    <option value="parlour">✂️ Tailoring &amp; Services</option>
+                    <option value="handbags">👜 Handbags &amp; Purses (RJ-BAG)</option>
+                    <option value="sarees">🥻 Sarees (RJ-SAR)</option>
+                    <option value="lehengas">👗 Lehengas &amp; Gowns (RJ-LHG)</option>
+                    <option value="kurtis">👚 Kurtis &amp; Suits (RJ-KRT)</option>
+                    <option value="jewellery">💍 Jewellery &amp; Sets (RJ-JWL)</option>
+                    <option value="footwear">👠 Footwear &amp; Heels (RJ-FTW)</option>
+                    <option value="parlour">✂️ Tailoring &amp; Services (RJ-SRV)</option>
                   </select>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-700">Stock Quantity</span>
+                  <span className="font-semibold text-slate-700">Stock Quantity (Pcs)</span>
                   <input
                     type="number"
                     value={newProductForm.stock}
                     onChange={e => setNewProductForm({ ...newProductForm, stock: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs font-bold focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <span className="font-semibold text-slate-700">Selling Price (₹)</span>
+                  <span className="font-semibold text-slate-700">Cost Price (₹)</span>
+                  <input
+                    type="number"
+                    value={newProductForm.purchaseCost}
+                    onChange={e => {
+                      const cost = Number(e.target.value);
+                      setNewProductForm({
+                        ...newProductForm,
+                        purchaseCost: cost,
+                      });
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cost = Number(newProductForm.purchaseCost) || 0;
+                      if (cost > 0) {
+                        const sell = Math.round(cost * 1.5);
+                        const mrp = Math.round(sell * 1.25);
+                        setNewProductForm({ ...newProductForm, price: sell, mrp });
+                      }
+                    }}
+                    className="mt-1 text-[10px] text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded font-bold cursor-pointer"
+                  >
+                    ⚡ Auto +50% Rate
+                  </button>
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-700">Selling Price (₹) *</span>
                   <input
                     type="number"
                     value={newProductForm.price}
@@ -1969,42 +2063,52 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
                 <div>
-                  <span className="font-semibold text-slate-700">Cost Price (₹)</span>
+                  <span className="font-bold text-emerald-950">SKU Code (Auto-Filled)</span>
                   <input
-                    type="number"
-                    value={newProductForm.purchaseCost}
-                    onChange={e => setNewProductForm({ ...newProductForm, purchaseCost: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                    type="text"
+                    placeholder="e.g. RJ-BAG-001"
+                    value={newProductForm.sku}
+                    onChange={e => setNewProductForm({ ...newProductForm, sku: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl mt-1 text-xs font-mono font-bold text-stone-950 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <span className="font-bold text-emerald-950">Barcode Number (Auto-Filled)</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 8906001"
+                    value={newProductForm.barcode}
+                    onChange={e => setNewProductForm({ ...newProductForm, barcode: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl mt-1 text-xs font-mono font-bold text-stone-950 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className="font-semibold text-slate-700">SKU Code (Auto if blank)</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. RJ-LHG-09"
-                    value={newProductForm.sku}
-                    onChange={e => setNewProductForm({ ...newProductForm, sku: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-700">Barcode Number</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. 8905001"
-                    value={newProductForm.barcode}
-                    onChange={e => setNewProductForm({ ...newProductForm, barcode: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
+              <div>
+                <span className="font-semibold text-slate-700">Sizes / Variants (Comma separated)</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Standard, Party Clutch, Sling Bag"
+                  value={(newProductForm.sizes || []).join(", ")}
+                  onChange={e =>
+                    setNewProductForm({
+                      ...newProductForm,
+                      sizes: e.target.value
+                        .split(",")
+                        .map(s => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
+                />
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-3">
+            <div className="mt-5 flex items-center justify-end gap-2.5">
               <button
                 onClick={() => setShowNewProductModal(false)}
                 className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
@@ -2013,9 +2117,43 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               </button>
               <button
                 onClick={handleCreateProduct}
-                className="px-5 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition"
+                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-900 rounded-xl text-xs font-bold cursor-pointer transition"
               >
-                Save Product
+                Save Only
+              </button>
+              <button
+                onClick={async () => {
+                  if (!newProductForm.name?.trim()) {
+                    alert("Please enter Product Name first!");
+                    return;
+                  }
+                  const cat = (newProductForm.category as ProductItem["category"]) || "handbags";
+                  const autoCodes = getNextCodesForCategory(cat, products);
+                  const prod: ProductItem = {
+                    id: `prod-${Date.now()}`,
+                    name: newProductForm.name.trim(),
+                    category: cat,
+                    price: Number(newProductForm.price) || 0,
+                    mrp: Number(newProductForm.mrp) || Number(newProductForm.price) || 0,
+                    purchaseCost: Number(newProductForm.purchaseCost) || 0,
+                    stock: Number(newProductForm.stock) || 1,
+                    sku: newProductForm.sku?.trim() || autoCodes.sku,
+                    barcode: newProductForm.barcode?.trim() || autoCodes.barcode,
+                    sizes: newProductForm.sizes && newProductForm.sizes.length > 0 ? newProductForm.sizes : autoCodes.defaultSizes,
+                    isService: cat === "parlour",
+                  };
+                  const nextList = [prod, ...products];
+                  saveProductsLocally(nextList);
+                  if (isSupabaseConfigured()) {
+                    SupabaseService.syncInitialProducts([prod]).catch(() => {});
+                  }
+                  setShowNewProductModal(false);
+                  setSelectedProductForBarcode(prod);
+                }}
+                className="px-4 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5"
+              >
+                <Tag className="w-3.5 h-3.5 text-amber-400" />
+                <span>Save &amp; Print Barcode Tag</span>
               </button>
             </div>
           </div>
