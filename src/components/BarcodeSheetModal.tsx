@@ -81,7 +81,8 @@ function BarcodeTagItem({
   const getDimensionStyle = (): React.CSSProperties => {
     switch (preset) {
       case "tvs-50x38-2up":
-        return { width: "48.5mm", height: "35.5mm", padding: "1.5mm 1mm 1mm 1mm", fontSize: "8px" };
+        // Full 38mm height, NO overflow hidden — let printer clip naturally at edges
+        return { width: "48.5mm", height: "38mm", padding: "0", fontSize: "8px" };
       case "tvs-50x25-2up":
         return { width: "48.5mm", height: "23mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "tvs-75x50-1up":
@@ -106,6 +107,144 @@ function BarcodeTagItem({
     return {};
   };
 
+  // For tvs-50x38-2up, use fixed mm heights for each section to prevent clipping
+  const isTvs50x38 = preset === "tvs-50x38-2up";
+
+  if (isTvs50x38) {
+    // Total sticker = 38mm. Layout:
+    // Top safe margin: 1mm
+    // Brand header: 7mm  (RAJNANDNI + Darshan Enterprises)
+    // Product info: 5mm  (name + SKU)
+    // Barcode:     17mm  (barcode SVG)
+    // Price footer: 6mm  (MRP + Price)
+    // Bottom safe margin: 2mm
+    // Total = 1+7+5+17+6+2 = 38mm
+    return (
+      <div
+        className="border border-dashed border-stone-300 print:border-none bg-white break-inside-avoid print:rounded-none select-none"
+        style={{
+          boxSizing: "border-box",
+          width: "48.5mm",
+          height: "38mm",
+          padding: "0",
+          margin: "0",
+          position: "relative",
+        }}
+      >
+        <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", ...getRotationStyle() }}>
+          {/* Top safe margin */}
+          <div style={{ height: "1mm", flexShrink: 0 }} />
+
+          {/* Brand & Store Header — fixed 7mm */}
+          {showShopName ? (
+            <div style={{
+              height: "7mm",
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              borderBottom: "0.5px solid #000",
+              padding: "0 1mm",
+              boxSizing: "border-box",
+            }}>
+              <span style={{
+                fontFamily: "'Arial Black', Arial, sans-serif",
+                fontWeight: 900,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontSize: "9.5px",
+                lineHeight: 1.1,
+                color: "#000",
+                display: "block",
+                textAlign: "center",
+              }}>
+                RAJNANDNI
+              </span>
+              <span style={{
+                fontSize: "6.5px",
+                fontWeight: 700,
+                color: "#000",
+                lineHeight: 1,
+                display: "block",
+                textAlign: "center",
+              }}>
+                Darshan Enterprises · Haridwar
+              </span>
+            </div>
+          ) : (
+            <div style={{ height: "0mm", flexShrink: 0 }} />
+          )}
+
+          {/* Item Details — fixed 5mm */}
+          <div style={{
+            height: "5mm",
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "0 1mm",
+            boxSizing: "border-box",
+          }}>
+            <p style={{ fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "7.5px", color: "#000", lineHeight: 1.15 }}>
+              {product.name}
+            </p>
+            <p style={{ fontFamily: "monospace", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "6.5px", color: "#222", lineHeight: 1.15 }}>
+              SKU: {product.sku} {showSize && `· ${product.sizes?.[0] || "Std"}`}
+            </p>
+          </div>
+
+          {/* Barcode Graphic — fixed 17mm */}
+          <div style={{
+            height: "17mm",
+            flexShrink: 0,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "0 1mm",
+            boxSizing: "border-box",
+            overflow: "hidden",
+          }}>
+            <svg ref={svgRef} style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }} />
+          </div>
+
+          {/* Price & MRP Footer — fixed 6mm */}
+          <div style={{
+            height: "6mm",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderTop: "0.5px solid #000",
+            padding: "0 1mm",
+            boxSizing: "border-box",
+          }}>
+            {showMrp && (
+              <span style={{ textDecoration: "line-through", fontSize: "6.5px", color: "#333" }}>
+                MRP: ₹{product.mrp}
+              </span>
+            )}
+            {showPrice && (
+              <span style={{
+                fontFamily: "'Arial Black', Arial, sans-serif",
+                fontWeight: 900,
+                marginLeft: "auto",
+                fontSize: "10px",
+                color: "#000",
+              }}>
+                ₹{product.price.toLocaleString("en-IN")}
+              </span>
+            )}
+          </div>
+
+          {/* Bottom safe margin */}
+          <div style={{ height: "2mm", flexShrink: 0 }} />
+        </div>
+      </div>
+    );
+  }
+
+  // For all other presets — original flex layout
   return (
     <div
       className="border border-dashed border-stone-300 print:border-none bg-white flex flex-col justify-between items-center text-center overflow-hidden break-inside-avoid print:rounded-none select-none"
