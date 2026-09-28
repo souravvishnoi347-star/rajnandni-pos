@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Rajnandni | Ethnic Studio, Bridal & Beauty Parlour POS",
-  description: "Complete Billing, Inventory & Parlour Management Software for Rajnandni Female Ethnic Wear & Bridal Studio",
+  title: "Rajnandni | Darshan Enterprises - POS & Retail Billing",
+  description: "Retail Billing, Inventory & Barcode Software for Rajnandni (Darshan Enterprises, Haridwar)",
 };
 
 export default function RootLayout({

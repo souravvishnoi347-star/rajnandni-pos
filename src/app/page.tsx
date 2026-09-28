@@ -323,7 +323,7 @@ export default function RajnandniPosPage() {
     if (grandTotal > 0) {
       // Standard UPI Payment URI: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR
       // Using shop UPI handle
-      const upiString = `upi://pay?pa=9897000000@upi&pn=Rajnandni+Boutique&am=${grandTotal}&cu=INR&tn=Bill+Payment`;
+      const upiString = `upi://pay?pa=9897000000@upi&pn=Rajnandni&am=${grandTotal}&cu=INR&tn=Bill+Payment`;
       QRCode.toDataURL(upiString, { width: 180, margin: 1 }, (err, url) => {
         if (!err && url) setUpiQrUrl(url);
       });
@@ -596,8 +596,10 @@ export default function RajnandniPosPage() {
     const pdfUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invoice?id=${bill.billNo}`;
 
     const message = 
-`🌸 *RAJNANDNI ETHNIC & BEAUTY STUDIO* 🌸
-_Haridwar, Uttarakhand_
+`🌸 *RAJNANDNI* 🌸
+*Darshan Enterprises*
+Near PSC Petropump, Ranipur, Haridwar
+GSTIN: 05GNZPS9902M1ZR
 ------------------------------------
 *INVOICE / BILL DETAILS*
 📄 *Bill No:* ${bill.billNo}
@@ -614,7 +616,7 @@ Subtotal: ₹${bill.subtotal.toLocaleString("en-IN")}${hasDiscount ? `
 *Grand Total Paid:* ₹${bill.grandTotal.toLocaleString("en-IN")} (${bill.paymentMode.toUpperCase()})
 ${hasDiscount ? `🎉 *Aapki Kul Bachat (Total Savings):* ₹${savings.toLocaleString("en-IN")} ✨` : ""}
 ------------------------------------
-📄 *Download Official PDF Bill:*
+📄 *View & Download Official PDF Bill (Zudio Style):*
 ${pdfUrl}
 ------------------------------------
 ${bill.alteration ? `✂️ *ALTERATION DETAILS:*
@@ -623,7 +625,7 @@ Fitting: ${bill.alteration.fittingNotes}
 Tailor: ${bill.alteration.tailorName}
 Ready by: ${bill.alteration.readyDate}\n------------------------------------` : ""}
 💖 _Thank you for shopping with Rajnandni! Please visit again._
-_Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
+_Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`, "_blank");
@@ -633,7 +635,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
   const handleSendAlterationReadyWhatsApp = (alt: AlterationDetail, phone: string, name: string) => {
     const rawPhone = phone.replace(/[^0-9]/g, "");
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
-    const msg = `🌸 *RAJNANDNI BOUTIQUE - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap boutique aakar trial le sakte hain.\n\n📍 *Rajnandni Ethnic Studio, Haridwar*\n📞 Support: +91 98970 00000`;
+    const msg = `🌸 *RAJNANDNI - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap store aakar trial le sakte hain.\n\n📍 *Rajnandni (Darshan Enterprises)*\nNear PSC Petropump, Ranipur, Haridwar - 249401\n📞 Support: +91 98970 00000`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -687,15 +689,15 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-wider text-white uppercase font-serif">
+              <h1 className="text-xl font-black tracking-wider text-white uppercase font-serif">
                 Rajnandni
               </h1>
               <span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-                Boutique &amp; Parlour
+                Darshan Enterprises
               </span>
             </div>
             <p className="text-[11px] text-stone-400 font-medium">
-              Ethnic Studio · Bridal Lehengas · Jewellery · Footwear · Beauty Services
+              Near PSC Petropump, Ranipur, Haridwar - 249401 · GSTIN: 05GNZPS9902M1ZR
             </p>
           </div>
         </div>
@@ -820,13 +822,13 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
             {/* Category Filter Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
               {[
-                { id: "all", label: "✨ All Products & Services" },
+                { id: "all", label: "✨ All Products" },
                 { id: "sarees", label: "🥻 Sarees (Surat & Prints)" },
                 { id: "lehengas", label: "👗 Lehengas & Gowns" },
                 { id: "kurtis", label: "👚 Kurtis & Suits" },
                 { id: "jewellery", label: "💍 Jewellery & Blouse Pcs" },
                 { id: "footwear", label: "👠 Footwear & Heels" },
-                { id: "parlour", label: "💄 Parlour & Beauty" }
+                { id: "parlour", label: "✂️ Tailoring & Fitting" }
               ].map(cat => (
                 <button
                   key={cat.id}
@@ -955,7 +957,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                   <ShoppingBag className="w-12 h-12 text-slate-300 mb-2" />
                   <p className="text-xs font-semibold text-slate-700">Bill is empty</p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Scan product barcode or click on any dress, footwear or parlour service to add.
+                    Scan product barcode or click on any saree, suit or garment to add.
                   </p>
                 </div>
               ) : (
@@ -1369,7 +1371,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
               <div>
                 <h2 className="text-xl font-bold text-stone-900 font-serif">Product Inventory &amp; Barcode Management</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Manage all ~150 boutique products, sizes, prices, and generate clothing price tags with barcodes.
+                  Manage all ~160 retail products, sizes, prices, and generate clothing price tags with barcodes.
                 </p>
               </div>
 
@@ -1489,7 +1491,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
               <div>
                 <h2 className="text-xl font-bold text-stone-900 font-serif">Alteration &amp; Fitting Desk</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Track boutique alterations, tailor assignments, customer trials, and send automatic WhatsApp pickup alerts.
+                  Track alterations, tailor assignments, customer trials, and send automatic WhatsApp pickup alerts.
                 </p>
               </div>
             </div>
@@ -1715,9 +1717,10 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
             {/* Receipt Preview Box */}
             <div className="p-4 flex-1 overflow-y-auto font-mono text-xs text-gray-800 bg-gray-50 border-b border-gray-200">
               <div className="text-center pb-2 border-b border-gray-300">
-                <p className="font-bold text-sm">RAJNANDNI ETHNIC STUDIO</p>
-                <p className="text-[10px] text-gray-500">Lehengas · Jewellery · Footwear · Parlour</p>
-                <p className="text-[10px] text-gray-500">Haridwar, Uttarakhand</p>
+                <p className="font-bold text-sm">RAJNANDNI</p>
+                <p className="text-[10.5px] font-bold text-stone-700">Darshan Enterprises</p>
+                <p className="text-[9.5px] text-gray-500">Near PSC Petropump, Ranipur, Haridwar - 249401</p>
+                <p className="text-[9.5px] font-semibold text-gray-700">GSTIN: 05GNZPS9902M1ZR</p>
               </div>
 
               <div className="py-2 border-b border-gray-300 text-[11px] space-y-0.5">
@@ -1818,10 +1821,10 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
       {lastBill && (
         <div id="thermal-receipt-area" className="hidden print:block">
           <div style={{ textAlign: "center", marginBottom: "4px" }}>
-            <h2 style={{ fontSize: "14px", fontWeight: "bold", margin: 0 }}>RAJNANDNI</h2>
-            <p style={{ fontSize: "9px", margin: "1px 0" }}>Boutique · Jewellery · Footwear · Parlour</p>
-            <p style={{ fontSize: "9px", margin: "1px 0" }}>Haridwar, Uttarakhand</p>
-            <p style={{ fontSize: "9px", margin: "1px 0" }}>Ph: +91 98970 00000</p>
+            <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>RAJNANDNI</h2>
+            <p style={{ fontSize: "10px", fontWeight: "bold", margin: "1px 0" }}>Darshan Enterprises</p>
+            <p style={{ fontSize: "8.5px", margin: "1px 0" }}>Near PSC Petropump, Ranipur, Haridwar - 249401</p>
+            <p style={{ fontSize: "8.5px", fontWeight: "bold", margin: "1px 0" }}>GSTIN: 05GNZPS9902M1ZR · Ph: +91 98970 00000</p>
           </div>
           <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "3px 0", fontSize: "10px", margin: "4px 0" }}>
             <div>Bill No: {lastBill.billNo}</div>
@@ -1895,7 +1898,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
         <div className="no-print fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-stone-900 font-serif text-lg">Add New Boutique Product / Service</h3>
+              <h3 className="font-bold text-stone-900 font-serif text-lg">Add New Product / Garment</h3>
               <button
                 onClick={() => setShowNewProductModal(false)}
                 className="p-1 text-slate-400 hover:text-black cursor-pointer"
@@ -1906,10 +1909,10 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="font-semibold text-slate-700">Product / Service Title</span>
+                <span className="font-semibold text-slate-700">Product Title</span>
                 <input
                   type="text"
-                  placeholder="e.g. Georgette Sharara Suit or Bridal Facial"
+                  placeholder="e.g. Georgette Sharara Suit or Dola Silk Saree"
                   value={newProductForm.name}
                   onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs focus:ring-1 focus:ring-amber-500"
@@ -1929,7 +1932,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
                     <option value="kurtis">👚 Kurtis &amp; Suits</option>
                     <option value="jewellery">💍 Jewellery &amp; Sets</option>
                     <option value="footwear">👠 Footwear &amp; Heels</option>
-                    <option value="parlour">💄 Parlour &amp; Beauty</option>
+                    <option value="parlour">✂️ Tailoring &amp; Services</option>
                   </select>
                 </div>
 
@@ -2065,7 +2068,7 @@ _Bridal Lehengas · Suits · Jewellery · Footwear · Beauty Parlour_`;
             <div className="mt-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-2">
               <div className="flex items-center gap-2 text-amber-950 font-bold">
                 <Cloud className="w-4 h-4 text-amber-700" />
-                <span>Supabase Setup Guide for Rajnandni Boutique</span>
+                <span>Supabase Setup Guide for Rajnandni</span>
               </div>
               <p className="text-slate-700 leading-relaxed">
                 <strong>Haan! Supabase me free project banana bilkul best hai.</strong> Isse shop owner laptop band hone par bhi phone ya kisi doosre computer se real-time stock, bills, aur Udhaar (Khata) check kar sakte hain.

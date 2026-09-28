@@ -57,11 +57,11 @@ function SingleBarcodeLabel({
       {/* Shop Name */}
       {showShopName && (
         <div className="w-full border-b border-stone-200 print:border-black/30 pb-0.5 mb-0.5">
-          <span className="font-serif font-black text-[9px] tracking-wider uppercase text-stone-900 block leading-tight">
-            RAJNANDNI BOUTIQUE
+          <span className="font-serif font-black text-[10px] tracking-wider uppercase text-stone-900 block leading-tight">
+            RAJNANDNI
           </span>
-          <span className="text-[7px] text-stone-500 print:text-black tracking-tight block">
-            Haridwar · Fashion &amp; Parlour
+          <span className="text-[7.5px] text-stone-600 print:text-black tracking-tight block font-medium">
+            Darshan Enterprises · Haridwar
           </span>
         </div>
       )}
