@@ -114,27 +114,42 @@ export default function RajnandniPosPage() {
   // Barcode quick scan input
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Load local storage & sync on mount
+  // Helper to merge product lists without ever losing custom user-added items
+  const mergeProductLists = (primary: ProductItem[], secondary: ProductItem[]): ProductItem[] => {
+    const map = new Map<string, ProductItem>();
+    // Put primary items first (including newly added custom items at top)
+    for (const item of primary) {
+      if (item && item.sku) {
+        map.set(item.sku, item);
+      }
+    }
+    // Add any missing items from secondary
+    for (const item of secondary) {
+      if (item && item.sku && !map.has(item.sku)) {
+        map.set(item.sku, item);
+      }
+    }
+    return Array.from(map.values());
+  };
+
+  // Load local storage & sync on mount (100% Lossless Merge — Never overwrites user-added items)
   useEffect(() => {
     try {
-      const currentVer = localStorage.getItem("rajnandni_data_version");
-      const savedProds = localStorage.getItem("rajnandni_products");
+      const savedProdsRaw = localStorage.getItem("rajnandni_products");
+      const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
 
-      if (currentVer === INVENTORY_DATA_VERSION && savedProds) {
-        const parsed = JSON.parse(savedProds);
-        if (Array.isArray(parsed) && parsed.length > 50) {
-          setProducts(parsed);
-        } else {
-          setProducts(INITIAL_PRODUCTS);
-          localStorage.setItem("rajnandni_products", JSON.stringify(INITIAL_PRODUCTS));
-          localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
-        }
-      } else {
-        // Upgrade to real 159 wholesale bill inventory
-        setProducts(INITIAL_PRODUCTS);
-        localStorage.setItem("rajnandni_products", JSON.stringify(INITIAL_PRODUCTS));
-        localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
-      }
+      const savedProds: ProductItem[] = savedProdsRaw ? JSON.parse(savedProdsRaw) : [];
+      const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
+
+      // Always keep user's custom added items at the top + existing saved products + initial 159 products
+      const localMerged = mergeProductLists(
+        [...savedCustom, ...(Array.isArray(savedProds) ? savedProds : [])],
+        INITIAL_PRODUCTS
+      );
+
+      setProducts(localMerged);
+      localStorage.setItem("rajnandni_products", JSON.stringify(localMerged));
+      localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
 
       const savedBills = localStorage.getItem("rajnandni_bills");
       if (savedBills) setCompletedBills(JSON.parse(savedBills));
@@ -142,17 +157,32 @@ export default function RajnandniPosPage() {
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
 
-      // Check Supabase connection
+      // Check Supabase connection & merge (NEVER overwrite local items!)
       if (isSupabaseConfigured()) {
         setSupabaseConnected(true);
         SupabaseService.fetchProducts().then((remoteProds) => {
           if (remoteProds && remoteProds.length > 0) {
-            setProducts(remoteProds);
-            localStorage.setItem("rajnandni_products", JSON.stringify(remoteProds));
-            setSyncStatusText("Synced with Supabase Cloud");
+            // Read latest localStorage in case user added items while fetch was running
+            const latestLocalRaw = localStorage.getItem("rajnandni_products");
+            const latestCustomRaw = localStorage.getItem("rajnandni_custom_items");
+            const latestLocal: ProductItem[] = latestLocalRaw ? JSON.parse(latestLocalRaw) : localMerged;
+            const latestCustom: ProductItem[] = latestCustomRaw ? JSON.parse(latestCustomRaw) : savedCustom;
+
+            // Keep all custom/local items + merge remote items
+            const finalMerged = mergeProductLists([...latestCustom, ...latestLocal], remoteProds);
+            setProducts(finalMerged);
+            localStorage.setItem("rajnandni_products", JSON.stringify(finalMerged));
+
+            // Push any local items that are missing in Supabase up to the cloud automatically
+            const remoteSkus = new Set(remoteProds.map(r => r.sku));
+            const unsyncedLocal = finalMerged.filter(p => !remoteSkus.has(p.sku));
+            if (unsyncedLocal.length > 0) {
+              SupabaseService.syncInitialProducts(unsyncedLocal).catch(() => {});
+            }
+            setSyncStatusText(`Synced (${finalMerged.length} items safe)`);
           } else {
-            SupabaseService.syncInitialProducts(INITIAL_PRODUCTS).then(() => {
-              setSyncStatusText("Pushed 159 products to Supabase");
+            SupabaseService.syncInitialProducts(localMerged).then(() => {
+              setSyncStatusText(`Pushed ${localMerged.length} products to Supabase`);
             });
           }
         }).catch((err) => {
@@ -164,15 +194,18 @@ export default function RajnandniPosPage() {
     }
   }, []);
 
-  // Force re-load 159 products from purchase bills
+  // Force re-load 159 products from purchase bills (while preserving custom user-added items!)
   const handleReloadWholesaleInventory = () => {
-    if (confirm("Reset inventory to the 159 wholesale items parsed from supplier bills?")) {
-      saveProductsLocally(INITIAL_PRODUCTS);
+    if (confirm("Refresh the 159 supplier bill items? (Your custom added items like Handbags will remain safe!)")) {
+      const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
+      const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
+      const merged = mergeProductLists(savedCustom, INITIAL_PRODUCTS);
+      saveProductsLocally(merged);
       localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
       if (isSupabaseConfigured()) {
-        SupabaseService.syncInitialProducts(INITIAL_PRODUCTS);
+        SupabaseService.syncInitialProducts(merged);
       }
-      alert("✅ Inventory successfully refreshed with 159 bill products!");
+      alert(`✅ Inventory refreshed! All ${merged.length} items (including your custom items) are safe.`);
     }
   };
 
@@ -199,10 +232,13 @@ export default function RajnandniPosPage() {
     }
   };
 
-  // Save changes
+  // Save changes (saves both full catalog AND dedicated custom items backup so nothing is ever lost)
   const saveProductsLocally = (items: ProductItem[]) => {
     setProducts(items);
     localStorage.setItem("rajnandni_products", JSON.stringify(items));
+    const initialSkus = new Set(INITIAL_PRODUCTS.map(ip => ip.sku));
+    const customOnly = items.filter(p => !initialSkus.has(p.sku));
+    localStorage.setItem("rajnandni_custom_items", JSON.stringify(customOnly));
   };
 
   const saveBillsLocally = (bills: CompletedBill[]) => {
