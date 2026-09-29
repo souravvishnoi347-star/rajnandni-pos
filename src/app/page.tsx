@@ -34,7 +34,11 @@ import {
   Database,
   Cloud,
   FileText,
-  Check
+  Check,
+  Lock,
+  Eye,
+  EyeOff,
+  LogOut
 } from "lucide-react";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
@@ -42,8 +46,17 @@ import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
 import BarcodeSheetModal from "@/components/BarcodeSheetModal";
 
 const INVENTORY_DATA_VERSION = "rajnandni_inventory_v3_wholesale_bills";
+const POS_ACCESS_PASSWORD = "Indu@123";
+const POS_AUTH_STORAGE_KEY = "rajnandni_pos_auth_v1";
 
 export default function RajnandniPosPage() {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string>("");
+
   // Navigation
   const [activeTab, setActiveTab] = useState<"pos" | "inventory" | "alterations" | "reports">("pos");
   
@@ -135,6 +148,12 @@ export default function RajnandniPosPage() {
   // Load local storage & sync on mount (100% Lossless Merge — Never overwrites user-added items)
   useEffect(() => {
     try {
+      const savedAuth = localStorage.getItem(POS_AUTH_STORAGE_KEY);
+      if (savedAuth === "authenticated_indu123") {
+        setIsAuthenticated(true);
+      }
+      setAuthChecked(true);
+
       const savedProdsRaw = localStorage.getItem("rajnandni_products");
       const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
 
@@ -191,8 +210,29 @@ export default function RajnandniPosPage() {
       }
     } catch (e) {
       console.warn("Local storage parse notice:", e);
+      setAuthChecked(true);
     }
   }, []);
+
+  // Login & Lock Handlers
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput.trim() === POS_ACCESS_PASSWORD) {
+      localStorage.setItem(POS_AUTH_STORAGE_KEY, "authenticated_indu123");
+      setIsAuthenticated(true);
+      setLoginError("");
+      setPasswordInput("");
+    } else {
+      setLoginError("Incorrect password! Please enter valid store password.");
+    }
+  };
+
+  const handleLogoutLock = () => {
+    localStorage.removeItem(POS_AUTH_STORAGE_KEY);
+    setIsAuthenticated(false);
+    setPasswordInput("");
+    setLoginError("");
+  };
 
   // Force re-load 159 products from purchase bills (while preserving custom user-added items!)
   const handleReloadWholesaleInventory = () => {
@@ -760,6 +800,82 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     setShowNewProductModal(false);
   };
 
+  // Show sleek login screen if not authenticated (prevents any unauthenticated flash)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex items-center justify-center p-4 font-sans relative overflow-hidden">
+        {/* Subtle Gold Radial Glow */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="w-full max-w-md bg-stone-900/95 border border-amber-500/30 rounded-3xl p-8 shadow-2xl relative z-10">
+          {/* Brand Logo & Header */}
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-950 shadow-lg shadow-amber-500/20 mb-3">
+              <Lock className="w-7 h-7 text-stone-950" />
+            </div>
+            <h1 className="text-2xl font-black tracking-widest text-white uppercase font-serif">
+              RAJNANDNI
+            </h1>
+            <span className="mt-1 text-[11px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-3 py-0.5 rounded-full uppercase tracking-wider">
+              Darshan Enterprises
+            </span>
+            <p className="text-xs text-stone-400 mt-2">
+              Near PSC Petropump, Ranipur, Haridwar · GSTIN: 05GNZPS9902M1ZR
+            </p>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
+                Store Login Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={passwordInput}
+                  onChange={e => {
+                    setPasswordInput(e.target.value);
+                    if (loginError) setLoginError("");
+                  }}
+                  placeholder="Enter store password..."
+                  autoFocus
+                  className="w-full px-4 py-3 pr-11 bg-stone-950 border border-stone-700 focus:border-amber-400 rounded-xl text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-400/30 font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-300 cursor-pointer p-1"
+                  title={showPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {loginError && (
+                <p className="text-xs text-rose-400 font-semibold mt-2 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{loginError}</span>
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Lock className="w-4 h-4" />
+              <span>Unlock POS &amp; Inventory</span>
+            </button>
+          </form>
+
+          <p className="text-[11px] text-stone-500 text-center mt-5">
+            Authorized Counter Access Only · Sarees · Suits · Lehengas · Handbags
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-50 print:bg-white text-slate-900 flex flex-col font-sans">
       {/* =========================================================
@@ -838,7 +954,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           </button>
         </div>
 
-        {/* Database & Cloud Sync Status + Quick Day Stats */}
+        {/* Database & Cloud Sync Status + Quick Day Stats + Lock Button */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowDbModal(true)}
@@ -869,6 +985,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <p className="text-sm font-bold text-white">{completedBills.length}</p>
             </div>
           </div>
+
+          <button
+            onClick={handleLogoutLock}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-rose-950/80 border border-stone-800 hover:border-rose-500/40 text-stone-300 hover:text-rose-300 text-xs font-semibold transition cursor-pointer"
+            title="Lock POS Screen (Require Password)"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Lock</span>
+          </button>
         </div>
       </header>
 
