@@ -38,7 +38,12 @@ import {
   Lock,
   Eye,
   EyeOff,
-  LogOut
+  LogOut,
+  Crown,
+  ScanLine,
+  TrendingUp,
+  ShieldCheck,
+  Layers
 } from "lucide-react";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
@@ -64,6 +69,8 @@ export default function RajnandniPosPage() {
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [inventorySearch, setInventorySearch] = useState<string>("");
+  const [inventoryCategory, setInventoryCategory] = useState<ProductCategory>("all");
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -800,35 +807,111 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     setShowNewProductModal(false);
   };
 
-  // Show sleek login screen if not authenticated (prevents any unauthenticated flash)
+  // Helper for category visual theme (luxury accent colors & icons)
+  const getCategoryTheme = (cat: string) => {
+    switch (cat) {
+      case "sarees":
+        return { icon: "🥻", label: "Royal Sarees", strip: "from-indigo-600 via-violet-600 to-purple-600", badge: "bg-indigo-50 text-indigo-900 border-indigo-200" };
+      case "lehengas":
+        return { icon: "👗", label: "Bridal & Lehengas", strip: "from-rose-600 via-crimson-600 to-pink-600", badge: "bg-rose-50 text-rose-900 border-rose-200" };
+      case "kurtis":
+        return { icon: "👚", label: "Kurtis & Suits", strip: "from-amber-500 via-orange-500 to-yellow-500", badge: "bg-amber-50 text-amber-900 border-amber-200" };
+      case "handbags":
+        return { icon: "👜", label: "Handbags & Clutches", strip: "from-teal-600 via-emerald-600 to-cyan-600", badge: "bg-teal-50 text-teal-900 border-teal-200" };
+      case "jewellery":
+        return { icon: "💍", label: "Jewellery & Sets", strip: "from-purple-600 via-fuchsia-600 to-pink-500", badge: "bg-purple-50 text-purple-900 border-purple-200" };
+      case "footwear":
+        return { icon: "👠", label: "Footwear & Heels", strip: "from-emerald-600 via-green-600 to-teal-500", badge: "bg-emerald-50 text-emerald-900 border-emerald-200" };
+      default:
+        return { icon: "✂️", label: "Tailoring & Fitting", strip: "from-stone-700 via-stone-600 to-amber-700", badge: "bg-stone-100 text-stone-800 border-stone-300" };
+    }
+  };
+
+  // Filtered products for Inventory Tab
+  const filteredInventoryProducts = products.filter(p => {
+    const matchesCat = inventoryCategory === "all" || p.category === inventoryCategory;
+    const q = inventorySearch.trim().toLowerCase();
+    if (!q) return matchesCat;
+    return (
+      matchesCat &&
+      (p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        p.barcode.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q))
+    );
+  });
+
+  // Inventory Valuation Metrics
+  const totalPhysicalPieces = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
+  const totalRetailStockValue = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0);
+  const totalCostStockValue = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.purchaseCost) || 0) * (Number(p.stock) || 0), 0);
+  const totalTodayRevenue = completedBills.reduce((s, b) => s + b.grandTotal, 0);
+
+  // Show Royal Flagship Login Screen if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-stone-950 text-white flex items-center justify-center p-4 font-sans relative overflow-hidden">
-        {/* Subtle Gold Radial Glow */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="min-h-screen royal-pattern-bg text-white flex items-center justify-center p-4 font-sans relative overflow-hidden">
+        {/* Ambient Champagne Gold Light Orbs */}
+        <div className="absolute -top-40 -left-40 w-[480px] h-[480px] bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-40 -right-40 w-[480px] h-[480px] bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="w-full max-w-md bg-stone-900/95 border border-amber-500/30 rounded-3xl p-8 shadow-2xl relative z-10">
-          {/* Brand Logo & Header */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-950 shadow-lg shadow-amber-500/20 mb-3">
-              <Lock className="w-7 h-7 text-stone-950" />
+        <div className="w-full max-w-md bg-gradient-to-b from-[#181310]/95 to-[#0e0b09]/98 border border-amber-500/35 rounded-3xl p-8 shadow-[0_25px_70px_-15px_rgba(245,158,11,0.22)] relative z-10 backdrop-blur-xl">
+          {/* Ornate Top Gold Hairline Accent */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent rounded-full" />
+
+          {/* Royal Crest & Brand Identity */}
+          <div className="flex flex-col items-center text-center mb-7">
+            <div className="relative mb-3.5">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 p-[1.5px] shadow-xl shadow-amber-500/25">
+                <div className="w-full h-full bg-[#120e0c] rounded-[14px] flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-amber-400" />
+                </div>
+              </div>
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#120e0c] flex items-center justify-center" title="Security Active">
+                <ShieldCheck className="w-3 h-3 text-stone-950" />
+              </span>
             </div>
-            <h1 className="text-2xl font-black tracking-widest text-white uppercase font-serif">
+
+            <span className="text-[10px] font-bold tracking-[0.28em] text-amber-400/90 uppercase mb-1">
+              Flagship Retail &amp; Billing Suite
+            </span>
+            <h1 className="text-3xl font-black tracking-[0.16em] bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent uppercase font-serif">
               RAJNANDNI
             </h1>
-            <span className="mt-1 text-[11px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-3 py-0.5 rounded-full uppercase tracking-wider">
-              Darshan Enterprises
-            </span>
-            <p className="text-xs text-stone-400 mt-2">
-              Near PSC Petropump, Ranipur, Haridwar · GSTIN: 05GNZPS9902M1ZR
+            <div className="mt-1.5 inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-stone-950 font-black text-[10.5px] px-3.5 py-0.5 rounded-full uppercase tracking-widest shadow-sm">
+              <Sparkles className="w-3 h-3" />
+              <span>Darshan Enterprises</span>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-2.5 leading-relaxed">
+              Near PSC Petropump, Ranipur, Haridwar - 249401
+              <br />
+              <span className="font-mono text-amber-200/80">GSTIN: 05GNZPS9902M1ZR</span>
             </p>
+          </div>
+
+          {/* Mini Feature Badges */}
+          <div className="grid grid-cols-3 gap-2 mb-6 text-center">
+            <div className="bg-stone-900/90 border border-stone-800/90 rounded-xl py-2 px-1.5">
+              <ScanLine className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+              <span className="text-[9.5px] font-semibold text-stone-300 block">Instant Barcode</span>
+            </div>
+            <div className="bg-stone-900/90 border border-stone-800/90 rounded-xl py-2 px-1.5">
+              <Tag className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+              <span className="text-[9.5px] font-semibold text-stone-300 block">Thermal Tags</span>
+            </div>
+            <div className="bg-stone-900/90 border border-stone-800/90 rounded-xl py-2 px-1.5">
+              <Share2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+              <span className="text-[9.5px] font-semibold text-stone-300 block">WhatsApp Bill</span>
+            </div>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
-                Store Login Password
+              <label className="flex items-center justify-between text-[11px] font-bold text-amber-300/90 uppercase tracking-wider mb-1.5">
+                <span>Executive Store Password</span>
+                <span className="text-[10px] text-emerald-400 font-normal flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Protected
+                </span>
               </label>
               <div className="relative">
                 <input
@@ -838,21 +921,21 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     setPasswordInput(e.target.value);
                     if (loginError) setLoginError("");
                   }}
-                  placeholder="Enter store password..."
+                  placeholder="Enter showroom password..."
                   autoFocus
-                  className="w-full px-4 py-3 pr-11 bg-stone-950 border border-stone-700 focus:border-amber-400 rounded-xl text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-400/30 font-medium"
+                  className="w-full px-4 py-3.5 pr-11 bg-[#090706] border border-amber-500/30 focus:border-amber-400 rounded-xl text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-400/25 font-medium tracking-wide transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-300 cursor-pointer p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-300 cursor-pointer p-1.5 rounded-lg hover:bg-stone-800/60 transition"
                   title={showPassword ? "Hide Password" : "Show Password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {loginError && (
-                <p className="text-xs text-rose-400 font-semibold mt-2 flex items-center gap-1.5">
+                <p className="text-xs text-rose-400 font-semibold mt-2 flex items-center gap-1.5 bg-rose-950/50 border border-rose-500/30 px-3 py-1.5 rounded-lg">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{loginError}</span>
                 </p>
@@ -861,607 +944,754 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:via-amber-400 hover:to-amber-300 text-stone-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center justify-center gap-2 tracking-wide uppercase"
             >
               <Lock className="w-4 h-4" />
-              <span>Unlock POS &amp; Inventory</span>
+              <span>Unlock Showroom Terminal</span>
             </button>
           </form>
 
-          <p className="text-[11px] text-stone-500 text-center mt-5">
-            Authorized Counter Access Only · Sarees · Suits · Lehengas · Handbags
-          </p>
+          <div className="mt-6 pt-4 border-t border-stone-800/80 text-center">
+            <p className="text-[10.5px] text-stone-400 font-medium tracking-wide">
+              Sarees · Bridal Lehengas · Designer Suits · Handbags · Jewellery
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-50 print:bg-white text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen print:min-h-0 print:h-auto print:block showroom-canvas-bg print:bg-white text-stone-900 flex flex-col font-sans">
       {/* =========================================================
-          TOP LUXURY OBSIDIAN & CHAMPAGNE GOLD HEADER
+          TOP LUXURY OBSIDIAN & CHAMPAGNE GOLD COMMAND HEADER
           ========================================================= */}
       {/* MAIN SCREEN INTERACTIVE UI (HIDDEN DURING PRINTING) */}
       <div className="no-print flex-1 flex flex-col">
-        <header className="bg-stone-950 text-white shadow-lg border-b border-amber-500/20 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-950 shadow-md shadow-amber-500/20">
-            <Sparkles className="w-5 h-5 text-stone-950 font-bold" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-black tracking-wider text-white uppercase font-serif">
-                Rajnandni
-              </h1>
-              <span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-                Darshan Enterprises
-              </span>
+        <header className="bg-gradient-to-r from-[#0d0a08] via-[#17120e] to-[#0d0a08] text-white shadow-xl border-b border-amber-500/30 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 relative">
+          {/* Subtle top gold highlight line */}
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+
+          {/* Left: Brand Monogram & Showroom Info */}
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 p-[1.5px] shadow-lg shadow-amber-500/20 shrink-0">
+              <div className="w-full h-full bg-[#120e0c] rounded-[14px] flex items-center justify-center">
+                <Crown className="w-5 h-5 text-amber-400" />
+              </div>
             </div>
-            <p className="text-[11px] text-stone-400 font-medium">
-              Near PSC Petropump, Ranipur, Haridwar - 249401 · GSTIN: 05GNZPS9902M1ZR
-            </p>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex items-center bg-stone-900/90 p-1 rounded-xl border border-stone-800 text-xs">
-          <button
-            onClick={() => setActiveTab("pos")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-              activeTab === "pos"
-                ? "bg-amber-400 text-stone-950 font-bold shadow-sm"
-                : "text-stone-300 hover:text-white hover:bg-stone-800"
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            <span>POS Billing</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("inventory")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-              activeTab === "inventory"
-                ? "bg-amber-400 text-stone-950 font-bold shadow-sm"
-                : "text-stone-300 hover:text-white hover:bg-stone-800"
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Inventory &amp; Barcodes</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("alterations")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer relative ${
-              activeTab === "alterations"
-                ? "bg-amber-400 text-stone-950 font-bold shadow-sm"
-                : "text-stone-300 hover:text-white hover:bg-stone-800"
-            }`}
-          >
-            <Scissors className="w-4 h-4" />
-            <span>Alteration Desk</span>
-            {alterationsList.filter(a => a.status !== "Delivered").length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-              activeTab === "reports"
-                ? "bg-amber-400 text-stone-950 font-bold shadow-sm"
-                : "text-stone-300 hover:text-white hover:bg-stone-800"
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Daily Sales</span>
-          </button>
-        </div>
-
-        {/* Database & Cloud Sync Status + Quick Day Stats + Lock Button */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowDbModal(true)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
-              supabaseConnected
-                ? "bg-emerald-950/50 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50"
-                : "bg-stone-900 border-stone-800 text-stone-300 hover:bg-stone-800"
-            }`}
-            title="Database & Supabase Cloud Sync"
-          >
-            <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-400" : "text-amber-400"}`} />
-            <span className="hidden sm:inline">
-              {supabaseConnected ? "Cloud Synced" : "Database & Cloud"}
-            </span>
-            <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
-          </button>
-
-          <div className="hidden lg:flex items-center gap-4 text-right">
             <div>
-              <span className="text-[10px] text-stone-400 uppercase font-semibold">Today's Revenue</span>
-              <p className="text-sm font-bold text-amber-400">
-                ₹{completedBills.reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-black tracking-[0.14em] bg-gradient-to-r from-white via-amber-100 to-amber-300 bg-clip-text text-transparent uppercase font-serif">
+                  RAJNANDNI
+                </h1>
+                <span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                  Darshan Enterprises
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-400 font-medium flex items-center gap-1.5">
+                <span>Near PSC Petropump, Ranipur, Haridwar - 249401</span>
+                <span className="text-amber-500/60">•</span>
+                <span className="font-mono text-amber-300/90">GSTIN: 05GNZPS9902M1ZR</span>
               </p>
             </div>
-            <div className="h-7 w-px bg-stone-800" />
-            <div>
-              <span className="text-[10px] text-stone-400 uppercase font-semibold">Bills Issued</span>
-              <p className="text-sm font-bold text-white">{completedBills.length}</p>
-            </div>
           </div>
 
-          <button
-            onClick={handleLogoutLock}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-rose-950/80 border border-stone-800 hover:border-rose-500/40 text-stone-300 hover:text-rose-300 text-xs font-semibold transition cursor-pointer"
-            title="Lock POS Screen (Require Password)"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Lock</span>
-          </button>
-        </div>
-      </header>
-
-      {/* =========================================================
-          TAB 1: POS BILLING COUNTER
-          ========================================================= */}
-      {activeTab === "pos" && (
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden h-[calc(100vh-62px)]">
-          {/* LEFT: PRODUCTS CATALOG & SEARCH */}
-          <div className="flex-1 flex flex-col p-4 overflow-y-auto border-r border-slate-200">
-            {/* Search and Barcode Gun Input */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  ref={barcodeInputRef}
-                  type="text"
-                  placeholder="Scan Barcode Gun or Type Product / SKU Name (Press Enter to Quick Add)..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={handleBarcodeKeyDown}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 shadow-xs transition"
-                />
-              </div>
-
-              {/* Quick Add Product Button */}
-              <button
-                onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 text-amber-400" />
-                <span>+ New Item</span>
-              </button>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
-              {[
-                { id: "all", label: "✨ All Products" },
-                { id: "sarees", label: "🥻 Sarees (Surat & Prints)" },
-                { id: "lehengas", label: "👗 Lehengas & Gowns" },
-                { id: "kurtis", label: "👚 Kurtis & Suits" },
-                { id: "handbags", label: "👜 Handbags & Purses" },
-                { id: "jewellery", label: "💍 Jewellery & Blouse Pcs" },
-                { id: "footwear", label: "👠 Footwear & Heels" },
-                { id: "parlour", label: "✂️ Tailoring & Fitting" }
-              ].map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id as ProductCategory)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer border ${
-                    selectedCategory === cat.id
-                      ? "bg-stone-900 text-amber-300 border-stone-900 shadow-xs ring-1 ring-amber-400/40"
-                      : "bg-white text-stone-700 border-slate-200 hover:bg-slate-100 hover:text-stone-900"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Products Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filteredProducts.map(prod => (
-                <div
-                  key={prod.id}
-                  className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs hover:shadow-md transition flex flex-col justify-between group hover:border-amber-400/80"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
-                        {prod.sku}
-                      </span>
-                      {prod.badge && (
-                        <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                          {prod.badge}
-                        </span>
-                      )}
-                      {!prod.isService && (
-                        <span className={`text-[10px] font-semibold ${prod.stock <= 3 ? "text-rose-600 font-bold" : "text-emerald-700"}`}>
-                          Stock: {prod.stock}
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-xs font-bold text-stone-900 line-clamp-2 mt-1 leading-snug group-hover:text-amber-800 transition">
-                      {prod.name}
-                    </h3>
-
-                    {/* Sizes / Options selector */}
-                    {prod.sizes && prod.sizes.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {prod.sizes.slice(0, 3).map((sz, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleAddToCart(prod, sz)}
-                            className="text-[9.5px] px-1.5 py-0.5 bg-stone-50 hover:bg-amber-100 text-stone-700 hover:text-amber-900 rounded border border-slate-200 font-medium transition cursor-pointer"
-                          >
-                            + {sz}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-black text-stone-950">
-                        ₹{prod.price.toLocaleString("en-IN")}
-                      </span>
-                      {prod.mrp > prod.price && (
-                        <span className="text-[10px] text-slate-400 line-through ml-1.5">
-                          ₹{prod.mrp}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => handleAddToCart(prod)}
-                      className="p-1.5 bg-slate-100 hover:bg-stone-900 text-slate-700 hover:text-amber-300 rounded-lg transition cursor-pointer"
-                      title="Add to Bill"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* RIGHT: ACTIVE BILLING CART */}
-          <div className="w-full lg:w-[420px] bg-white border-l border-slate-200 flex flex-col justify-between h-full shadow-lg">
-            {/* Customer Information Header */}
-            <div className="p-3.5 border-b border-slate-200 bg-slate-50/80">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-amber-600" />
-                  Customer Details
+          {/* Center: Executive Pill Navigation Tabs with Live Badges */}
+          <div className="flex items-center bg-[#090706]/90 p-1 rounded-2xl border border-amber-500/20 text-xs shadow-inner">
+            <button
+              onClick={() => setActiveTab("pos")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+                activeTab === "pos"
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
+                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              <span>POS Billing</span>
+              {cart.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeTab === "pos" ? "bg-stone-950 text-amber-300" : "bg-amber-400 text-stone-950"
+                }`}>
+                  {cart.reduce((s, i) => s + i.quantity, 0)}
                 </span>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setCart([])}
-                    className="text-[11px] text-rose-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                  >
-                    <Trash2 className="w-3 h-3" /> Clear
-                  </button>
-                )}
-              </div>
+              )}
+            </button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  placeholder="Customer Name"
-                  value={customer.name}
-                  onChange={e => setCustomer({ ...customer, name: e.target.value })}
-                  className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-                <input
-                  type="tel"
-                  placeholder="WhatsApp Mobile No"
-                  value={customer.phone}
-                  onChange={e => setCustomer({ ...customer, phone: e.target.value })}
-                  className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
+            <button
+              onClick={() => setActiveTab("inventory")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+                activeTab === "inventory"
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
+                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Inventory &amp; Barcodes</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeTab === "inventory" ? "bg-stone-950/20 text-stone-950" : "bg-stone-800 text-amber-300"
+              }`}>
+                {products.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("alterations")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer relative ${
+                activeTab === "alterations"
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
+                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+              }`}
+            >
+              <Scissors className="w-4 h-4" />
+              <span>Alteration Desk</span>
+              {alterationsList.filter(a => a.status !== "Delivered").length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeTab === "alterations" ? "bg-stone-950 text-amber-300" : "bg-rose-500 text-white animate-pulse"
+                }`}>
+                  {alterationsList.filter(a => a.status !== "Delivered").length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+                activeTab === "reports"
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
+                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Daily Sales</span>
+              {completedBills.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === "reports" ? "bg-stone-950/20 text-stone-950" : "bg-emerald-950 text-emerald-300 border border-emerald-500/30"
+                }`}>
+                  {completedBills.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Right: Cloud Sync + Live Revenue Pill + Lock Terminal */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setShowDbModal(true)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                supabaseConnected
+                  ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50"
+                  : "bg-[#120e0c] border-amber-500/25 text-stone-300 hover:border-amber-400/50 hover:text-white"
+              }`}
+              title="Database & Supabase Cloud Sync"
+            >
+              <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-400" : "text-amber-400"}`} />
+              <span className="hidden xl:inline">
+                {supabaseConnected ? "Cloud Live" : "Cloud DB"}
+              </span>
+              <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
+            </button>
+
+            <div className="hidden lg:flex items-center gap-3.5 bg-[#090706]/90 border border-amber-500/20 px-3.5 py-1.5 rounded-xl">
+              <div className="text-right">
+                <span className="text-[9.5px] text-stone-400 uppercase font-bold tracking-wider block">Today's Collection</span>
+                <p className="text-sm font-black text-amber-400 font-mono">
+                  ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                </p>
+              </div>
+              <div className="h-6 w-px bg-stone-800" />
+              <div className="text-right">
+                <span className="text-[9.5px] text-stone-400 uppercase font-bold tracking-wider block">Bills</span>
+                <p className="text-sm font-black text-white font-mono">{completedBills.length}</p>
               </div>
             </div>
 
-            {/* Cart Items List */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                  <ShoppingBag className="w-12 h-12 text-slate-300 mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">Bill is empty</p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Scan product barcode or click on any saree, suit or garment to add.
-                  </p>
-                </div>
-              ) : (
-                cart.map((item, idx) => {
-                  const origPrice = item.originalPrice || item.product.price;
-                  const isDiscounted = item.price < origPrice;
-                  const isCostLoss = !item.product.isService && item.price < item.product.purchaseCost;
-                  const profitPerUnit = item.price - item.product.purchaseCost;
+            <button
+              onClick={handleLogoutLock}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#120e0c] hover:bg-rose-950/90 border border-stone-800 hover:border-rose-500/50 text-stone-300 hover:text-rose-200 text-xs font-bold transition cursor-pointer"
+              title="Lock POS Screen (Require Password)"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Lock</span>
+            </button>
+          </div>
+        </header>
 
+        {/* =========================================================
+            TAB 1: POS BILLING COUNTER (SHOWROOM CATALOG + VIP CART)
+            ========================================================= */}
+        {activeTab === "pos" && (
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden h-[calc(100vh-66px)]">
+            {/* LEFT: SHOWROOM CATALOG & LASER BARCODE SCANNER BAR */}
+            <div className="flex-1 flex flex-col p-4 overflow-y-auto border-r border-stone-200/80">
+              {/* Top Command Bar: Barcode Gun Scanner Input + Quick Add Item */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+                <div className="relative flex-1 group">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+                    <ScanLine className="w-4 h-4 text-amber-600 group-focus-within:text-amber-500 transition" />
+                  </div>
+                  <input
+                    ref={barcodeInputRef}
+                    type="text"
+                    placeholder="Scan Barcode Gun or search Saree, Lehenga, Handbag, SKU (Press Enter)..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={handleBarcodeKeyDown}
+                    className="w-full pl-10 pr-36 py-3 bg-white border-2 border-stone-200/90 hover:border-amber-400/70 focus:border-amber-500 rounded-2xl text-sm font-medium text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-4 focus:ring-amber-500/15 shadow-sm transition"
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="p-1 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 cursor-pointer"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Scanner Ready
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Add New Product / Handbag CTA */}
+                <button
+                  onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#14100d] to-[#211a15] hover:from-stone-900 hover:to-stone-800 text-amber-300 border border-amber-500/40 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4 text-amber-400" />
+                  <span>+ Add New Item</span>
+                </button>
+              </div>
+
+              {/* Luxury Category Showcase Pills with Live Counts */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
+                {[
+                  { id: "all", label: "All Collection", icon: "✨", count: products.length },
+                  { id: "sarees", label: "Sarees", icon: "🥻", count: products.filter(p => p.category === "sarees").length },
+                  { id: "lehengas", label: "Lehengas & Gowns", icon: "👗", count: products.filter(p => p.category === "lehengas").length },
+                  { id: "kurtis", label: "Kurtis & Suits", icon: "👚", count: products.filter(p => p.category === "kurtis").length },
+                  { id: "handbags", label: "Handbags & Purses", icon: "👜", count: products.filter(p => p.category === "handbags").length },
+                  { id: "jewellery", label: "Jewellery & Sets", icon: "💍", count: products.filter(p => p.category === "jewellery").length },
+                  { id: "footwear", label: "Footwear", icon: "👠", count: products.filter(p => p.category === "footwear").length },
+                  { id: "parlour", label: "Tailoring & Fitting", icon: "✂️", count: products.filter(p => p.category === "parlour").length }
+                ].map(cat => {
+                  const isActive = selectedCategory === cat.id;
                   return (
-                    <div
-                      key={idx}
-                      className={`p-2.5 rounded-xl border transition text-xs ${
-                        item.isNegotiated 
-                          ? "bg-amber-50/50 border-amber-300 shadow-xs" 
-                          : "bg-slate-50 border-slate-200"
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id as ProductCategory)}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                        isActive
+                          ? "bg-gradient-to-r from-[#14100d] to-[#241c16] text-amber-300 border-amber-500/50 shadow-md shadow-amber-950/10 scale-[1.01]"
+                          : "bg-white/90 text-stone-700 border-stone-200/90 hover:bg-amber-50/60 hover:border-amber-300 hover:text-stone-950"
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1 pr-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-bold text-stone-900 truncate">{item.product.name}</p>
-                            {item.isNegotiated && (
-                              <span className="text-[9px] font-black bg-amber-400 text-stone-950 px-1.5 py-0.2 rounded-full uppercase tracking-wider">
-                                🤝 Bargain Rate
-                              </span>
-                            )}
-                          </div>
+                      <span className="text-sm">{cat.icon}</span>
+                      <span>{cat.label}</span>
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md font-bold ${
+                          isActive
+                            ? "bg-amber-400 text-stone-950"
+                            : "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        {cat.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-600 flex-wrap">
-                            <span className="bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded font-medium">
-                              {item.selectedSize || "Standard"}
-                            </span>
-                            {item.beauticianName && (
-                              <span className="text-purple-700 italic">By: {item.beauticianName.split(" ")[0]}</span>
-                            )}
-                            
-                            {/* Price display with strike-through if bargained */}
-                            <div className="flex items-center gap-1">
-                              {isDiscounted && (
-                                <span className="line-through text-slate-400">
-                                  ₹{origPrice.toLocaleString("en-IN")}
-                                </span>
-                              )}
-                              <span className={`font-bold ${isDiscounted ? "text-emerald-700" : "text-slate-800"}`}>
-                                ₹{item.price.toLocaleString("en-IN")} /pc
+              {/* Showroom Products Grid */}
+              {filteredProducts.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center bg-white/70 rounded-3xl border border-dashed border-stone-300 p-10 text-center my-2">
+                  <ShoppingBag className="w-12 h-12 text-stone-300 mb-2" />
+                  <p className="text-sm font-bold text-stone-800">No matching designs found</p>
+                  <p className="text-xs text-stone-500 mt-1 max-w-sm">
+                    Try clearing the search filter or click &ldquo;+ Add New Item&rdquo; to add a new Handbag, Saree, or Suit to the catalog.
+                  </p>
+                  <button
+                    onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
+                    className="mt-4 px-4 py-2 bg-stone-950 text-amber-300 rounded-xl text-xs font-bold cursor-pointer hover:bg-stone-900 transition flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4 text-amber-400" />
+                    <span>Add New Product Now</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 pb-6">
+                  {filteredProducts.map(prod => {
+                    const theme = getCategoryTheme(prod.category);
+                    const discountPct = prod.mrp > prod.price ? Math.round(((prod.mrp - prod.price) / prod.mrp) * 100) : 0;
+
+                    return (
+                      <div
+                        key={prod.id}
+                        className="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group hover:border-amber-400 overflow-hidden relative"
+                      >
+                        {/* Category Color Top Accent Strip */}
+                        <div className={`h-1.5 w-full bg-gradient-to-r ${theme.strip}`} />
+
+                        <div className="p-3.5 flex-1 flex flex-col justify-between">
+                          <div>
+                            {/* Top Meta Row: SKU + Offer/Discount + Stock */}
+                            <div className="flex items-center justify-between gap-1 mb-2">
+                              <span className="text-[10px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-md">
+                                {prod.sku}
                               </span>
+
+                              <div className="flex items-center gap-1">
+                                {prod.badge ? (
+                                  <span className="text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300/80 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
+                                    {prod.badge}
+                                  </span>
+                                ) : discountPct > 0 ? (
+                                  <span className="text-[9.5px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md">
+                                    {discountPct}% OFF
+                                  </span>
+                                ) : null}
+
+                                {!prod.isService && (
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                      prod.stock <= 3
+                                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                        : "bg-stone-50 text-stone-600 border border-stone-200/70"
+                                    }`}
+                                  >
+                                    {prod.stock} pc
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Button to toggle inline negotiate rate */}
-                            <button
-                              onClick={() => {
-                                if (editingPriceIdx === idx) {
-                                  setEditingPriceIdx(null);
-                                } else {
-                                  startEditingItemPrice(idx, item.price);
-                                }
-                              }}
-                              className="text-[10px] font-semibold text-amber-800 hover:text-stone-950 underline flex items-center gap-0.5 cursor-pointer ml-1"
-                              title="Bargain / Negotiate unit price for this item"
-                            >
-                              <Edit3 className="w-2.5 h-2.5" />
-                              <span>{editingPriceIdx === idx ? "Close" : "Negotiate Rate"}</span>
-                            </button>
-                          </div>
-                        </div>
+                            {/* Product Title with Category Icon */}
+                            <div className="flex items-start gap-1.5 mt-1">
+                              <span className="text-sm shrink-0 mt-0.5" title={theme.label}>{theme.icon}</span>
+                              <h3
+                                onClick={() => handleAddToCart(prod)}
+                                className="text-xs font-extrabold text-stone-900 line-clamp-2 leading-snug group-hover:text-amber-800 transition cursor-pointer"
+                              >
+                                {prod.name}
+                              </h3>
+                            </div>
 
-                        {/* Quantity Selector & Item Total */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <div className="flex items-center border border-slate-200 bg-white rounded-lg">
-                            <button
-                              onClick={() => updateQuantity(idx, -1)}
-                              className="p-1 text-slate-600 hover:text-black cursor-pointer"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="px-2 font-mono font-bold text-xs">{item.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(idx, 1)}
-                              className="p-1 text-slate-600 hover:text-black cursor-pointer"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
-
-                          <div className="text-right min-w-[55px]">
-                            <span className="font-bold text-stone-950 block">
-                              ₹{(item.price * item.quantity).toLocaleString("en-IN")}
-                            </span>
-                            {isDiscounted && (
-                              <span className="text-[9px] font-semibold text-emerald-700 block">
-                                -₹{((origPrice - item.price) * item.quantity).toLocaleString("en-IN")}
-                              </span>
+                            {/* Quick Size / Variant Chips */}
+                            {prod.sizes && prod.sizes.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2.5">
+                                {prod.sizes.slice(0, 3).map((sz, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => handleAddToCart(prod, sz)}
+                                    className="text-[9.5px] px-2 py-0.5 bg-[#faf7f2] hover:bg-amber-400 text-stone-700 hover:text-stone-950 rounded-md border border-stone-200/90 hover:border-amber-500 font-semibold transition cursor-pointer"
+                                  >
+                                    + {sz}
+                                  </button>
+                                ))}
+                              </div>
                             )}
+                          </div>
+
+                          {/* Card Footer: Price + Quick Tag Print + Add to Bill */}
+                          <div className="mt-3.5 pt-2.5 border-t border-stone-100 flex items-center justify-between gap-2">
+                            <div>
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-base font-black text-stone-950 font-mono">
+                                  ₹{prod.price.toLocaleString("en-IN")}
+                                </span>
+                                {prod.mrp > prod.price && (
+                                  <span className="text-[10px] text-stone-400 line-through font-mono">
+                                    ₹{prod.mrp.toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {/* Direct Barcode Tag Print Button right on POS Card */}
+                              <button
+                                onClick={() => {
+                                  setSelectedProductForBarcode(prod);
+                                  setBarcodeStickerCount(4);
+                                }}
+                                className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl transition cursor-pointer"
+                                title="Print Barcode Sticker Tag"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Add to Bill Button */}
+                              <button
+                                onClick={() => handleAddToCart(prod)}
+                                className="px-3 py-1.5 bg-stone-950 hover:bg-amber-400 text-amber-300 hover:text-stone-950 border border-amber-500/30 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                title="Add to Bill"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* INLINE NEGOTIATION / BARGAIN BOX FOR THIS ITEM */}
-                      {editingPriceIdx === idx && (
-                        <div className="mt-2 pt-2 border-t border-amber-200/80 bg-white p-2 rounded-lg text-xs space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10.5px] font-bold text-amber-950 flex items-center gap-1">
-                              <Handshake className="w-3.5 h-3.5 text-amber-600" />
-                              Negotiate Item Rate (Bargain)
-                            </span>
-                            {item.isNegotiated && (
-                              <button
-                                onClick={() => resetItemPrice(idx)}
-                                className="text-[10px] text-slate-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer font-medium"
-                              >
-                                <RotateCcw className="w-2.5 h-2.5" /> Revert
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                              <span className="absolute left-2 top-1.5 text-slate-400 font-bold text-xs">₹</span>
-                              <input
-                                type="number"
-                                min="0"
-                                value={tempItemPrice}
-                                onChange={e => setTempItemPrice(e.target.value)}
-                                className="w-full pl-5 pr-2 py-1 bg-slate-50 border border-amber-300 rounded text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                placeholder="Enter Agreed Rate"
-                                autoFocus
-                              />
-                            </div>
-                            <button
-                              onClick={() => saveNegotiatedItemPrice(idx)}
-                              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded cursor-pointer transition"
-                            >
-                              Apply Rate
-                            </button>
-                          </div>
-
-                          {/* Profit / Cost Check */}
-                          {!item.product.isService && (
-                            <div className="flex items-center justify-between text-[9.5px] pt-0.5">
-                              <span className="text-slate-500">
-                                Cost: ₹{item.product.purchaseCost}
-                              </span>
-                              {isCostLoss ? (
-                                <span className="text-rose-600 font-bold flex items-center gap-0.5">
-                                  ⚠️ Selling Below Cost (Loss: ₹{Math.abs(profitPerUnit)}/pc)
-                                </span>
-                              ) : (
-                                <span className="text-emerald-700 font-semibold">
-                                  Margin: ₹{profitPerUnit}/pc (+{Math.round((profitPerUnit / (item.product.purchaseCost || 1)) * 100)}%)
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
 
-            {/* Bottom Checkout & Payment Section */}
-            <div className="p-3.5 border-t border-slate-200 bg-white space-y-2.5">
-              {/* Alteration Toggle Checkbox */}
-              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5">
-                <label className="flex items-center gap-2 text-xs font-bold text-amber-950 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={alterationEnabled}
-                    onChange={e => setAlterationEnabled(e.target.checked)}
-                    className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
-                  />
-                  <Scissors className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Alteration / Fitting Required?</span>
-                </label>
-
-                {alterationEnabled && (
-                  <div className="mt-2 pt-2 border-t border-amber-200/80 space-y-1.5 text-[11px]">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-[10px] text-stone-600 font-medium">Garment Name</span>
-                        <input
-                          type="text"
-                          value={alterationData.garmentName}
-                          onChange={e => setAlterationData({ ...alterationData, garmentName: e.target.value })}
-                          className="w-full px-2 py-1 bg-white border border-amber-200 rounded text-xs"
-                          placeholder="e.g. Maroon Bridal Lehenga"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-600 font-medium">Trial / Ready Date</span>
-                        <input
-                          type="date"
-                          value={alterationData.readyDate}
-                          onChange={e => setAlterationData({ ...alterationData, readyDate: e.target.value })}
-                          className="w-full px-2 py-1 bg-white border border-amber-200 rounded text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-600 font-medium">Fitting Measurements (Chest / Waist / Length)</span>
-                      <input
-                        type="text"
-                        value={alterationData.fittingNotes}
-                        onChange={e => setAlterationData({ ...alterationData, fittingNotes: e.target.value })}
-                        className="w-full px-2 py-1 bg-white border border-amber-200 rounded text-xs"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* NEGOTIATION & BARGAIN DESK */}
-              <div className="bg-gradient-to-r from-amber-50/70 to-stone-50 border border-amber-200/90 rounded-xl p-2.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Handshake className="w-4 h-4 text-amber-700" />
-                    <span className="text-xs font-bold text-stone-900">
-                      Customer Bargain &amp; Deal Desk
+            {/* RIGHT: VIP SMART BILLING TERMINAL */}
+            <div className="w-full lg:w-[440px] bg-white border-l border-stone-200/90 flex flex-col justify-between h-full shadow-2xl relative z-10">
+              {/* Top Luxury Cart Header + Customer Details */}
+              <div className="border-b border-stone-200">
+                <div className="bg-gradient-to-r from-[#14100d] via-[#1f1813] to-[#14100d] text-white px-4 py-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-black uppercase tracking-widest font-serif text-amber-100">
+                      VIP Billing Counter
+                    </span>
+                    <span className="text-[10px] font-mono bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold">
+                      {cart.reduce((s, i) => s + i.quantity, 0)} Pcs
                     </span>
                   </div>
-                  {discountAmount > 0 && (
+                  {cart.length > 0 && (
                     <button
-                      onClick={() => {
-                        setDiscountAmount(0);
-                        setAgreedDealPrice("");
-                      }}
-                      className="text-[10px] text-slate-500 hover:text-rose-600 underline cursor-pointer font-medium"
+                      onClick={() => setCart([])}
+                      className="text-[11px] text-rose-300 hover:text-rose-200 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
                     >
-                      Clear Deal
+                      <Trash2 className="w-3 h-3" /> Clear Bill
                     </button>
                   )}
                 </div>
 
-                {/* Direct Agreed Deal Price Input (Bargain Total) */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-[10px] text-stone-600 font-medium">Final Agreed Deal (₹)</span>
+                {/* Customer Inputs */}
+                <div className="p-3 bg-[#faf7f2] grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-amber-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="number"
-                      min="0"
-                      max={subtotal}
-                      placeholder={`e.g. ₹${Math.floor(subtotal / 100) * 100}`}
-                      value={agreedDealPrice}
-                      onChange={e => handleAgreedDealPriceChange(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-stone-950 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      type="text"
+                      placeholder="Customer Name"
+                      value={customer.name}
+                      onChange={e => setCustomer({ ...customer, name: e.target.value })}
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
                     />
                   </div>
-
-                  <div>
-                    <span className="text-[10px] text-stone-600 font-medium">Bargain Reason / Auth</span>
-                    <select
-                      value={discountReason}
-                      onChange={e => setDiscountReason(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-stone-800 focus:outline-none cursor-pointer"
-                    >
-                      <option value="Owner Approved">👑 Owner / Madam Approved</option>
-                      <option value="Regular Customer">⭐ Regular Loyal Customer</option>
-                      <option value="Bulk Bridal Deal">👰 Bridal / Bulk Order Deal</option>
-                      <option value="Rounding Off">🔄 Rounding Off Deal</option>
-                      <option value="Seasonal Offer">🏷️ Festival / Season Offer</option>
-                      <option value="Fitting Adjustment">✂️ Alteration / Fitting Adjust</option>
-                    </select>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-emerald-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      placeholder="WhatsApp Mobile No"
+                      value={customer.phone}
+                      onChange={e => setCustomer({ ...customer, phone: e.target.value })}
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                    />
                   </div>
                 </div>
+              </div>
 
-                {/* Quick Round-off and % Discount Buttons */}
-                <div className="pt-1 border-t border-amber-200/50">
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-                    <span>Quick Round-off:</span>
-                    <span>Quick % Discounts:</span>
+              {/* Cart Items Scroll Area */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-stone-50/40">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-stone-400">
+                    <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200/60 flex items-center justify-center mb-3 shadow-inner">
+                      <ShoppingBag className="w-8 h-8 text-amber-500/70" />
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-700 uppercase tracking-wider">Ready for Next Bill</p>
+                    <p className="text-[11px] text-stone-400 mt-1 max-w-[240px] leading-relaxed">
+                      Scan any garment or handbag barcode with your laser gun, or click any item on the left.
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                ) : (
+                  cart.map((item, idx) => {
+                    const origPrice = item.originalPrice || item.product.price;
+                    const isDiscounted = item.price < origPrice;
+                    const isCostLoss = !item.product.isService && item.price < item.product.purchaseCost;
+                    const profitPerUnit = item.price - item.product.purchaseCost;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-2xl border transition text-xs ${
+                          item.isNegotiated
+                            ? "bg-gradient-to-r from-amber-50/80 to-white border-amber-300 shadow-xs"
+                            : "bg-white border-stone-200/90 shadow-2xs"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-extrabold text-stone-900 truncate">{item.product.name}</p>
+                              {item.isNegotiated && (
+                                <span className="text-[9px] font-black bg-amber-400 text-stone-950 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                  🤝 Deal Rate
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-1 text-[10.5px] text-stone-600 flex-wrap">
+                              <span className="bg-stone-100 text-stone-800 border border-stone-200 px-1.5 py-0.2 rounded-md font-semibold">
+                                {item.selectedSize || "Standard"}
+                              </span>
+                              {item.beauticianName && (
+                                <span className="text-purple-700 italic">By: {item.beauticianName.split(" ")[0]}</span>
+                              )}
+
+                              {/* Unit Price display */}
+                              <div className="flex items-center gap-1 font-mono">
+                                {isDiscounted && (
+                                  <span className="line-through text-stone-400">
+                                    ₹{origPrice.toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                                <span className={`font-bold ${isDiscounted ? "text-emerald-700" : "text-stone-800"}`}>
+                                  ₹{item.price.toLocaleString("en-IN")}/pc
+                                </span>
+                              </div>
+
+                              {/* Inline Bargain / Negotiate Button */}
+                              <button
+                                onClick={() => {
+                                  if (editingPriceIdx === idx) {
+                                    setEditingPriceIdx(null);
+                                  } else {
+                                    startEditingItemPrice(idx, item.price);
+                                  }
+                                }}
+                                className="text-[10px] font-bold text-amber-800 hover:text-stone-950 bg-amber-50 hover:bg-amber-200/70 px-1.5 py-0.5 rounded border border-amber-200/80 flex items-center gap-0.5 cursor-pointer transition"
+                                title="Bargain / Negotiate unit price for this item"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>{editingPriceIdx === idx ? "Close" : "Bargain"}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quantity Stepper & Line Total */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center border border-stone-200 bg-stone-50 rounded-xl overflow-hidden">
+                              <button
+                                onClick={() => updateQuantity(idx, -1)}
+                                className="p-1.5 text-stone-600 hover:bg-stone-200 hover:text-black cursor-pointer transition"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="px-2 font-mono font-extrabold text-xs text-stone-900">{item.quantity}</span>
+                              <button
+                                onClick={() => updateQuantity(idx, 1)}
+                                className="p-1.5 text-stone-600 hover:bg-stone-200 hover:text-black cursor-pointer transition"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            <div className="text-right min-w-[60px] font-mono">
+                              <span className="font-black text-stone-950 text-xs block">
+                                ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                              </span>
+                              {isDiscounted && (
+                                <span className="text-[9px] font-bold text-emerald-700 block">
+                                  Save ₹{((origPrice - item.price) * item.quantity).toLocaleString("en-IN")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* INLINE NEGOTIATION / BARGAIN DRAWER FOR THIS ITEM */}
+                        {editingPriceIdx === idx && (
+                          <div className="mt-2.5 pt-2 border-t border-amber-200/80 bg-white p-2.5 rounded-xl text-xs space-y-1.5 shadow-inner">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10.5px] font-bold text-amber-950 flex items-center gap-1">
+                                <Handshake className="w-3.5 h-3.5 text-amber-600" />
+                                Set Customer Agreed Rate (Per Piece)
+                              </span>
+                              {item.isNegotiated && (
+                                <button
+                                  onClick={() => resetItemPrice(idx)}
+                                  className="text-[10px] text-stone-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer font-semibold"
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" /> Reset Rate
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <span className="absolute left-2.5 top-1.5 text-stone-400 font-bold text-xs">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={tempItemPrice}
+                                  onChange={e => setTempItemPrice(e.target.value)}
+                                  className="w-full pl-6 pr-2 py-1 bg-stone-50 border border-amber-300 rounded-lg text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                  placeholder="Agreed Rate"
+                                  autoFocus
+                                />
+                              </div>
+                              <button
+                                onClick={() => saveNegotiatedItemPrice(idx)}
+                                className="px-3 py-1 bg-stone-950 hover:bg-stone-800 text-amber-300 font-bold text-xs rounded-lg cursor-pointer transition"
+                              >
+                                Apply
+                              </button>
+                            </div>
+
+                            {/* Wholesale Cost & Margin Protection Check */}
+                            {!item.product.isService && (
+                              <div className="flex items-center justify-between text-[9.5px] pt-0.5 font-mono">
+                                <span className="text-stone-500">
+                                  Cost: ₹{item.product.purchaseCost}
+                                </span>
+                                {isCostLoss ? (
+                                  <span className="text-rose-600 font-bold">
+                                    ⚠️ Below Cost (Loss: ₹{Math.abs(profitPerUnit)}/pc)
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 font-bold">
+                                    Profit: ₹{profitPerUnit}/pc (+{Math.round((profitPerUnit / (item.product.purchaseCost || 1)) * 100)}%)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Bottom Checkout, Deal Desk & Payment Terminal */}
+              <div className="p-3.5 border-t border-stone-200 bg-white space-y-2.5 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.08)]">
+                {/* Alteration Toggle Checkbox */}
+                <div className="bg-[#faf7f2] border border-stone-200/90 rounded-xl px-3 py-2">
+                  <label className="flex items-center justify-between text-xs font-bold text-stone-900 cursor-pointer">
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={alterationEnabled}
+                        onChange={e => setAlterationEnabled(e.target.checked)}
+                        className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <Scissors className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Alteration / Fitting Required?</span>
+                    </span>
+                    {alterationEnabled && (
+                      <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-semibold">
+                        Active
+                      </span>
+                    )}
+                  </label>
+
+                  {alterationEnabled && (
+                    <div className="mt-2 pt-2 border-t border-stone-200 space-y-1.5 text-[11px]">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[10px] text-stone-600 font-medium">Garment Name</span>
+                          <input
+                            type="text"
+                            value={alterationData.garmentName}
+                            onChange={e => setAlterationData({ ...alterationData, garmentName: e.target.value })}
+                            className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
+                            placeholder="e.g. Bridal Lehenga"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-stone-600 font-medium">Ready Date</span>
+                          <input
+                            type="date"
+                            value={alterationData.readyDate}
+                            onChange={e => setAlterationData({ ...alterationData, readyDate: e.target.value })}
+                            className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-stone-600 font-medium">Measurements (Chest / Waist / Length)</span>
+                        <input
+                          type="text"
+                          value={alterationData.fittingNotes}
+                          onChange={e => setAlterationData({ ...alterationData, fittingNotes: e.target.value })}
+                          className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CUSTOMER BARGAIN & DEAL DESK */}
+                <div className="bg-gradient-to-br from-amber-50/90 via-[#fdfbf7] to-amber-50/50 border border-amber-300/80 rounded-2xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Handshake className="w-4 h-4 text-amber-700" />
+                      <span className="text-xs font-extrabold text-stone-900">
+                        Customer Bargain &amp; Deal Desk
+                      </span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <button
+                        onClick={() => {
+                          setDiscountAmount(0);
+                          setAgreedDealPrice("");
+                        }}
+                        className="text-[10px] text-rose-600 hover:underline cursor-pointer font-bold"
+                      >
+                        Reset Deal
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Direct Agreed Deal Price & Reason */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-stone-600 font-semibold">Final Agreed Deal (₹)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={subtotal}
+                        placeholder={`e.g. ₹${Math.floor(subtotal / 100) * 100}`}
+                        value={agreedDealPrice}
+                        onChange={e => handleAgreedDealPriceChange(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-mono font-black text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-stone-600 font-semibold">Deal Authorization</span>
+                      <select
+                        value={discountReason}
+                        onChange={e => setDiscountReason(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 focus:outline-none cursor-pointer"
+                      >
+                        <option value="Owner Approved">👑 Owner / Madam Approved</option>
+                        <option value="Regular Customer">⭐ Regular Loyal Customer</option>
+                        <option value="Bulk Bridal Deal">👰 Bridal / Bulk Deal</option>
+                        <option value="Rounding Off">🔄 Rounding Off Deal</option>
+                        <option value="Seasonal Offer">🏷️ Festival Offer</option>
+                        <option value="Fitting Adjustment">✂️ Fitting Adjustment</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Quick Bargain Chips */}
+                  <div className="flex items-center justify-between gap-1 pt-1 border-t border-amber-200/60 flex-wrap">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleQuickRoundOff(50)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded border border-slate-200 font-semibold cursor-pointer transition"
-                        title="Round to nearest 50"
+                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
                       >
                         Round ₹50
                       </button>
                       <button
                         onClick={() => handleQuickRoundOff(100)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded border border-slate-200 font-semibold cursor-pointer transition"
-                        title="Round to nearest 100"
+                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
                       >
                         Round ₹100
                       </button>
                       <button
                         onClick={() => handleQuickRoundOff(500)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded border border-slate-200 font-semibold cursor-pointer transition"
-                        title="Round to nearest 500"
+                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
                       >
                         Round ₹500
                       </button>
@@ -1470,428 +1700,589 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleQuickPercentDiscount(5)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold cursor-pointer transition"
+                        className="text-[9.5px] px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-lg font-extrabold cursor-pointer transition"
                       >
                         5%
                       </button>
                       <button
                         onClick={() => handleQuickPercentDiscount(10)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold cursor-pointer transition"
+                        className="text-[9.5px] px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-lg font-extrabold cursor-pointer transition"
                       >
                         10%
                       </button>
                       <button
                         onClick={() => handleQuickFlatDiscount(200)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold cursor-pointer transition"
+                        className="text-[9.5px] px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded-lg font-extrabold cursor-pointer transition"
                       >
                         -₹200
                       </button>
                       <button
                         onClick={() => handleQuickFlatDiscount(500)}
-                        className="text-[9.5px] px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold cursor-pointer transition"
+                        className="text-[9.5px] px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded-lg font-extrabold cursor-pointer transition"
                       >
                         -₹500
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Payment Mode Selector */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-semibold">Special Discount (₹)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="₹0"
-                    value={discountAmount || ""}
-                    onChange={e => setDiscountAmount(Math.max(0, Number(e.target.value)))}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-500 font-semibold">Payment Mode</span>
-                  <select
-                    value={paymentMode}
-                    onChange={e => setPaymentMode(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-stone-900 focus:outline-none cursor-pointer"
-                  >
-                    <option value="upi">📱 UPI QR / PhonePe</option>
-                    <option value="cash">💵 Cash In Hand</option>
-                    <option value="card">💳 Debit / Credit Card</option>
-                    <option value="khata">📒 Khata / Udhaar</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Price Summary Breakdown */}
-              <div className="space-y-1 text-xs pt-1">
-                {catalogTotal > subtotal && (
-                  <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Original Catalog Total</span>
-                    <span className="line-through">₹{catalogTotal.toLocaleString("en-IN")}</span>
+                {/* Payment Mode Visual Tiles + Special Discount */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-stone-500 uppercase tracking-wider">
+                    <span>Select Payment Mode</span>
+                    <span>Flat Discount: ₹{discountAmount || 0}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-slate-600 font-medium">
-                  <span>Cart Subtotal</span>
-                  <span>₹{subtotal.toLocaleString("en-IN")}</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-semibold">
-                    <span>Negotiated Bargain Discount</span>
-                    <span>- ₹{discountAmount.toLocaleString("en-IN")}</span>
-                  </div>
-                )}
-                {totalSavings > 0 && (
-                  <div className="flex justify-between text-amber-900 bg-amber-50 px-2 py-1 rounded font-bold text-[11px] border border-amber-200/80">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Customer Total Savings:
-                    </span>
-                    <span>₹{totalSavings.toLocaleString("en-IN")} 🎉</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-base font-black text-stone-950 border-t border-slate-200 pt-1.5">
-                  <span>Final Deal Payable</span>
-                  <span>₹{grandTotal.toLocaleString("en-IN")}</span>
-                </div>
-              </div>
-
-              {/* Checkout Button */}
-              <button
-                disabled={cart.length === 0}
-                onClick={handleCheckout}
-                className="w-full py-3 bg-stone-950 hover:bg-stone-900 disabled:opacity-40 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-sm shadow-md transition cursor-pointer flex items-center justify-center gap-2 group"
-              >
-                <CheckCircle2 className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>Complete Bill · ₹{grandTotal.toLocaleString("en-IN")}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================
-          TAB 2: INVENTORY & BARCODE GENERATOR
-          ========================================================= */}
-      {activeTab === "inventory" && (
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-stone-900 font-serif">Product Inventory &amp; Barcode Management</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Manage all ~160 retail products, sizes, prices, and generate clothing price tags with barcodes.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={handleReloadWholesaleInventory}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold cursor-pointer transition"
-                  title="Reload 159 items parsed from supplier wholesale bills"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Reload 159 Bill Items</span>
-                </button>
-                <button
-                  onClick={() => setShowDbModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition"
-                >
-                  <Database className="w-3.5 h-3.5 text-stone-700" />
-                  <span>Cloud DB</span>
-                </button>
-                <button
-                  onClick={() => openNewProductModal("handbags")}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold shadow-xs hover:bg-stone-900 cursor-pointer transition"
-                >
-                  <Plus className="w-4 h-4 text-amber-400" />
-                  <span>Add New Product</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Inventory Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100/90 text-stone-800 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3">SKU &amp; Barcode</th>
-                    <th className="px-4 py-3">Product Name</th>
-                    <th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">Sizes / Options</th>
-                    <th className="px-4 py-3">Cost Price</th>
-                    <th className="px-4 py-3">Selling Price</th>
-                    <th className="px-4 py-3">Stock Qty</th>
-                    <th className="px-4 py-3 text-right">Barcode Tag</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {products.map(p => (
-                    <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-stone-900">{p.sku}</span>
-                        <p className="text-[10px] text-slate-500 font-mono">Code: {p.barcode}</p>
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-stone-900">{p.name}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          p.category === "sarees" ? "bg-indigo-100 text-indigo-900" :
-                          p.category === "lehengas" ? "bg-rose-100 text-rose-800" :
-                          p.category === "kurtis" ? "bg-amber-100 text-amber-900" :
-                          p.category === "handbags" ? "bg-teal-100 text-teal-900" :
-                          p.category === "jewellery" ? "bg-purple-100 text-purple-900" :
-                          p.category === "footwear" ? "bg-emerald-100 text-emerald-900" :
-                          "bg-pink-100 text-pink-900"
-                        }`}>
-                          {p.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[11px] text-slate-600">
-                        {p.sizes ? p.sizes.join(", ") : "Standard"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">₹{p.purchaseCost || 0}</td>
-                      <td className="px-4 py-3 font-bold text-stone-950">₹{p.price.toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3 font-semibold">
-                        {p.isService ? (
-                          <span className="text-purple-700">Service</span>
-                        ) : (
-                          <span className={p.stock <= 3 ? "text-rose-600 font-bold" : "text-emerald-700 font-bold"}>
-                            {p.stock} pcs
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEditProductPrice(p)}
-                            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
-                            title="Update price or add festival discount (Barcode automatically updates!)"
-                          >
-                            <Edit3 className="w-3 h-3 text-stone-600" />
-                            <span>Edit Rate / Offer</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedProductForBarcode(p);
-                              setBarcodeStickerCount(4);
-                            }}
-                            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
-                          >
-                            <Tag className="w-3 h-3 text-amber-700" />
-                            <span>Print Tags</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================
-          TAB 3: ALTERATION & FITTING DESK
-          ========================================================= */}
-      {activeTab === "alterations" && (
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-stone-900 font-serif">Alteration &amp; Fitting Desk</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Track alterations, tailor assignments, customer trials, and send automatic WhatsApp pickup alerts.
-                </p>
-              </div>
-            </div>
-
-            {alterationsList.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-                <Scissors className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700">No active alterations right now</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  When creating a bill, check "Alteration / Fitting Required" to record garment measurements and tailors.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {alterationsList.map((alt, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                        <Scissors className="w-3.5 h-3.5 text-amber-600" />
-                        {alt.garmentName}
-                      </span>
-                      <select
-                        value={alt.status}
-                        onChange={e => {
-                          const next = [...alterationsList];
-                          next[idx].status = e.target.value as any;
-                          saveAlterationsLocally(next);
-                        }}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border cursor-pointer ${
-                          alt.status === "Ready for Trial"
-                            ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                            : alt.status === "Delivered"
-                            ? "bg-slate-100 text-slate-700 border-slate-300"
-                            : "bg-amber-100 text-amber-900 border-amber-300"
-                        }`}
-                      >
-                        <option value="Received">Received</option>
-                        <option value="In Alteration">In Alteration</option>
-                        <option value="Ready for Trial">Ready for Trial</option>
-                        <option value="Delivered">Delivered</option>
-                      </select>
-                    </div>
-
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs space-y-1">
-                      <p className="font-semibold text-slate-800">
-                        Fitting Notes: <span className="font-normal text-slate-600">{alt.fittingNotes}</span>
-                      </p>
-                      <p className="font-semibold text-slate-800">
-                        Assigned Tailor: <span className="font-normal text-slate-600">{alt.tailorName}</span>
-                      </p>
-                      <p className="font-semibold text-slate-800">
-                        Expected Ready Date: <span className="font-bold text-amber-900">{alt.readyDate}</span>
-                      </p>
-                    </div>
-
-                    {/* WhatsApp Action Button */}
-                    <div className="flex justify-end pt-1">
-                      <button
-                        onClick={() => handleSendAlterationReadyWhatsApp(alt, "9897000000", "Customer")}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Send WhatsApp "Ready" Alert</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================
-          TAB 4: DAILY SALES REPORTS
-          ========================================================= */}
-      {activeTab === "reports" && (
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-stone-900 font-serif">Daily Sales &amp; Settlement Report</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Summary of all bills issued, payment breakdowns (Cash vs UPI vs Card), and total collection.
-              </p>
-            </div>
-
-            {/* Metric Cards */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase">Total Sales Revenue</span>
-                <p className="text-2xl font-black text-stone-950 mt-1">
-                  ₹{completedBills.reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-emerald-600 uppercase flex items-center gap-1">
-                  <Banknote className="w-3.5 h-3.5" /> Cash Collected
-                </span>
-                <p className="text-xl font-bold text-slate-900 mt-1">
-                  ₹{completedBills.filter(b => b.paymentMode === "cash").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-purple-600 uppercase flex items-center gap-1">
-                  <QrCode className="w-3.5 h-3.5" /> UPI Received
-                </span>
-                <p className="text-xl font-bold text-slate-900 mt-1">
-                  ₹{completedBills.filter(b => b.paymentMode === "upi").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                <span className="text-[11px] font-semibold text-blue-600 uppercase flex items-center gap-1">
-                  <CreditCard className="w-3.5 h-3.5" /> Card / Khata
-                </span>
-                <p className="text-xl font-bold text-slate-900 mt-1">
-                  ₹{completedBills.filter(b => b.paymentMode === "card" || b.paymentMode === "khata").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
-                </p>
-              </div>
-            </div>
-
-            {/* Recent Bills History */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                <h3 className="font-bold text-sm text-stone-900">Recent Completed Bills</h3>
-                <span className="text-xs text-slate-500">{completedBills.length} Bill(s)</span>
-              </div>
-
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-stone-800 font-bold">
-                  <tr>
-                    <th className="px-4 py-2.5">Bill No &amp; Time</th>
-                    <th className="px-4 py-2.5">Customer</th>
-                    <th className="px-4 py-2.5">Items Summary</th>
-                    <th className="px-4 py-2.5">Payment</th>
-                    <th className="px-4 py-2.5 text-right">Amount</th>
-                    <th className="px-4 py-2.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {completedBills.map(b => (
-                    <tr key={b.id} className="hover:bg-slate-50/80 transition">
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
-                        <p className="text-[10px] text-slate-500">{b.createdAt}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-bold text-stone-900">{b.customer.name}</p>
-                        <p className="text-[10px] text-slate-500">{b.customer.phone}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
-                        {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold text-[10px] uppercase">
-                          {b.paymentMode}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-black text-stone-950 text-sm block">
-                          ₹{b.grandTotal.toLocaleString("en-IN")}
-                        </span>
-                        {(b.totalSavings || b.discount) > 0 && (
-                          <span className="text-[10px] text-emerald-700 font-semibold block">
-                            Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
-                            {b.discountReason && ` (${b.discountReason.split(" ")[0]})`}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { id: "upi", label: "UPI QR", icon: QrCode },
+                      { id: "cash", label: "Cash", icon: Banknote },
+                      { id: "card", label: "Card", icon: CreditCard },
+                      { id: "khata", label: "Khata", icon: BookOpen }
+                    ].map(pm => {
+                      const IconComp = pm.icon;
+                      const active = paymentMode === pm.id;
+                      return (
                         <button
-                          onClick={() => handleSendWhatsAppBill(b)}
-                          className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
-                          title="Resend WhatsApp Bill"
+                          key={pm.id}
+                          type="button"
+                          onClick={() => setPaymentMode(pm.id as any)}
+                          className={`py-2 px-1.5 rounded-xl border text-[11px] font-bold flex flex-col items-center justify-center gap-0.5 cursor-pointer transition ${
+                            active
+                              ? "bg-stone-950 text-amber-300 border-amber-500/50 shadow-sm"
+                              : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                          }`}
                         >
-                          <Share2 className="w-4 h-4" />
+                          <IconComp className={`w-3.5 h-3.5 ${active ? "text-amber-400" : "text-stone-500"}`} />
+                          <span>{pm.label}</span>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Price Breakdown & Grand Total */}
+                <div className="space-y-1 text-xs pt-1">
+                  {catalogTotal > subtotal && (
+                    <div className="flex justify-between text-stone-400 text-[11px] font-mono">
+                      <span>Catalog MRP Total</span>
+                      <span className="line-through">₹{catalogTotal.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-stone-600 font-semibold">
+                    <span>Bill Subtotal</span>
+                    <span className="font-mono">₹{subtotal.toLocaleString("en-IN")}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-bold">
+                      <span>Special Deal Discount</span>
+                      <span className="font-mono">- ₹{discountAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                  {totalSavings > 0 && (
+                    <div className="flex justify-between items-center text-amber-950 bg-gradient-to-r from-amber-100/90 to-amber-50 px-2.5 py-1 rounded-xl font-extrabold text-[11px] border border-amber-300/80">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Customer Saves Today:
+                      </span>
+                      <span className="font-mono">₹{totalSavings.toLocaleString("en-IN")} 🎉</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-baseline text-base font-black text-stone-950 border-t border-stone-200 pt-1.5">
+                    <span className="font-serif uppercase tracking-wide text-sm">Net Payable</span>
+                    <span className="text-xl font-mono text-stone-950">₹{grandTotal.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+
+                {/* Primary Checkout CTA */}
+                <button
+                  disabled={cart.length === 0}
+                  onClick={handleCheckout}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#120e0c] via-[#231b15] to-[#120e0c] hover:from-stone-900 hover:to-stone-800 disabled:opacity-40 text-amber-300 border border-amber-500/40 rounded-2xl font-black text-sm shadow-lg shadow-stone-950/15 transition cursor-pointer flex items-center justify-center gap-2 group uppercase tracking-wider"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span>Complete Bill &amp; Print · ₹{grandTotal.toLocaleString("en-IN")}</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* =========================================================
+            TAB 2: INVENTORY & BARCODE TAG STUDIO
+            ========================================================= */}
+        {activeTab === "inventory" && (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Executive Header & Action Bar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
+                    Showroom Stockroom &amp; Thermal Tag Studio
+                  </span>
+                  <h2 className="text-2xl font-black text-white font-serif tracking-wide">
+                    Product Inventory &amp; Barcode Management
+                  </h2>
+                  <p className="text-xs text-stone-300 mt-1">
+                    Add new Sarees, Lehengas, Suits, or Handbags — auto-generate SKU &amp; Barcodes and print 2-Across Thermal Tags.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={handleReloadWholesaleInventory}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-amber-200 border border-stone-700 rounded-xl text-xs font-bold cursor-pointer transition"
+                    title="Reload 159 items parsed from supplier wholesale bills"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Sync 159 Supplier Items</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDbModal(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700 rounded-xl text-xs font-bold cursor-pointer transition"
+                  >
+                    <Database className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Cloud Backup</span>
+                  </button>
+                  <button
+                    onClick={() => openNewProductModal("handbags")}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 rounded-xl text-xs font-black shadow-lg shadow-amber-500/20 cursor-pointer transition uppercase tracking-wider"
+                  >
+                    <Plus className="w-4 h-4 text-stone-950" />
+                    <span>+ Add New Product</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Executive Stockroom KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Catalog Designs</span>
+                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{products.length}</p>
+                    <span className="text-[10px] text-emerald-700 font-semibold">Active Barcoded SKUs</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Total Showroom Stock</span>
+                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{totalPhysicalPieces.toLocaleString("en-IN")} <span className="text-xs font-sans font-bold text-stone-500">pcs</span></p>
+                    <span className="text-[10px] text-stone-500 font-semibold">Ready for Sale</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
+                    <PackageCheck className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Retail Stock Value</span>
+                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">₹{totalRetailStockValue.toLocaleString("en-IN")}</p>
+                    <span className="text-[10px] text-amber-800 font-semibold">At Fixed Selling Price</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Projected Margin</span>
+                    <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">
+                      ₹{Math.max(0, totalRetailStockValue - totalCostStockValue).toLocaleString("en-IN")}
+                    </p>
+                    <span className="text-[10px] text-stone-500 font-semibold">
+                      Cost: ₹{totalCostStockValue.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Search & Category Filter Bar inside Inventory */}
+              <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search inventory by Product Name, SKU (e.g. RJ-BAG-001), or Barcode Number..."
+                    value={inventorySearch}
+                    onChange={e => setInventorySearch(e.target.value)}
+                    className="w-full pl-10 pr-8 py-2.5 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                  />
+                  {inventorySearch && (
+                    <button
+                      onClick={() => setInventorySearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: "all", label: "All" },
+                    { id: "handbags", label: "👜 Handbags" },
+                    { id: "sarees", label: "🥻 Sarees" },
+                    { id: "lehengas", label: "👗 Lehengas" },
+                    { id: "kurtis", label: "👚 Kurtis" },
+                    { id: "jewellery", label: "💍 Jewellery" },
+                    { id: "footwear", label: "👠 Footwear" }
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setInventoryCategory(c.id as ProductCategory)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition border ${
+                        inventoryCategory === c.id
+                          ? "bg-stone-950 text-amber-300 border-stone-950"
+                          : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-amber-50"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Inventory Table */}
+              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gradient-to-r from-stone-900 to-stone-950 text-amber-200 font-bold uppercase tracking-wider text-[10.5px]">
+                      <tr>
+                        <th className="px-4 py-3.5">SKU &amp; Barcode</th>
+                        <th className="px-4 py-3.5">Product Title</th>
+                        <th className="px-4 py-3.5">Category</th>
+                        <th className="px-4 py-3.5">Sizes / Variants</th>
+                        <th className="px-4 py-3.5">Cost Rate</th>
+                        <th className="px-4 py-3.5">Fixed Price &amp; MRP</th>
+                        <th className="px-4 py-3.5">Stock Qty</th>
+                        <th className="px-4 py-3.5 text-right">Actions &amp; Thermal Tag</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {filteredInventoryProducts.map(p => {
+                        const theme = getCategoryTheme(p.category);
+                        return (
+                          <tr key={p.id} className="hover:bg-amber-50/40 transition">
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-bold text-stone-950 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                                {p.sku}
+                              </span>
+                              <p className="text-[10px] text-stone-500 font-mono mt-1">Barcode: {p.barcode}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-extrabold text-stone-900 text-xs">{p.name}</p>
+                              {p.badge && (
+                                <span className="inline-block mt-0.5 text-[9.5px] font-bold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded">
+                                  ✨ {p.badge}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${theme.badge}`}>
+                                <span>{theme.icon}</span>
+                                <span>{p.category}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-[11px] text-stone-600 font-medium">
+                              {p.sizes ? p.sizes.join(", ") : "Standard"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-stone-500">₹{(p.purchaseCost || 0).toLocaleString("en-IN")}</td>
+                            <td className="px-4 py-3 font-mono">
+                              <span className="font-black text-stone-950 text-sm">₹{p.price.toLocaleString("en-IN")}</span>
+                              {p.mrp > p.price && (
+                                <span className="text-[10px] text-stone-400 line-through block">MRP: ₹{p.mrp}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-semibold">
+                              {p.isService ? (
+                                <span className="text-purple-700 font-bold">Service</span>
+                              ) : (
+                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                  p.stock <= 3 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                }`}>
+                                  {p.stock} pcs
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEditProductPrice(p)}
+                                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1 border border-stone-200/80"
+                                  title="Update price or add festival discount"
+                                >
+                                  <Edit3 className="w-3 h-3 text-stone-600" />
+                                  <span>Edit Rate</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedProductForBarcode(p);
+                                    setBarcodeStickerCount(4);
+                                  }}
+                                  className="px-3.5 py-1.5 bg-gradient-to-r from-[#14100d] to-[#241c16] hover:from-amber-400 hover:to-amber-500 text-amber-300 hover:text-stone-950 border border-amber-500/30 font-extrabold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                                >
+                                  <Tag className="w-3 h-3" />
+                                  <span>Print Tags</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================
+            TAB 3: ALTERATION & FITTING DESK
+            ========================================================= */}
+        {activeTab === "alterations" && (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-5xl mx-auto space-y-6">
+              <div className="bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
+                    Bespoke Bridal &amp; Garment Fitting
+                  </span>
+                  <h2 className="text-2xl font-black text-white font-serif">Alteration &amp; Fitting Desk</h2>
+                  <p className="text-xs text-stone-300 mt-1">
+                    Track customer measurements, master tailor assignments, trial dates, and send 1-click WhatsApp pickup alerts.
+                  </p>
+                </div>
+                <div className="hidden sm:flex items-center gap-3 bg-stone-900/90 border border-amber-500/20 px-4 py-2.5 rounded-2xl">
+                  <Scissors className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <span className="text-[10px] text-stone-400 uppercase font-bold block">Pending Trials</span>
+                    <span className="text-lg font-black text-white font-mono">
+                      {alterationsList.filter(a => a.status !== "Delivered").length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {alterationsList.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center text-stone-400 shadow-xs">
+                  <Scissors className="w-12 h-12 text-amber-500/60 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-stone-800">No active alterations right now</p>
+                  <p className="text-xs text-stone-500 mt-1">
+                    When creating a bill on the POS tab, check &ldquo;Alteration / Fitting Required&rdquo; to record garment measurements and tailors.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {alterationsList.map((alt, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-sm space-y-3 hover:border-amber-400 transition">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-extrabold text-stone-900 flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-amber-600" />
+                          {alt.garmentName}
+                        </span>
+                        <select
+                          value={alt.status}
+                          onChange={e => {
+                            const next = [...alterationsList];
+                            next[idx].status = e.target.value as any;
+                            saveAlterationsLocally(next);
+                          }}
+                          className={`text-[10.5px] font-extrabold px-2.5 py-1 rounded-full border cursor-pointer ${
+                            alt.status === "Ready for Trial"
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              : alt.status === "Delivered"
+                              ? "bg-stone-100 text-stone-700 border-stone-300"
+                              : "bg-amber-100 text-amber-900 border-amber-300"
+                          }`}
+                        >
+                          <option value="Received">Received</option>
+                          <option value="In Alteration">In Alteration</option>
+                          <option value="Ready for Trial">Ready for Trial</option>
+                          <option value="Delivered">Delivered</option>
+                        </select>
+                      </div>
+
+                      <div className="bg-[#faf7f2] p-3 rounded-xl border border-stone-200/80 text-xs space-y-1.5">
+                        <p className="font-bold text-stone-800">
+                          Fitting Notes: <span className="font-medium text-stone-600">{alt.fittingNotes}</span>
+                        </p>
+                        <p className="font-bold text-stone-800">
+                          Master Tailor: <span className="font-medium text-stone-600">{alt.tailorName}</span>
+                        </p>
+                        <p className="font-bold text-stone-800">
+                          Trial / Delivery Date: <span className="font-bold text-amber-900 font-mono">{alt.readyDate}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => handleSendAlterationReadyWhatsApp(alt, "9897000000", "Customer")}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Send WhatsApp &ldquo;Ready&rdquo; Alert</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================
+            TAB 4: DAILY SALES & SETTLEMENT REPORT
+            ========================================================= */}
+        {activeTab === "reports" && (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div className="bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
+                    Executive Accounting &amp; Register
+                  </span>
+                  <h2 className="text-2xl font-black text-white font-serif">Daily Sales &amp; Settlement Report</h2>
+                  <p className="text-xs text-stone-300 mt-1">
+                    Complete breakdown of showroom revenue, UPI QR vs Cash collections, and digital PDF invoices.
+                  </p>
+                </div>
+                <div className="bg-stone-900/90 border border-amber-500/30 px-4 py-2.5 rounded-2xl text-right">
+                  <span className="text-[10px] text-amber-300 uppercase font-bold block">Total Register Collection</span>
+                  <span className="text-xl font-black text-white font-mono">
+                    ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales Revenue</span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-stone-500 font-medium">{completedBills.length} Invoices Generated</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                    <Banknote className="w-3.5 h-3.5" /> Cash In Drawer
+                  </span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    ₹{completedBills.filter(b => b.paymentMode === "cash").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-emerald-700 font-medium">Physical Cash</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                    <QrCode className="w-3.5 h-3.5" /> UPI / PhonePe
+                  </span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    ₹{completedBills.filter(b => b.paymentMode === "upi").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-purple-700 font-medium">Instant Bank Settlement</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5" /> Card &amp; Khata
+                  </span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    ₹{completedBills.filter(b => b.paymentMode === "card" || b.paymentMode === "khata").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-amber-800 font-medium">POS Swipe / Ledger</span>
+                </div>
+              </div>
+
+              {/* Recent Bills History Table */}
+              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-[#faf7f2]">
+                  <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">Completed Showroom Invoices</h3>
+                  <span className="text-xs font-bold text-stone-600 bg-white px-3 py-1 rounded-full border border-stone-200">
+                    {completedBills.length} Bill(s)
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-stone-900 text-amber-200 font-bold uppercase text-[10.5px] tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Bill No &amp; Time</th>
+                        <th className="px-4 py-3">Customer</th>
+                        <th className="px-4 py-3">Items Purchased</th>
+                        <th className="px-4 py-3">Payment</th>
+                        <th className="px-4 py-3 text-right">Grand Total</th>
+                        <th className="px-4 py-3 text-right">Invoice Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {completedBills.map(b => (
+                        <tr key={b.id} className="hover:bg-amber-50/40 transition">
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
+                            <p className="text-[10px] text-stone-500">{b.createdAt}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-stone-900">{b.customer.name}</p>
+                            <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
+                          </td>
+                          <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
+                            {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="px-2.5 py-0.5 bg-stone-100 text-stone-800 border border-stone-200 rounded-full font-bold text-[10px] uppercase">
+                              {b.paymentMode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono">
+                            <span className="font-black text-stone-950 text-sm block">
+                              ₹{b.grandTotal.toLocaleString("en-IN")}
+                            </span>
+                            {(b.totalSavings || b.discount) > 0 && (
+                              <span className="text-[10px] text-emerald-700 font-bold block">
+                                Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
+                                className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                title="View / Download PDF Invoice"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-amber-700" />
+                                <span>PDF</span>
+                              </button>
+                              <button
+                                onClick={() => handleSendWhatsAppBill(b)}
+                                className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                title="Send WhatsApp Bill"
+                              >
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* =========================================================
           MODAL: CHECKOUT SUCCESS & THERMAL RECEIPT PREVIEW
