@@ -761,7 +761,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-50 print:bg-white text-slate-900 flex flex-col font-sans">
       {/* =========================================================
           TOP LUXURY OBSIDIAN & CHAMPAGNE GOLD HEADER
           ========================================================= */}

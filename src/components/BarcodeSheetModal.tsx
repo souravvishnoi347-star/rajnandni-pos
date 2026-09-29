@@ -29,7 +29,7 @@ function BarcodeTagItem({
   showMrp,
   showPrice,
   showSize,
-  topOffsetMm = 5,
+  topOffsetMm = 4.5,
   rightInsetMm = 3.5,
 }: {
   product: ProductItem;
@@ -57,7 +57,7 @@ function BarcodeTagItem({
           fontSize = 8;
         } else if (preset === "tvs-50x38-2up") {
           barWidth = 1.25;
-          barHeight = 19;
+          barHeight = 18;
           fontSize = 10;
         } else if (preset === "tvs-75x50-1up" || preset === "tvs-100x50-1up") {
           barWidth = 1.7;
@@ -86,7 +86,7 @@ function BarcodeTagItem({
   const getDimensionStyle = (): React.CSSProperties => {
     switch (preset) {
       case "tvs-50x38-2up":
-        return { width: "46.5mm", height: "37mm", padding: "0", fontSize: "9px" };
+        return { width: "46.5mm", height: "35mm", padding: "0", fontSize: "9px" };
       case "tvs-50x25-2up":
         return { width: "48.5mm", height: "23mm", padding: "0.4mm 0.8mm", fontSize: "7.5px" };
       case "tvs-75x50-1up":
@@ -115,19 +115,17 @@ function BarcodeTagItem({
   const isTvs50x38 = preset === "tvs-50x38-2up";
 
   if (isTvs50x38) {
-    // Calibrated from actual physical print on SNBC TVSE LP46 Dlite:
-    // - Printer starts 0mm-4.5mm in the top backing gap, leaving 5.5mm blank at bottom of sticker.
-    //   So topOffsetMm (default 5mm) pushes RAJNANDNI down squarely onto the white sticker.
-    // - Printer shifts ~2.5mm right, so width is 46.5mm with rightInsetMm (default 3.5mm)
-    //   so the last digit of Price (₹1,118) is never clipped on the right edge.
-    // - Compact 11mm barcode section eliminates empty white gaps and allows BIG, BOLD text.
+    // Strictly 35mm container height (< 36mm hardware page threshold) so Chrome/Seagull driver
+    // NEVER overflows onto blank sticker rows between Row 1 and Row 2.
+    // Total content height = 4.5 + 6.0 + 5.2 + 10.5 + 5.5 = 31.7mm (fits inside 35mm with 3.3mm buffer).
     return (
       <div
         className="border border-dashed border-stone-300 print:border-none bg-white break-inside-avoid print:rounded-none select-none"
         style={{
           boxSizing: "border-box",
           width: "46.5mm",
-          height: "37mm",
+          height: "35mm",
+          maxHeight: "35mm",
           padding: `0 ${rightInsetMm}mm 0 1mm`,
           margin: "0",
           position: "relative",
@@ -147,19 +145,19 @@ function BarcodeTagItem({
           {/* Calibrated Top Offset so RAJNANDNI prints inside the white sticker, below the top gap */}
           <div style={{ height: `${topOffsetMm}mm`, flexShrink: 0 }} />
 
-          {/* Brand & Store Header — 6.5mm */}
+          {/* Brand & Store Header — 6mm */}
           {showShopName && (
             <div
               style={{
-                height: "6.5mm",
+                height: "6mm",
                 flexShrink: 0,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
                 borderBottom: "1px solid #000",
-                paddingBottom: "0.4mm",
-                marginBottom: "0.4mm",
+                paddingBottom: "0.3mm",
+                marginBottom: "0.3mm",
                 boxSizing: "border-box",
               }}
             >
@@ -170,7 +168,7 @@ function BarcodeTagItem({
                   letterSpacing: "0.05em",
                   textTransform: "uppercase",
                   fontSize: "12px",
-                  lineHeight: 1.05,
+                  lineHeight: 1.0,
                   color: "#000",
                   display: "block",
                   textAlign: "center",
@@ -184,7 +182,7 @@ function BarcodeTagItem({
                   fontSize: "8px",
                   fontWeight: 800,
                   color: "#000",
-                  lineHeight: 1.05,
+                  lineHeight: 1.0,
                   display: "block",
                   textAlign: "center",
                 }}
@@ -194,16 +192,16 @@ function BarcodeTagItem({
             </div>
           )}
 
-          {/* Item Details — 5.5mm (Big & Bold) */}
+          {/* Item Details — 5.2mm (Big & Bold) */}
           <div
             style={{
-              height: "5.5mm",
+              height: "5.2mm",
               flexShrink: 0,
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
               boxSizing: "border-box",
-              marginBottom: "0.3mm",
+              marginBottom: "0.2mm",
             }}
           >
             <p
@@ -216,7 +214,7 @@ function BarcodeTagItem({
                 whiteSpace: "nowrap",
                 fontSize: "9.5px",
                 color: "#000",
-                lineHeight: 1.15,
+                lineHeight: 1.1,
               }}
             >
               {product.name}
@@ -231,39 +229,39 @@ function BarcodeTagItem({
                 whiteSpace: "nowrap",
                 fontSize: "8px",
                 color: "#000",
-                lineHeight: 1.15,
+                lineHeight: 1.1,
               }}
             >
               SKU: {product.sku} {showSize && `· ${product.sizes?.[0] || "Std"}`}
             </p>
           </div>
 
-          {/* Barcode Graphic — Compact 11mm (No wasted blank gap!) */}
+          {/* Barcode Graphic — Compact 10.5mm */}
           <div
             style={{
-              height: "11mm",
+              height: "10.5mm",
               flexShrink: 0,
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
               boxSizing: "border-box",
               overflow: "hidden",
-              margin: "0.2mm 0",
+              margin: "0.1mm 0",
             }}
           >
             <svg ref={svgRef} style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }} />
           </div>
 
-          {/* Price & MRP Footer — 6mm (Big, Bold & Safe from Right Edge) */}
+          {/* Price & MRP Footer — 5.5mm (Big, Bold & Safe from Right Edge) */}
           <div
             style={{
-              height: "6mm",
+              height: "5.5mm",
               flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               borderTop: "1px solid #000",
-              paddingTop: "0.4mm",
+              paddingTop: "0.3mm",
               paddingRight: "1.5mm",
               boxSizing: "border-box",
             }}
@@ -361,7 +359,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
   const [labelCount, setLabelCount] = useState<number>(4);
 
   // Calibrated hardware offsets (in mm) for TVS 50x38 2-Up roll
-  const [topOffsetMm, setTopOffsetMm] = useState<number>(5);
+  const [topOffsetMm, setTopOffsetMm] = useState<number>(4.5);
   const [rightInsetMm, setRightInsetMm] = useState<number>(3.5);
 
   // Content Visibility Toggles
@@ -402,8 +400,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
             margin: 0mm !important;
           }
           .thermal-row {
-            height: 37mm !important;
-            max-height: 37mm !important;
+            height: 35mm !important;
+            max-height: 35mm !important;
             width: 97mm !important;
             max-width: 97mm !important;
             display: flex !important;
@@ -999,9 +997,11 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
         <style dangerouslySetInnerHTML={{
           __html: `
             @media print {
-              body, html {
+              html, body {
                 margin: 0 !important;
                 padding: 0 !important;
+                height: auto !important;
+                min-height: 0 !important;
                 background: white !important;
               }
               .no-print,
@@ -1014,6 +1014,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
               }
               ${getPageStyle()}
             }
@@ -1021,8 +1023,8 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
         }} />
 
         {isTwoUp ? (
-          /* Render rows for 2-Up Thermal printing */
-          <div className="w-full flex flex-col items-start">
+          /* Render rows for 2-Up Thermal printing using pure block container so Chrome pagination never splits flex rows */
+          <div style={{ display: "block", width: "100%", margin: 0, padding: 0 }}>
             {Array.from({ length: numRows }).map((_, rIdx) => {
               const firstIdx = rIdx * 2;
               const hasSecond = firstIdx + 1 < labelCount;
@@ -1052,7 +1054,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
                       rightInsetMm={rightInsetMm}
                     />
                   ) : (
-                    <div style={{ width: "46.5mm", height: "37mm" }} />
+                    <div style={{ width: "46.5mm", height: "35mm" }} />
                   )}
                 </div>
               );
