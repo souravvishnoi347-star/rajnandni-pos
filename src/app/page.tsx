@@ -54,7 +54,7 @@ const INVENTORY_DATA_VERSION = "rajnandni_inventory_v3_wholesale_bills";
 const POS_ACCESS_PASSWORD = "Indu@123";
 const POS_AUTH_STORAGE_KEY = "rajnandni_pos_auth_v1";
 
-export default function RajnandniPosPage() {
+export default function RajnandiniPosPage() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authChecked, setAuthChecked] = useState<boolean>(false);
@@ -406,7 +406,7 @@ export default function RajnandniPosPage() {
     if (grandTotal > 0) {
       // Standard UPI Payment URI: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR
       // Using shop UPI handle
-      const upiString = `upi://pay?pa=9897000000@upi&pn=Rajnandni&am=${grandTotal}&cu=INR&tn=Bill+Payment`;
+      const upiString = `upi://pay?pa=9897000000@upi&pn=Rajnandini&am=${grandTotal}&cu=INR&tn=Bill+Payment`;
       QRCode.toDataURL(upiString, { width: 180, margin: 1 }, (err, url) => {
         if (!err && url) setUpiQrUrl(url);
       });
@@ -679,7 +679,7 @@ export default function RajnandniPosPage() {
     const pdfUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invoice?id=${bill.billNo}`;
 
     const message = 
-`🌸 *RAJNANDNI* 🌸
+`🌸 *RAJNANDINI* 🌸
 *Darshan Enterprises*
 Near PSC Petropump, Ranipur, Haridwar
 GSTIN: 05GNZPS9902M1ZR
@@ -707,7 +707,7 @@ Garment: ${bill.alteration.garmentName}
 Fitting: ${bill.alteration.fittingNotes}
 Tailor: ${bill.alteration.tailorName}
 Ready by: ${bill.alteration.readyDate}\n------------------------------------` : ""}
-💖 _Thank you for shopping with Rajnandni! Please visit again._
+💖 _Thank you for shopping with Rajnandini! Please visit again._
 _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     const encoded = encodeURIComponent(message);
@@ -718,7 +718,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   const handleSendAlterationReadyWhatsApp = (alt: AlterationDetail, phone: string, name: string) => {
     const rawPhone = phone.replace(/[^0-9]/g, "");
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
-    const msg = `🌸 *RAJNANDNI - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap store aakar trial le sakte hain.\n\n📍 *Rajnandni (Darshan Enterprises)*\nNear PSC Petropump, Ranipur, Haridwar - 249401\n📞 Support: +91 98970 00000`;
+    const msg = `🌸 *RAJNANDINI - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap store aakar trial le sakte hain.\n\n📍 *Rajnandini (Darshan Enterprises)*\nNear PSC Petropump, Ranipur, Haridwar - 249401\n📞 Support: +91 98970 00000`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -726,6 +726,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   const getNextCodesForCategory = (cat: string, currentList: ProductItem[] = products) => {
     const prefixMap: Record<string, { skuPrefix: string; barcodeBase: number; defaultSizes: string[] }> = {
       handbags: { skuPrefix: "RJ-BAG", barcodeBase: 8906000, defaultSizes: ["Standard", "Party Clutch", "Sling Bag"] },
+      bangles: { skuPrefix: "RJ-BNG", barcodeBase: 8907000, defaultSizes: ["2.4", "2.6", "2.8", "Free Size"] },
+      earrings: { skuPrefix: "RJ-EAR", barcodeBase: 8908000, defaultSizes: ["Standard", "Jhumka", "Chandbali", "Stud", "Danglers"] },
       sarees: { skuPrefix: "RJ-SAR", barcodeBase: 8901000, defaultSizes: ["Free Size (5.5m + Blouse)"] },
       kurtis: { skuPrefix: "RJ-KRT", barcodeBase: 8902000, defaultSizes: ["M", "L", "XL", "XXL"] },
       lehengas: { skuPrefix: "RJ-LHG", barcodeBase: 8903000, defaultSizes: ["Free Size (Semi-Stitched)"] },
@@ -818,6 +820,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         return { icon: "👚", label: "Kurtis & Suits", strip: "from-amber-500 via-orange-500 to-yellow-500", badge: "bg-amber-50 text-amber-900 border-amber-200" };
       case "handbags":
         return { icon: "👜", label: "Handbags & Clutches", strip: "from-teal-600 via-emerald-600 to-cyan-600", badge: "bg-teal-50 text-teal-900 border-teal-200" };
+      case "bangles":
+        return { icon: "💫", label: "Bangles & Kada", strip: "from-amber-600 via-orange-500 to-amber-700", badge: "bg-amber-50 text-amber-900 border-amber-200" };
+      case "earrings":
+        return { icon: "💎", label: "Earrings & Jhumkas", strip: "from-pink-600 via-rose-500 to-amber-600", badge: "bg-pink-50 text-pink-900 border-pink-200" };
       case "jewellery":
         return { icon: "💍", label: "Jewellery & Sets", strip: "from-purple-600 via-fuchsia-600 to-pink-500", badge: "bg-purple-50 text-purple-900 border-purple-200" };
       case "footwear":
@@ -876,7 +882,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               Flagship Retail &amp; Billing Suite
             </span>
             <h1 className="text-3xl font-black tracking-[0.16em] bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent uppercase font-serif">
-              RAJNANDNI
+              RAJNANDINI
             </h1>
             <div className="mt-1.5 inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-stone-950 font-black text-[10.5px] px-3.5 py-0.5 rounded-full uppercase tracking-widest shadow-sm">
               <Sparkles className="w-3 h-3" />
@@ -953,7 +959,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
           <div className="mt-6 pt-4 border-t border-stone-800/80 text-center">
             <p className="text-[10.5px] text-stone-400 font-medium tracking-wide">
-              Sarees · Bridal Lehengas · Designer Suits · Handbags · Jewellery
+              Sarees · Bridal Lehengas · Designer Suits · Handbags · Bangles · Earrings · Jewellery
             </p>
           </div>
         </div>
@@ -982,7 +988,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-black tracking-[0.14em] bg-gradient-to-r from-white via-amber-100 to-amber-300 bg-clip-text text-transparent uppercase font-serif">
-                  RAJNANDNI
+                  RAJNANDINI
                 </h1>
                 <span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
                   Darshan Enterprises
@@ -1173,6 +1179,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   { id: "lehengas", label: "Lehengas & Gowns", icon: "👗", count: products.filter(p => p.category === "lehengas").length },
                   { id: "kurtis", label: "Kurtis & Suits", icon: "👚", count: products.filter(p => p.category === "kurtis").length },
                   { id: "handbags", label: "Handbags & Purses", icon: "👜", count: products.filter(p => p.category === "handbags").length },
+                  { id: "bangles", label: "Bangles & Kada", icon: "💫", count: products.filter(p => p.category === "bangles").length },
+                  { id: "earrings", label: "Earrings & Jhumkas", icon: "💎", count: products.filter(p => p.category === "earrings").length },
                   { id: "jewellery", label: "Jewellery & Sets", icon: "💍", count: products.filter(p => p.category === "jewellery").length },
                   { id: "footwear", label: "Footwear", icon: "👠", count: products.filter(p => p.category === "footwear").length },
                   { id: "parlour", label: "Tailoring & Fitting", icon: "✂️", count: products.filter(p => p.category === "parlour").length }
@@ -1822,7 +1830,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     Product Inventory &amp; Barcode Management
                   </h2>
                   <p className="text-xs text-stone-300 mt-1">
-                    Add new Sarees, Lehengas, Suits, or Handbags — auto-generate SKU &amp; Barcodes and print 2-Across Thermal Tags.
+                    Add new Sarees, Lehengas, Suits, Handbags, Bangles, or Earrings — auto-generate SKU &amp; Barcodes and print 2-Across Thermal Tags.
                   </p>
                 </div>
 
@@ -1928,6 +1936,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   {[
                     { id: "all", label: "All" },
                     { id: "handbags", label: "👜 Handbags" },
+                    { id: "bangles", label: "💫 Bangles" },
+                    { id: "earrings", label: "💎 Earrings" },
                     { id: "sarees", label: "🥻 Sarees" },
                     { id: "lehengas", label: "👗 Lehengas" },
                     { id: "kurtis", label: "👚 Kurtis" },
@@ -2320,7 +2330,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             {/* Receipt Preview Box */}
             <div className="p-4 flex-1 overflow-y-auto font-mono text-xs text-gray-800 bg-gray-50 border-b border-gray-200">
               <div className="text-center pb-2 border-b border-gray-300">
-                <p className="font-bold text-sm">RAJNANDNI</p>
+                <p className="font-bold text-sm">RAJNANDINI</p>
                 <p className="text-[10.5px] font-bold text-stone-700">Darshan Enterprises</p>
                 <p className="text-[9.5px] text-gray-500">Near PSC Petropump, Ranipur, Haridwar - 249401</p>
                 <p className="text-[9.5px] font-semibold text-gray-700">GSTIN: 05GNZPS9902M1ZR</p>
@@ -2425,7 +2435,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       {lastBill && (
         <div id="thermal-receipt-area" className="hidden print:block">
           <div style={{ textAlign: "center", marginBottom: "4px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>RAJNANDNI</h2>
+            <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>RAJNANDINI</h2>
             <p style={{ fontSize: "10px", fontWeight: "bold", margin: "1px 0" }}>Darshan Enterprises</p>
             <p style={{ fontSize: "8.5px", margin: "1px 0" }}>Near PSC Petropump, Ranipur, Haridwar - 249401</p>
             <p style={{ fontSize: "8.5px", fontWeight: "bold", margin: "1px 0" }}>GSTIN: 05GNZPS9902M1ZR · Ph: +91 98970 00000</p>
@@ -2547,6 +2557,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs font-bold focus:ring-1 focus:ring-amber-500"
                   >
                     <option value="handbags">👜 Handbags &amp; Purses (RJ-BAG)</option>
+                    <option value="bangles">💫 Bangles &amp; Kada (RJ-BNG)</option>
+                    <option value="earrings">💎 Earrings &amp; Jhumkas (RJ-EAR)</option>
                     <option value="sarees">🥻 Sarees (RJ-SAR)</option>
                     <option value="lehengas">👗 Lehengas &amp; Gowns (RJ-LHG)</option>
                     <option value="kurtis">👚 Kurtis &amp; Suits (RJ-KRT)</option>
@@ -2761,7 +2773,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <div className="mt-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-2">
               <div className="flex items-center gap-2 text-amber-950 font-bold">
                 <Cloud className="w-4 h-4 text-amber-700" />
-                <span>Supabase Setup Guide for Rajnandni</span>
+                <span>Supabase Setup Guide for Rajnandini</span>
               </div>
               <p className="text-slate-700 leading-relaxed">
                 <strong>Haan! Supabase me free project banana bilkul best hai.</strong> Isse shop owner laptop band hone par bhi phone ya kisi doosre computer se real-time stock, bills, aur Udhaar (Khata) check kar sakte hain.
@@ -2778,7 +2790,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <span className="w-5 h-5 rounded-full bg-stone-900 text-amber-300 flex items-center justify-center font-bold text-[11px] shrink-0">1</span>
                 <div>
                   <p className="font-bold text-stone-900">Create Free Supabase Project</p>
-                  <p className="text-slate-500 text-[11px]">Go to <span className="font-mono text-amber-700">supabase.com</span>, sign in and click <strong>New Project</strong> (e.g. name it <code>rajnandni-pos</code>).</p>
+                  <p className="text-slate-500 text-[11px]">Go to <span className="font-mono text-amber-700">supabase.com</span>, sign in and click <strong>New Project</strong> (e.g. name it <code>rajnandini-pos</code>).</p>
                 </div>
               </div>
 

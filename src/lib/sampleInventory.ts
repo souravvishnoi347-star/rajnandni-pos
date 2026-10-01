@@ -1,7 +1,7 @@
 import { ProductItem } from "@/types/pos";
 
 /**
- * RAJNANDNI BOUTIQUE & PARLOUR (Arya Nagar / Rajeev Nagar, Haridwar)
+ * RAJNANDINI BOUTIQUE & PARLOUR (Arya Nagar / Rajeev Nagar, Haridwar)
  * Real Wholesale Inventory parsed directly from Supplier Purchase Bills:
  * - Jawahar Lal Jagannath Prasad (Kanpur)
  * - Sadhvi Sarees Pvt. Ltd. (Kanpur)
@@ -3482,11 +3482,175 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
       "Service"
     ],
     "badge": "Finishing"
+  },
+  {
+    "id": "prod-bng-1",
+    "sku": "RJ-BNG-001",
+    "barcode": "8907001",
+    "name": "Bridal Kundan Chuda & Bangle Set (32 Pcs)",
+    "category": "bangles",
+    "price": 1499,
+    "mrp": 1999,
+    "purchaseCost": 950,
+    "stock": 8,
+    "sizes": [
+      "2.4",
+      "2.6",
+      "2.8"
+    ],
+    "colors": [
+      "Red & Gold",
+      "Maroon"
+    ],
+    "badge": "Bridal Hit"
+  },
+  {
+    "id": "prod-bng-2",
+    "sku": "RJ-BNG-002",
+    "barcode": "8907002",
+    "name": "Gold Plated Textured Designer Kada Pair",
+    "category": "bangles",
+    "price": 649,
+    "mrp": 899,
+    "purchaseCost": 390,
+    "stock": 14,
+    "sizes": [
+      "2.4",
+      "2.6",
+      "2.8",
+      "Free Size"
+    ],
+    "colors": [
+      "Gold"
+    ],
+    "badge": "Trending"
+  },
+  {
+    "id": "prod-bng-3",
+    "sku": "RJ-BNG-003",
+    "barcode": "8907003",
+    "name": "Velvet Metal Glass Bangles Box (24 Pcs)",
+    "category": "bangles",
+    "price": 349,
+    "mrp": 499,
+    "purchaseCost": 180,
+    "stock": 25,
+    "sizes": [
+      "2.4",
+      "2.6",
+      "2.8"
+    ],
+    "colors": [
+      "Multi",
+      "Red",
+      "Green",
+      "Pink"
+    ],
+    "badge": "Daily Wear"
+  },
+  {
+    "id": "prod-bng-4",
+    "sku": "RJ-BNG-004",
+    "barcode": "8907004",
+    "name": "Latkan Ghungroo Festive Bangles Pair",
+    "category": "bangles",
+    "price": 599,
+    "mrp": 799,
+    "purchaseCost": 340,
+    "stock": 10,
+    "sizes": [
+      "2.4",
+      "2.6",
+      "2.8"
+    ],
+    "colors": [
+      "Gold & Pearls",
+      "Rose Gold"
+    ],
+    "badge": "Festive"
+  },
+  {
+    "id": "prod-ear-1",
+    "sku": "RJ-EAR-001",
+    "barcode": "8908001",
+    "name": "Traditional Pearl Kundan Meenakari Jhumkas",
+    "category": "earrings",
+    "price": 499,
+    "mrp": 699,
+    "purchaseCost": 280,
+    "stock": 15,
+    "sizes": [
+      "Jhumka",
+      "Standard"
+    ],
+    "colors": [
+      "Green",
+      "Maroon",
+      "Gold"
+    ],
+    "badge": "Best Seller"
+  },
+  {
+    "id": "prod-ear-2",
+    "sku": "RJ-EAR-002",
+    "barcode": "8908002",
+    "name": "Royal Chandbali Earrings with Micro Pearls",
+    "category": "earrings",
+    "price": 699,
+    "mrp": 999,
+    "purchaseCost": 420,
+    "stock": 12,
+    "sizes": [
+      "Chandbali"
+    ],
+    "colors": [
+      "Gold Pearl",
+      "Silver Oxide"
+    ],
+    "badge": "Party Wear"
+  },
+  {
+    "id": "prod-ear-3",
+    "sku": "RJ-EAR-003",
+    "barcode": "8908003",
+    "name": "American Diamond Silver Finish Stud Earrings",
+    "category": "earrings",
+    "price": 299,
+    "mrp": 449,
+    "purchaseCost": 150,
+    "stock": 20,
+    "sizes": [
+      "Stud"
+    ],
+    "colors": [
+      "Silver",
+      "Rose Gold"
+    ],
+    "badge": "Daily Glitz"
+  },
+  {
+    "id": "prod-ear-4",
+    "sku": "RJ-EAR-004",
+    "barcode": "8908004",
+    "name": "Long Waterfall Tassel Dangler Earrings",
+    "category": "earrings",
+    "price": 399,
+    "mrp": 549,
+    "purchaseCost": 220,
+    "stock": 16,
+    "sizes": [
+      "Danglers"
+    ],
+    "colors": [
+      "Gold",
+      "Emerald Green"
+    ],
+    "badge": "Modern"
   }
 ];
 
 export const STAFF_BEAUTICIANS = [
-  "Rajnandni (Owner & Chief Artist)",
+  "Rajnandini (Owner & Chief Artist)",
   "Pooja (Senior Beautician)",
   "Seema (Hair & Draping Specialist)",
   "Kavita (Mehendi Artist)"

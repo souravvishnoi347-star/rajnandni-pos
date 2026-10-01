@@ -1,5 +1,5 @@
 -- ==========================================================
--- RAJNANDNI BOUTIQUE & PARLOUR (HARIDWAR) - SUPABASE SCHEMA
+-- RAJNANDINI BOUTIQUE & PARLOUR (HARIDWAR) - SUPABASE SCHEMA
 -- ==========================================================
 -- Run this script in your Supabase project's SQL Editor:
 -- https://supabase.com/dashboard/project/_/sql

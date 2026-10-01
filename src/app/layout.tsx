@@ -24,8 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RAJNANDNI | Darshan Enterprises — Luxury Retail POS & Billing",
-  description: "Flagship Retail Billing, Inventory & Barcode Software for Rajnandni (Darshan Enterprises, Haridwar)",
+  title: "RAJNANDINI | Darshan Enterprises — Luxury Retail POS & Billing",
+  description: "Flagship Retail Billing, Inventory & Barcode Software for Rajnandini (Darshan Enterprises, Haridwar)",
 };
 
 export default function RootLayout({

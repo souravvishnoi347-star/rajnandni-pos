@@ -131,7 +131,7 @@ function InvoiceContent() {
     }
   }, [bill]);
 
-  // Generate QR Code for Rajnandni Fanz (Feedback / Website link)
+  // Generate QR Code for Rajnandini Fanz (Feedback / Website link)
   useEffect(() => {
     if (typeof window !== "undefined" && bill) {
       QRCode.toDataURL(window.location.href, { width: 140, margin: 1 }, (err, url) => {
@@ -149,7 +149,7 @@ function InvoiceContent() {
     const rawPhone = bill.customer.phone.replace(/[^0-9]/g, "");
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
     const currentUrl = typeof window !== "undefined" ? window.location.href : "";
-    const msg = `🌸 *RAJNANDNI - DIGITAL TAX INVOICE* 🌸\n\nNamaste ${bill.customer.name} Ji! 🙏\n\n🧾 *Invoice No:* ${bill.billNo}\n💰 *Total Amount:* ₹${bill.grandTotal.toLocaleString("en-IN")}\n📅 *Date:* ${bill.createdAt}\n\n📄 *View & Download Official PDF Bill (Zudio Style):*\n${currentUrl}\n\n*Darshan Enterprises*\nNear PSC Petropump, Ranipur, Haridwar\nGSTIN: 05GNZPS9902M1ZR\n\nThank you for shopping with Rajnandni! 💖`;
+    const msg = `🌸 *RAJNANDINI - DIGITAL TAX INVOICE* 🌸\n\nNamaste ${bill.customer.name} Ji! 🙏\n\n🧾 *Invoice No:* ${bill.billNo}\n💰 *Total Amount:* ₹${bill.grandTotal.toLocaleString("en-IN")}\n📅 *Date:* ${bill.createdAt}\n\n📄 *View & Download Official PDF Bill (Zudio Style):*\n${currentUrl}\n\n*Darshan Enterprises*\nNear PSC Petropump, Ranipur, Haridwar\nGSTIN: 05GNZPS9902M1ZR\n\nThank you for shopping with Rajnandini! 💖`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -177,7 +177,7 @@ function InvoiceContent() {
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-950 text-white rounded-xl text-xs font-bold"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Return to Rajnandni POS</span>
+            <span>Return to Rajnandini POS</span>
           </a>
         </div>
       </div>
@@ -243,11 +243,11 @@ function InvoiceContent() {
             <div>
               {/* Clean lowercase bold brand font matching Zudio style */}
               <h1 className="text-3xl font-black tracking-tight leading-none" style={{ letterSpacing: "-1px" }}>
-                rajnandni
+                rajnandini
               </h1>
             </div>
             <div className="text-right text-[11px] leading-tight">
-              <p className="font-semibold text-stone-900">Rajnandni - Haridwar - Ranipur</p>
+              <p className="font-semibold text-stone-900">Rajnandini - Haridwar - Ranipur</p>
               <p className="text-[10px] text-stone-500 cursor-pointer">Store Details &gt;</p>
             </div>
           </div>
@@ -447,7 +447,7 @@ function InvoiceContent() {
             <svg ref={invoiceBarcodeSvgRef} className="max-w-[280px] h-auto" />
           </div>
 
-          {/* Social Follow & Rajnandni Fanz QR matching inspiration */}
+          {/* Social Follow & Rajnandini Fanz QR matching inspiration */}
           <div className="text-center my-6 border-t border-stone-200 pt-4">
             <p className="text-xs font-bold text-stone-900 mb-2">
               Love what's in? Follow to know more
@@ -463,21 +463,21 @@ function InvoiceContent() {
             {/* QR Code Container matching Zudio Fanz card */}
             <div className="max-w-[220px] mx-auto p-4 rounded-2xl border border-stone-300 bg-white shadow-xs">
               <p className="font-black text-xs uppercase tracking-wider mb-2">
-                rajnandni <span className="text-amber-500 font-extrabold">FANZ</span>
+                rajnandini <span className="text-amber-500 font-extrabold">FANZ</span>
               </p>
               {qrDataUrl ? (
-                <img src={qrDataUrl} alt="Rajnandni Fanz QR" className="w-28 h-28 mx-auto border border-stone-200 rounded-lg p-1" />
+                <img src={qrDataUrl} alt="Rajnandini Fanz QR" className="w-28 h-28 mx-auto border border-stone-200 rounded-lg p-1" />
               ) : (
                 <div className="w-28 h-28 mx-auto bg-stone-100 flex items-center justify-center text-[10px] text-stone-400">
                   QR Loading...
                 </div>
               )}
               <p className="text-[9px] font-bold text-stone-900 mt-2 lowercase">
-                rajnandni
+                rajnandini
               </p>
             </div>
             <p className="text-[9.5px] text-stone-600 underline cursor-pointer mt-2">
-              Download your Rajnandni Fanz QR
+              Download your Rajnandini Fanz QR
             </p>
           </div>
         </div>
@@ -491,7 +491,7 @@ export default function InvoicePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
-        <p className="text-sm font-bold text-stone-800 font-mono">Loading Rajnandni Tax Invoice...</p>
+        <p className="text-sm font-bold text-stone-800 font-mono">Loading Rajnandini Tax Invoice...</p>
       </div>
     }>
       <InvoiceContent />

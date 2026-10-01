@@ -333,7 +333,7 @@ const allProducts = [...productItems, ...parlourServices];
 const fileContent = `import { ProductItem } from "@/types/pos";
 
 /**
- * RAJNANDNI BOUTIQUE & PARLOUR (Arya Nagar / Rajeev Nagar, Haridwar)
+ * RAJNANDINI BOUTIQUE & PARLOUR (Arya Nagar / Rajeev Nagar, Haridwar)
  * Real Wholesale Inventory parsed directly from Supplier Purchase Bills:
  * - Jawahar Lal Jagannath Prasad (Kanpur)
  * - Sadhvi Sarees Pvt. Ltd. (Kanpur)
@@ -346,7 +346,7 @@ const fileContent = `import { ProductItem } from "@/types/pos";
 export const INITIAL_PRODUCTS: ProductItem[] = ${JSON.stringify(allProducts, null, 2)};
 
 export const STAFF_BEAUTICIANS = [
-  "Rajnandni (Owner & Chief Artist)",
+  "Rajnandini (Owner & Chief Artist)",
   "Pooja (Senior Beautician)",
   "Seema (Hair & Draping Specialist)",
   "Kavita (Mehendi Artist)"

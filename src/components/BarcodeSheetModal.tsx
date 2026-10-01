@@ -142,7 +142,7 @@ function BarcodeTagItem({
             ...getRotationStyle(),
           }}
         >
-          {/* Calibrated Top Offset so RAJNANDNI prints inside the white sticker, below the top gap */}
+          {/* Calibrated Top Offset so RAJNANDINI prints inside the white sticker, below the top gap */}
           <div style={{ height: `${topOffsetMm}mm`, flexShrink: 0 }} />
 
           {/* Brand & Store Header — 6mm */}
@@ -174,7 +174,7 @@ function BarcodeTagItem({
                   textAlign: "center",
                 }}
               >
-                RAJNANDNI
+                RAJNANDINI
               </span>
               <span
                 style={{
@@ -310,7 +310,7 @@ function BarcodeTagItem({
         {showShopName && (
           <div style={{ width: "100%", borderBottom: "0.5px solid #222", paddingBottom: "0.4mm", marginBottom: "0.3mm", lineHeight: 1.1, textAlign: "center", flexShrink: 0 }}>
             <span style={{ fontFamily: "'Arial Black', Arial, sans-serif", fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", fontSize: "1.1em", lineHeight: 1, color: "#000" }}>
-              RAJNANDNI
+              RAJNANDINI
             </span>
             <span style={{ fontSize: "0.75em", display: "block", fontWeight: 700, letterSpacing: "-0.01em", color: "#111", lineHeight: 1 }}>
               Darshan Enterprises · Haridwar
