@@ -2196,21 +2196,37 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         {activeTab === "reports" && (
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-6xl mx-auto space-y-6">
-              <div className="bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-stone-900">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
                     Executive Accounting &amp; Register
                   </span>
-                  <h2 className="text-2xl font-black text-white font-serif">Daily Sales &amp; Settlement Report</h2>
-                  <p className="text-xs text-stone-300 mt-1">
+                  <h2 className="text-2xl font-black text-stone-900 font-serif">Daily Sales &amp; Settlement Report</h2>
+                  <p className="text-xs text-stone-500 mt-1">
                     Complete breakdown of showroom revenue, UPI QR vs Cash collections, and digital PDF invoices.
                   </p>
                 </div>
-                <div className="bg-stone-900/90 border border-amber-500/30 px-4 py-2.5 rounded-2xl text-right">
-                  <span className="text-[10px] text-amber-300 uppercase font-bold block">Total Register Collection</span>
-                  <span className="text-xl font-black text-white font-mono">
-                    ₹{totalTodayRevenue.toLocaleString("en-IN")}
-                  </span>
+                <div className="flex items-center gap-3">
+                  {completedBills.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        if (confirm("Are you sure you want to clear all sales data? This will reset all bills to zero.")) {
+                          setCompletedBills([]);
+                          localStorage.removeItem("rajnandni_bills");
+                        }
+                      }}
+                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 hover:text-rose-700 text-[10px] uppercase font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Reset Sales
+                    </button>
+                  )}
+                  <div className="bg-white border border-stone-200 px-4 py-2.5 rounded-2xl text-right shadow-sm">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold block">Total Register Collection</span>
+                    <span className="text-xl font-black text-stone-900 font-mono">
+                      ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2257,16 +2273,16 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               {/* Recent Bills History Table */}
               <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-[#faf7f2]">
+                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
                   <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">Completed Showroom Invoices</h3>
-                  <span className="text-xs font-bold text-stone-600 bg-white px-3 py-1 rounded-full border border-stone-200">
+                  <span className="text-xs font-bold text-stone-600 bg-stone-50 px-3 py-1 rounded-full border border-stone-200">
                     {completedBills.length} Bill(s)
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-stone-900 text-amber-200 font-bold uppercase text-[10.5px] tracking-wider">
+                    <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
                       <tr>
                         <th className="px-4 py-3">Bill No &amp; Time</th>
                         <th className="px-4 py-3">Customer</th>
