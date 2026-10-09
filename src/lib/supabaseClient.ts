@@ -108,6 +108,19 @@ export const SupabaseService = {
     }
   },
 
+  async deleteProduct(id: string): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   async recordSale(bill: {
     invoiceNumber: string;
     customerName: string;

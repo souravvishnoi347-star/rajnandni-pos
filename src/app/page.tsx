@@ -733,6 +733,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       lehengas: { skuPrefix: "RJ-LHG", barcodeBase: 8903000, defaultSizes: ["Free Size (Semi-Stitched)"] },
       jewellery: { skuPrefix: "RJ-JWL", barcodeBase: 8904000, defaultSizes: ["Standard Set"] },
       footwear: { skuPrefix: "RJ-FTW", barcodeBase: 8905000, defaultSizes: ["37", "38", "39", "40"] },
+      cosmetics: { skuPrefix: "RJ-COS", barcodeBase: 8910000, defaultSizes: ["Standard", "Pack"] },
+      handloom: { skuPrefix: "RJ-HDL", barcodeBase: 8911000, defaultSizes: ["Standard", "Double Bed", "Single Bed"] },
       parlour: { skuPrefix: "RJ-SRV", barcodeBase: 8909000, defaultSizes: ["Standard"] },
     };
 
@@ -783,7 +785,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const generatedBarcode = newProductForm.barcode?.trim() || autoCodes.barcode;
 
     const prod: ProductItem = {
-      id: newId,
+      id: newProductForm.id || newId,
       name: newProductForm.name.trim(),
       category: cat,
       price: Number(newProductForm.price) || 0,
@@ -796,7 +798,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       isService: cat === "parlour"
     };
 
-    const nextList = [prod, ...products];
+    let nextList: ProductItem[];
+    if (newProductForm.id) {
+      nextList = products.map(p => p.id === newProductForm.id ? prod : p);
+    } else {
+      nextList = [prod, ...products];
+    }
     saveProductsLocally(nextList);
 
     // Also sync to Supabase Cloud so new items stay permanently saved
@@ -828,6 +835,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         return { icon: "💍", label: "Jewellery & Sets", strip: "from-purple-600 via-fuchsia-600 to-pink-500", badge: "bg-purple-50 text-purple-900 border-purple-200" };
       case "footwear":
         return { icon: "👠", label: "Footwear & Heels", strip: "from-emerald-600 via-green-600 to-teal-500", badge: "bg-emerald-50 text-emerald-900 border-emerald-200" };
+      case "cosmetics":
+        return { icon: "💄", label: "Cosmetics & Beauty", strip: "from-pink-500 via-rose-400 to-red-400", badge: "bg-pink-50 text-pink-900 border-pink-200" };
+      case "handloom":
+        return { icon: "🧵", label: "Handloom & Bedsheets", strip: "from-blue-600 via-indigo-500 to-cyan-600", badge: "bg-blue-50 text-blue-900 border-blue-200" };
       default:
         return { icon: "✂️", label: "Tailoring & Fitting", strip: "from-stone-700 via-stone-600 to-amber-700", badge: "bg-stone-100 text-stone-800 border-stone-300" };
     }
@@ -1183,6 +1194,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   { id: "earrings", label: "Earrings & Jhumkas", icon: "💎", count: products.filter(p => p.category === "earrings").length },
                   { id: "jewellery", label: "Jewellery & Sets", icon: "💍", count: products.filter(p => p.category === "jewellery").length },
                   { id: "footwear", label: "Footwear", icon: "👠", count: products.filter(p => p.category === "footwear").length },
+                  { id: "cosmetics", label: "Cosmetics", icon: "💄", count: products.filter(p => p.category === "cosmetics").length },
+                  { id: "handloom", label: "Handloom", icon: "🧵", count: products.filter(p => p.category === "handloom").length },
                   { id: "parlour", label: "Tailoring & Fitting", icon: "✂️", count: products.filter(p => p.category === "parlour").length }
                 ].map(cat => {
                   const isActive = selectedCategory === cat.id;
@@ -1942,7 +1955,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     { id: "lehengas", label: "👗 Lehengas" },
                     { id: "kurtis", label: "👚 Kurtis" },
                     { id: "jewellery", label: "💍 Jewellery" },
-                    { id: "footwear", label: "👠 Footwear" }
+                    { id: "footwear", label: "👠 Footwear" },
+                    { id: "cosmetics", label: "💄 Cosmetics" },
+                    { id: "handloom", label: "🧵 Handloom" }
                   ].map(c => (
                     <button
                       key={c.id}
@@ -2024,11 +2039,40 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
+                                  onClick={() => {
+                                    setNewProductForm({
+                                      ...p
+                                    });
+                                    setShowNewProductModal(true);
+                                  }}
+                                  className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-900 rounded-lg border border-amber-200 cursor-pointer transition flex items-center justify-center"
+                                  title="Edit Product Details"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete "${p.name}"?`)) {
+                                      const nextProducts = products.filter(prod => prod.id !== p.id);
+                                      saveProductsLocally(nextProducts);
+                                      if (isSupabaseConfigured()) {
+                                        SupabaseService.deleteProduct(p.id).catch(err => {
+                                          console.warn("Supabase delete warning:", err);
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-900 rounded-lg border border-rose-200 cursor-pointer transition flex items-center justify-center"
+                                  title="Delete Product"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => openEditProductPrice(p)}
                                   className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1 border border-stone-200/80"
                                   title="Update price or add festival discount"
                                 >
-                                  <Edit3 className="w-3 h-3 text-stone-600" />
+                                  <Tag className="w-3 h-3 text-stone-600" />
                                   <span>Edit Rate</span>
                                 </button>
                                 <button
@@ -2513,7 +2557,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-bold text-stone-900 font-serif text-lg">Add New Product / Handbag / Garment</h3>
+                <h3 className="font-bold text-stone-900 font-serif text-lg">
+                  {newProductForm.id ? "Edit Product Details" : "Add New Product / Handbag / Garment"}
+                </h3>
                 <p className="text-[11px] text-slate-500">
                   SKU aur Barcode apne aap generate ho jayenge — aap seedha Save &amp; Print Tag kar sakte hain!
                 </p>
@@ -2564,6 +2610,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <option value="kurtis">👚 Kurtis &amp; Suits (RJ-KRT)</option>
                     <option value="jewellery">💍 Jewellery &amp; Sets (RJ-JWL)</option>
                     <option value="footwear">👠 Footwear &amp; Heels (RJ-FTW)</option>
+                    <option value="cosmetics">💄 Cosmetics &amp; Beauty (RJ-COS)</option>
+                    <option value="handloom">🧵 Handloom &amp; Bedsheets (RJ-HDL)</option>
                     <option value="parlour">✂️ Tailoring &amp; Services (RJ-SRV)</option>
                   </select>
                 </div>
@@ -2694,7 +2742,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   const cat = (newProductForm.category as ProductItem["category"]) || "handbags";
                   const autoCodes = getNextCodesForCategory(cat, products);
                   const prod: ProductItem = {
-                    id: `prod-${Date.now()}`,
+                    id: newProductForm.id || `prod-${Date.now()}`,
                     name: newProductForm.name.trim(),
                     category: cat,
                     price: Number(newProductForm.price) || 0,
@@ -2706,7 +2754,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     sizes: newProductForm.sizes && newProductForm.sizes.length > 0 ? newProductForm.sizes : autoCodes.defaultSizes,
                     isService: cat === "parlour",
                   };
-                  const nextList = [prod, ...products];
+                  let nextList: ProductItem[];
+                  if (newProductForm.id) {
+                    nextList = products.map(p => p.id === newProductForm.id ? prod : p);
+                  } else {
+                    nextList = [prod, ...products];
+                  }
                   saveProductsLocally(nextList);
                   if (isSupabaseConfigured()) {
                     SupabaseService.syncInitialProducts([prod]).catch(() => {});

@@ -3646,6 +3646,34 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
       "Emerald Green"
     ],
     "badge": "Modern"
+  },
+  {
+    "id": "prod-cos-1",
+    "sku": "RJ-COS-001",
+    "barcode": "8910001",
+    "name": "Lakme 9to5 Primer + Matte Lipstick",
+    "category": "cosmetics",
+    "price": 450,
+    "mrp": 550,
+    "purchaseCost": 300,
+    "stock": 20,
+    "sizes": ["Standard"],
+    "colors": ["Rosy Sunday", "Red Coat"],
+    "badge": "Bestseller"
+  },
+  {
+    "id": "prod-hdl-1",
+    "sku": "RJ-HDL-001",
+    "barcode": "8911001",
+    "name": "Jaipuri Cotton Double Bedsheet with 2 Pillow Covers",
+    "category": "handloom",
+    "price": 850,
+    "mrp": 1200,
+    "purchaseCost": 550,
+    "stock": 15,
+    "sizes": ["Double Bed"],
+    "colors": ["Blue Floral", "Pink Mandala"],
+    "badge": "Pure Cotton"
   }
 ];
 
