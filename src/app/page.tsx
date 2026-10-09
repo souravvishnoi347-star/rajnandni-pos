@@ -985,49 +985,46 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           ========================================================= */}
       {/* MAIN SCREEN INTERACTIVE UI (HIDDEN DURING PRINTING) */}
       <div className="no-print flex-1 flex flex-col">
-        <header className="bg-gradient-to-r from-[#0d0a08] via-[#17120e] to-[#0d0a08] text-white shadow-xl border-b border-amber-500/30 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 relative">
-          {/* Subtle top gold highlight line */}
-          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
-
+        <header className="bg-white text-stone-800 shadow-sm border-b border-stone-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 relative">
           {/* Left: Brand Monogram & Showroom Info */}
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 p-[1.5px] shadow-lg shadow-amber-500/20 shrink-0">
-              <div className="w-full h-full bg-[#120e0c] rounded-[14px] flex items-center justify-center">
-                <Crown className="w-5 h-5 text-amber-400" />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-stone-200 via-stone-100 to-stone-200 p-[1px] shadow-xs shrink-0">
+              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                <Crown className="w-5 h-5 text-stone-700" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-black tracking-[0.14em] bg-gradient-to-r from-white via-amber-100 to-amber-300 bg-clip-text text-transparent uppercase font-serif">
+                <h1 className="text-xl font-black tracking-[0.14em] text-stone-900 uppercase font-serif">
                   RAJNANDINI
                 </h1>
-                <span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                <span className="text-[10px] bg-stone-100 text-stone-600 border border-stone-200 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
                   Darshan Enterprises
                 </span>
               </div>
-              <p className="text-[11px] text-stone-400 font-medium flex items-center gap-1.5">
+              <p className="text-[11px] text-stone-500 font-medium flex items-center gap-1.5">
                 <span>Near PSC Petropump, Ranipur, Haridwar - 249401</span>
-                <span className="text-amber-500/60">•</span>
-                <span className="font-mono text-amber-300/90">GSTIN: 05GNZPS9902M1ZR</span>
+                <span className="text-stone-300">•</span>
+                <span className="font-mono text-stone-500 font-bold">GSTIN: 05GNZPS9902M1ZR</span>
               </p>
             </div>
           </div>
 
           {/* Center: Executive Pill Navigation Tabs with Live Badges */}
-          <div className="flex items-center bg-[#090706]/90 p-1 rounded-2xl border border-amber-500/20 text-xs shadow-inner">
+          <div className="flex items-center bg-stone-100/80 p-1 rounded-2xl border border-stone-200 text-xs shadow-inner">
             <button
               onClick={() => setActiveTab("pos")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "pos"
-                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
-                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
               }`}
             >
               <Receipt className="w-4 h-4" />
               <span>POS Billing</span>
               {cart.length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === "pos" ? "bg-stone-950 text-amber-300" : "bg-amber-400 text-stone-950"
+                  activeTab === "pos" ? "bg-amber-100 text-amber-800" : "bg-stone-200 text-stone-600"
                 }`}>
                   {cart.reduce((s, i) => s + i.quantity, 0)}
                 </span>
@@ -1038,14 +1035,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               onClick={() => setActiveTab("inventory")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "inventory"
-                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
-                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Inventory &amp; Barcodes</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                activeTab === "inventory" ? "bg-stone-950/20 text-stone-950" : "bg-stone-800 text-amber-300"
+                activeTab === "inventory" ? "bg-stone-100 text-stone-700" : "bg-stone-200 text-stone-600"
               }`}>
                 {products.length}
               </span>
@@ -1055,15 +1052,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               onClick={() => setActiveTab("alterations")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer relative ${
                 activeTab === "alterations"
-                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
-                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
               }`}
             >
               <Scissors className="w-4 h-4" />
               <span>Alteration Desk</span>
               {alterationsList.filter(a => a.status !== "Delivered").length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === "alterations" ? "bg-stone-950 text-amber-300" : "bg-rose-500 text-white animate-pulse"
+                  activeTab === "alterations" ? "bg-rose-100 text-rose-700" : "bg-rose-50 text-rose-600 animate-pulse"
                 }`}>
                   {alterationsList.filter(a => a.status !== "Delivered").length}
                 </span>
@@ -1074,15 +1071,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "reports"
-                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
-                  : "text-stone-300 hover:text-amber-200 hover:bg-stone-900"
+                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
               }`}
             >
               <BarChart3 className="w-4 h-4" />
               <span>Daily Sales</span>
               {completedBills.length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                  activeTab === "reports" ? "bg-stone-950/20 text-stone-950" : "bg-emerald-950 text-emerald-300 border border-emerald-500/30"
+                  activeTab === "reports" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
                 }`}>
                   {completedBills.length}
                 </span>
@@ -1096,38 +1093,38 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               onClick={() => setShowDbModal(true)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                 supabaseConnected
-                  ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50"
-                  : "bg-[#120e0c] border-amber-500/25 text-stone-300 hover:border-amber-400/50 hover:text-white"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                  : "bg-stone-50 border-stone-200 text-stone-600 hover:border-stone-300 hover:text-stone-900"
               }`}
               title="Database & Supabase Cloud Sync"
             >
-              <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-400" : "text-amber-400"}`} />
+              <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-600" : "text-stone-400"}`} />
               <span className="hidden xl:inline">
                 {supabaseConnected ? "Cloud Live" : "Cloud DB"}
               </span>
-              <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
+              <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-500" : "bg-stone-400"} animate-pulse`} />
             </button>
 
-            <div className="hidden lg:flex items-center gap-3.5 bg-[#090706]/90 border border-amber-500/20 px-3.5 py-1.5 rounded-xl">
+            <div className="hidden lg:flex items-center gap-3.5 bg-stone-100 border border-stone-200 px-3.5 py-1.5 rounded-xl">
               <div className="text-right">
-                <span className="text-[9.5px] text-stone-400 uppercase font-bold tracking-wider block">Today's Collection</span>
-                <p className="text-sm font-black text-amber-400 font-mono">
+                <span className="text-[9.5px] text-stone-500 uppercase font-bold tracking-wider block">Today's Collection</span>
+                <p className="text-sm font-black text-emerald-600 font-mono">
                   ₹{totalTodayRevenue.toLocaleString("en-IN")}
                 </p>
               </div>
-              <div className="h-6 w-px bg-stone-800" />
+              <div className="h-6 w-px bg-stone-300" />
               <div className="text-right">
-                <span className="text-[9.5px] text-stone-400 uppercase font-bold tracking-wider block">Bills</span>
-                <p className="text-sm font-black text-white font-mono">{completedBills.length}</p>
+                <span className="text-[9.5px] text-stone-500 uppercase font-bold tracking-wider block">Bills</span>
+                <p className="text-sm font-black text-stone-800 font-mono">{completedBills.length}</p>
               </div>
             </div>
 
             <button
               onClick={handleLogoutLock}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#120e0c] hover:bg-rose-950/90 border border-stone-800 hover:border-rose-500/50 text-stone-300 hover:text-rose-200 text-xs font-bold transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-50 hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-stone-600 hover:text-rose-700 text-xs font-bold transition cursor-pointer"
               title="Lock POS Screen (Require Password)"
             >
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <Lock className="w-3.5 h-3.5 text-stone-400" />
               <span className="hidden sm:inline">Lock</span>
             </button>
           </div>
@@ -1205,8 +1202,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       onClick={() => setSelectedCategory(cat.id as ProductCategory)}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
                         isActive
-                          ? "bg-gradient-to-r from-[#14100d] to-[#241c16] text-amber-300 border-amber-500/50 shadow-md shadow-amber-950/10 scale-[1.01]"
-                          : "bg-white/90 text-stone-700 border-stone-200/90 hover:bg-amber-50/60 hover:border-amber-300 hover:text-stone-950"
+                          ? "bg-white text-stone-900 border-stone-300 shadow-sm ring-1 ring-stone-100 scale-[1.01]"
+                          : "bg-stone-50/80 text-stone-600 border-stone-200/80 hover:bg-white hover:border-stone-300 hover:text-stone-900"
                       }`}
                     >
                       <span className="text-sm">{cat.icon}</span>
@@ -1214,8 +1211,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       <span
                         className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md font-bold ${
                           isActive
-                            ? "bg-amber-400 text-stone-950"
-                            : "bg-stone-100 text-stone-600"
+                            ? "bg-stone-100 text-stone-800 border border-stone-200"
+                            : "bg-white text-stone-500 border border-stone-200/80"
                         }`}
                       >
                         {cat.count}
@@ -1366,20 +1363,20 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <div className="w-full lg:w-[440px] bg-white border-l border-stone-200/90 flex flex-col justify-between h-full shadow-2xl relative z-10">
               {/* Top Luxury Cart Header + Customer Details */}
               <div className="border-b border-stone-200">
-                <div className="bg-gradient-to-r from-[#14100d] via-[#1f1813] to-[#14100d] text-white px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-stone-50 text-stone-900 px-4 py-2.5 flex items-center justify-between border-b border-stone-100">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-black uppercase tracking-widest font-serif text-amber-100">
+                    <Sparkles className="w-4 h-4 text-stone-600" />
+                    <span className="text-xs font-black uppercase tracking-widest font-serif text-stone-800">
                       VIP Billing Counter
                     </span>
-                    <span className="text-[10px] font-mono bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-[10px] font-mono bg-white text-stone-700 border border-stone-300 px-2 py-0.5 rounded-full font-bold shadow-sm">
                       {cart.reduce((s, i) => s + i.quantity, 0)} Pcs
                     </span>
                   </div>
                   {cart.length > 0 && (
                     <button
                       onClick={() => setCart([])}
-                      className="text-[11px] text-rose-300 hover:text-rose-200 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
+                      className="text-[11px] text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
                     >
                       <Trash2 className="w-3 h-3" /> Clear Bill
                     </button>
@@ -1964,8 +1961,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       onClick={() => setInventoryCategory(c.id as ProductCategory)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition border ${
                         inventoryCategory === c.id
-                          ? "bg-stone-950 text-amber-300 border-stone-950"
-                          : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-amber-50"
+                          ? "bg-white text-stone-900 border-stone-300 ring-1 ring-stone-100 shadow-sm"
+                          : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-white hover:text-stone-900"
                       }`}
                     >
                       {c.label}
@@ -1978,7 +1975,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-gradient-to-r from-stone-900 to-stone-950 text-amber-200 font-bold uppercase tracking-wider text-[10.5px]">
+                    <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider text-[10.5px] border-b border-stone-200">
                       <tr>
                         <th className="px-4 py-3.5">SKU &amp; Barcode</th>
                         <th className="px-4 py-3.5">Product Title</th>
@@ -2080,7 +2077,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                     setSelectedProductForBarcode(p);
                                     setBarcodeStickerCount(4);
                                   }}
-                                  className="px-3.5 py-1.5 bg-gradient-to-r from-[#14100d] to-[#241c16] hover:from-amber-400 hover:to-amber-500 text-amber-300 hover:text-stone-950 border border-amber-500/30 font-extrabold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                                  className="px-3.5 py-1.5 bg-stone-800 hover:bg-stone-900 text-white border border-stone-800 font-extrabold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1.5 shadow-xs"
                                 >
                                   <Tag className="w-3 h-3" />
                                   <span>Print Tags</span>
