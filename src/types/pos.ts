@@ -27,6 +27,7 @@ export interface ProductItem {
   isService?: boolean;
   serviceDuration?: string;
   badge?: string;
+  imageUrl?: string;
 }
 
 export interface CartItem {
