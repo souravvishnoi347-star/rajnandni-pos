@@ -57,9 +57,7 @@ export default function StorefrontPage() {
       <header className="bg-white border-b border-stone-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-stone-900 rounded-xl flex items-center justify-center text-white shadow-sm">
-              <Star className="w-5 h-5 text-amber-400" />
-            </div>
+            <img src="/logo.png" alt="Rajnandini Logo" className="w-12 h-12 object-contain" />
             <div>
               <h1 className="text-xl font-black font-serif tracking-widest uppercase">RAJNANDINI</h1>
               <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Premium Boutique</p>
@@ -223,6 +221,9 @@ export default function StorefrontPage() {
       
       {/* FOOTER */}
       <footer className="bg-white border-t border-stone-200 mt-12 py-10 px-5 text-center">
+        <div className="flex justify-center mb-4">
+          <img src="/logo.png" alt="Rajnandini Logo" className="w-16 h-16 object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300" />
+        </div>
         <h2 className="text-xl font-black font-serif tracking-widest uppercase mb-2">RAJNANDINI</h2>
         <p className="text-xs text-stone-500 mb-6">Near PSC Petropump, Ranipur, Haridwar - 249401</p>
         <p className="text-[11px] text-stone-400 font-medium">&copy; {new Date().getFullYear()} Rajnandini Darshan Enterprises. All rights reserved.</p>

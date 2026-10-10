@@ -881,11 +881,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           {/* Royal Crest & Brand Identity */}
           <div className="flex flex-col items-center text-center mb-7">
             <div className="relative mb-3.5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 p-[1.5px] shadow-xl shadow-amber-500/25">
-                <div className="w-full h-full bg-[#120e0c] rounded-[14px] flex items-center justify-center">
-                  <Crown className="w-8 h-8 text-amber-400" />
-                </div>
-              </div>
+              <img src="/logo.png" alt="Rajnandini Logo" className="w-16 h-16 object-contain bg-white p-1.5 rounded-2xl shadow-xl shadow-amber-500/10" />
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#120e0c] flex items-center justify-center" title="Security Active">
                 <ShieldCheck className="w-3 h-3 text-stone-950" />
               </span>
@@ -990,11 +986,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         <header className="bg-white text-stone-800 shadow-sm border-b border-stone-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 relative">
           {/* Left: Brand Monogram & Showroom Info */}
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-stone-200 via-stone-100 to-stone-200 p-[1px] shadow-xs shrink-0">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                <Crown className="w-5 h-5 text-stone-700" />
-              </div>
-            </div>
+            <img src="/logo.png" alt="Rajnandini Logo" className="w-11 h-11 object-contain bg-white rounded-xl shadow-xs shrink-0" />
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-black tracking-[0.14em] text-stone-900 uppercase font-serif">
