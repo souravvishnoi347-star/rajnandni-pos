@@ -397,31 +397,30 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
         return `
           @page {
             size: 100mm 38mm;
-            margin: 0mm !important;
+            margin: 0 !important;
           }
           .thermal-row {
-            height: 35mm !important;
-            max-height: 35mm !important;
-            width: 97mm !important;
-            max-width: 97mm !important;
+            height: 38mm !important;
+            max-height: 38mm !important;
+            min-height: 38mm !important;
+            width: 100mm !important;
+            max-width: 100mm !important;
             display: flex !important;
             justify-content: flex-start !important;
             align-items: flex-start !important;
-            gap: 3mm !important;
+            gap: 2mm !important;
             box-sizing: border-box !important;
             padding: 0 !important;
             margin: 0 !important;
             overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-          }
-          .thermal-row:not(:last-child) {
             page-break-after: always !important;
             break-after: page !important;
           }
           .thermal-row:last-child {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
         `;
       case "tvs-50x25-2up":
@@ -1000,9 +999,11 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
               html, body {
                 margin: 0 !important;
                 padding: 0 !important;
-                height: auto !important;
-                min-height: 0 !important;
+                height: 100% !important;
                 background: white !important;
+                overflow: hidden !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               .no-print,
               #thermal-receipt-area {
@@ -1010,12 +1011,12 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
               }
               #barcode-print-sheet {
                 display: block !important;
-                position: static !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
-                height: auto !important;
-                min-height: 0 !important;
               }
               ${getPageStyle()}
             }
