@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import QRCode from "qrcode";
 import {
   Sparkles,
@@ -43,7 +43,11 @@ import {
   ScanLine,
   TrendingUp,
   ShieldCheck,
-  Layers
+  Layers,
+  Download,
+  Calendar,
+  Filter,
+  Wallet
 } from "lucide-react";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
@@ -96,6 +100,13 @@ export default function RajnandiniPosPage() {
   // History & Alterations
   const [completedBills, setCompletedBills] = useState<CompletedBill[]>([]);
   const [alterationsList, setAlterationsList] = useState<AlterationDetail[]>([]);
+
+  // Sales Report Advanced Filters
+  const [reportSearch, setReportSearch] = useState<string>("");
+  const [reportPaymentFilter, setReportPaymentFilter] = useState<string>("all");
+  const [reportDateFilter, setReportDateFilter] = useState<string>("all"); // "all" | "today" | "yesterday"
+  const [reportSortBy, setReportSortBy] = useState<"latest" | "highest" | "lowest">("latest");
+  const [reportExpandedBillId, setReportExpandedBillId] = useState<string | null>(null);
 
   // Modals & Popups
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState<boolean>(false);
@@ -414,16 +425,18 @@ export default function RajnandiniPosPage() {
     }
   }, [grandTotal]);
 
-  // Filtered Products
-  const filteredProducts = products.filter(p => {
-    const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
+  // Filtered Products (Memoized for zero-lag typing & scanning)
+  const filteredProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const matchesSearch = !q || 
-      p.name.toLowerCase().includes(q) || 
-      p.sku.toLowerCase().includes(q) || 
-      p.barcode.includes(q);
-    return matchesCat && matchesSearch;
-  });
+    return products.filter(p => {
+      const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
+      const matchesSearch = !q || 
+        p.name.toLowerCase().includes(q) || 
+        p.sku.toLowerCase().includes(q) || 
+        p.barcode.includes(q);
+      return matchesCat && matchesSearch;
+    });
+  }, [products, selectedCategory, searchQuery]);
 
   // Handle Add To Cart
   const handleAddToCart = (product: ProductItem, size?: string) => {
@@ -846,25 +859,128 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     }
   };
 
-  // Filtered products for Inventory Tab
-  const filteredInventoryProducts = products.filter(p => {
-    const matchesCat = inventoryCategory === "all" || p.category === inventoryCategory;
+  // Filtered products for Inventory Tab (Memoized)
+  const filteredInventoryProducts = useMemo(() => {
     const q = inventorySearch.trim().toLowerCase();
-    if (!q) return matchesCat;
-    return (
-      matchesCat &&
-      (p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.barcode.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q))
-    );
-  });
+    return products.filter(p => {
+      const matchesCat = inventoryCategory === "all" || p.category === inventoryCategory;
+      if (!q) return matchesCat;
+      return (
+        matchesCat &&
+        (p.name.toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q) ||
+          p.barcode.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q))
+      );
+    });
+  }, [products, inventoryCategory, inventorySearch]);
 
-  // Inventory Valuation Metrics
-  const totalPhysicalPieces = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
-  const totalRetailStockValue = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0);
-  const totalCostStockValue = products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.purchaseCost) || 0) * (Number(p.stock) || 0), 0);
-  const totalTodayRevenue = completedBills.reduce((s, b) => s + b.grandTotal, 0);
+  // Inventory Valuation Metrics (Memoized)
+  const totalPhysicalPieces = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.stock) || 0), 0), [products]);
+  const totalRetailStockValue = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0), [products]);
+  const totalCostStockValue = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.purchaseCost) || 0) * (Number(p.stock) || 0), 0), [products]);
+  const totalTodayRevenue = useMemo(() => completedBills.reduce((s, b) => s + b.grandTotal, 0), [completedBills]);
+
+  // Advanced Filtered Completed Bills for Sales Report Tab
+  const filteredReportBills = useMemo(() => {
+    const q = reportSearch.trim().toLowerCase();
+    const todayStr = new Date().toLocaleDateString("en-IN");
+
+    return completedBills.filter(bill => {
+      // Payment filter
+      if (reportPaymentFilter !== "all" && bill.paymentMode !== reportPaymentFilter) {
+        return false;
+      }
+      // Date filter
+      if (reportDateFilter === "today") {
+        if (!bill.createdAt.includes(todayStr) && !bill.createdAt.toLowerCase().includes("today")) {
+          // Fallback if locale format varies
+          const billDate = new Date(bill.createdAt);
+          const now = new Date();
+          if (billDate.toDateString() !== now.toDateString()) return false;
+        }
+      }
+      // Search query
+      if (q) {
+        const matchesBillNo = bill.billNo.toLowerCase().includes(q);
+        const matchesCust = bill.customer.name.toLowerCase().includes(q) || bill.customer.phone.includes(q);
+        const matchesItems = bill.items.some(it => it.product.name.toLowerCase().includes(q) || it.product.sku.toLowerCase().includes(q));
+        if (!matchesBillNo && !matchesCust && !matchesItems) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      if (reportSortBy === "highest") return b.grandTotal - a.grandTotal;
+      if (reportSortBy === "lowest") return a.grandTotal - b.grandTotal;
+      // Default: latest (b vs a by bill id or timestamp)
+      return b.id.localeCompare(a.id);
+    });
+  }, [completedBills, reportSearch, reportPaymentFilter, reportDateFilter, reportSortBy]);
+
+  // Advanced Sales Report Analytics
+  const reportAnalytics = useMemo(() => {
+    const list = filteredReportBills;
+    const totalRev = list.reduce((s, b) => s + b.grandTotal, 0);
+    const totalCash = list.filter(b => b.paymentMode === "cash").reduce((s, b) => s + b.grandTotal, 0);
+    const totalUpi = list.filter(b => b.paymentMode === "upi").reduce((s, b) => s + b.grandTotal, 0);
+    const totalCard = list.filter(b => b.paymentMode === "card").reduce((s, b) => s + b.grandTotal, 0);
+    const totalKhata = list.filter(b => b.paymentMode === "khata").reduce((s, b) => s + b.grandTotal, 0);
+    const totalDiscounts = list.reduce((s, b) => s + (b.totalSavings || b.discount || 0), 0);
+    const totalItemsSold = list.reduce((s, b) => s + b.items.reduce((is, it) => is + it.quantity, 0), 0);
+    const avgBillValue = list.length > 0 ? Math.round(totalRev / list.length) : 0;
+
+    // Category Sales Breakdown
+    const catBreakdown: Record<string, { count: number; revenue: number }> = {};
+    for (const bill of list) {
+      for (const item of bill.items) {
+        const cat = item.product.category || "other";
+        if (!catBreakdown[cat]) catBreakdown[cat] = { count: 0, revenue: 0 };
+        catBreakdown[cat].count += item.quantity;
+        catBreakdown[cat].revenue += item.price * item.quantity;
+      }
+    }
+
+    return {
+      totalRev,
+      totalCash,
+      totalUpi,
+      totalCard,
+      totalKhata,
+      totalDiscounts,
+      totalItemsSold,
+      avgBillValue,
+      catBreakdown,
+      billCount: list.length
+    };
+  }, [filteredReportBills]);
+
+  // Export Sales Report to CSV
+  const handleExportReportCSV = () => {
+    if (filteredReportBills.length === 0) {
+      alert("No bills available to export!");
+      return;
+    }
+    const headers = ["Bill No", "Date", "Customer Name", "Phone", "Items Sold", "Payment Mode", "Subtotal", "Discount", "Grand Total"];
+    const rows = filteredReportBills.map(b => [
+      `"${b.billNo}"`,
+      `"${b.createdAt}"`,
+      `"${b.customer.name.replace(/"/g, '""')}"`,
+      `"${b.customer.phone}"`,
+      `"${b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ").replace(/"/g, '""')}"`,
+      `"${b.paymentMode.toUpperCase()}"`,
+      b.subtotal,
+      b.totalSavings || b.discount || 0,
+      b.grandTotal
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Rajnandini_Sales_Report_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Show Royal Flagship Login Screen if not authenticated
   if (!isAuthenticated) {
@@ -2185,22 +2301,31 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         )}
 
         {/* =========================================================
-            TAB 4: DAILY SALES & SETTLEMENT REPORT
+            TAB 4: EXECUTIVE SALES ANALYTICS & SETTLEMENT SUITE
             ========================================================= */}
         {activeTab === "reports" && (
           <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-stone-900">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Executive Header & Quick Actions */}
+              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-stone-900">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
-                    Executive Accounting &amp; Register
+                    Executive Accounting &amp; Revenue Intelligence
                   </span>
-                  <h2 className="text-2xl font-black text-stone-900 font-serif">Daily Sales &amp; Settlement Report</h2>
+                  <h2 className="text-2xl font-black text-stone-900 font-serif">Daily Sales &amp; Settlement Suite</h2>
                   <p className="text-xs text-stone-500 mt-1">
-                    Complete breakdown of showroom revenue, UPI QR vs Cash collections, and digital PDF invoices.
+                    Live breakdown of showroom revenue, UPI vs Cash collections, customer discounts, and digital invoices.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleExportReportCSV}
+                    className="px-3.5 py-2.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Export Sales Data to Excel/CSV"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Download CSV</span>
+                  </button>
                   {completedBills.length > 0 && (
                     <button 
                       onClick={() => {
@@ -2209,137 +2334,295 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           localStorage.removeItem("rajnandni_bills");
                         }
                       }}
-                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 hover:text-rose-700 text-[10px] uppercase font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 hover:text-rose-700 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Reset Sales
+                      <span>Reset Bills</span>
                     </button>
                   )}
-                  <div className="bg-white border border-stone-200 px-4 py-2.5 rounded-2xl text-right shadow-sm">
-                    <span className="text-[10px] text-stone-500 uppercase font-bold block">Total Register Collection</span>
-                    <span className="text-xl font-black text-stone-900 font-mono">
-                      ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                  <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
+                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Filtered Revenue</span>
+                    <span className="text-lg font-black text-stone-900 font-mono">
+                      ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales Revenue</span>
+              {/* 5 Executive Metric Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Total Net Revenue</span>
                   <p className="text-2xl font-black text-stone-950 font-mono mt-1">
-                    ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                    ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10px] text-stone-500 font-medium">{completedBills.length} Invoices Generated</span>
+                  <span className="text-[10.5px] text-stone-500 font-semibold">{reportAnalytics.billCount} Invoices</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                    <Banknote className="w-3.5 h-3.5" /> Cash In Drawer
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                    <Banknote className="w-3.5 h-3.5" /> Cash Collected
                   </span>
                   <p className="text-2xl font-black text-stone-950 font-mono mt-1">
-                    ₹{completedBills.filter(b => b.paymentMode === "cash").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                    ₹{reportAnalytics.totalCash.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10px] text-emerald-700 font-medium">Physical Cash</span>
+                  <span className="text-[10.5px] text-emerald-700 font-semibold">Physical Cash in Drawer</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
                     <QrCode className="w-3.5 h-3.5" /> UPI / PhonePe
                   </span>
                   <p className="text-2xl font-black text-stone-950 font-mono mt-1">
-                    ₹{completedBills.filter(b => b.paymentMode === "upi").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                    ₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10px] text-purple-700 font-medium">Instant Bank Settlement</span>
+                  <span className="text-[10.5px] text-purple-700 font-semibold">Instant Bank Credits</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
                     <CreditCard className="w-3.5 h-3.5" /> Card &amp; Khata
                   </span>
                   <p className="text-2xl font-black text-stone-950 font-mono mt-1">
-                    ₹{completedBills.filter(b => b.paymentMode === "card" || b.paymentMode === "khata").reduce((s, b) => s + b.grandTotal, 0).toLocaleString("en-IN")}
+                    ₹{(reportAnalytics.totalCard + reportAnalytics.totalKhata).toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10px] text-amber-800 font-medium">POS Swipe / Ledger</span>
+                  <span className="text-[10.5px] text-amber-800 font-semibold">POS Machine &amp; Ledger</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs col-span-2 md:col-span-1">
+                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Total Bargain Savings
+                  </span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    ₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10.5px] text-stone-500 font-semibold">{reportAnalytics.totalItemsSold} Items Sold</span>
                 </div>
               </div>
 
-              {/* Recent Bills History Table */}
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
-                  <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">Completed Showroom Invoices</h3>
-                  <span className="text-xs font-bold text-stone-600 bg-stone-50 px-3 py-1 rounded-full border border-stone-200">
-                    {completedBills.length} Bill(s)
-                  </span>
+              {/* Category Sales Share Bar (Visual Breakdown) */}
+              {Object.keys(reportAnalytics.catBreakdown).length > 0 && (
+                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs font-bold text-stone-800 uppercase tracking-wider font-serif">
+                      Sales by Category
+                    </span>
+                    <span className="text-[11px] text-stone-500 font-medium font-mono">
+                      Avg Bill Value: ₹{reportAnalytics.avgBillValue.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {Object.entries(reportAnalytics.catBreakdown).map(([catKey, data]) => {
+                      const theme = getCategoryTheme(catKey);
+                      return (
+                        <div key={catKey} className="bg-stone-50 border border-stone-200/80 p-2.5 rounded-xl">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 capitalize">
+                            <span>{theme.icon}</span>
+                            <span className="truncate">{catKey}</span>
+                          </div>
+                          <p className="text-sm font-black text-stone-900 font-mono mt-1">
+                            ₹{data.revenue.toLocaleString("en-IN")}
+                          </p>
+                          <span className="text-[10px] text-stone-500 font-medium">{data.count} pcs sold</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced Filter & Search Controls */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                {/* Search in Bills */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search by Bill No (e.g. RJN-2026-0101), Customer Name, Mobile, or Product..."
+                    value={reportSearch}
+                    onChange={e => setReportSearch(e.target.value)}
+                    className="w-full pl-10 pr-8 py-2 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                  />
+                  {reportSearch && (
+                    <button
+                      onClick={() => setReportSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
-                      <tr>
-                        <th className="px-4 py-3">Bill No &amp; Time</th>
-                        <th className="px-4 py-3">Customer</th>
-                        <th className="px-4 py-3">Items Purchased</th>
-                        <th className="px-4 py-3">Payment</th>
-                        <th className="px-4 py-3 text-right">Grand Total</th>
-                        <th className="px-4 py-3 text-right">Invoice Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {completedBills.map(b => (
-                        <tr key={b.id} className="hover:bg-amber-50/40 transition">
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
-                            <p className="text-[10px] text-stone-500">{b.createdAt}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-bold text-stone-900">{b.customer.name}</p>
-                            <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
-                          </td>
-                          <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
-                            {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="px-2.5 py-0.5 bg-stone-100 text-stone-800 border border-stone-200 rounded-full font-bold text-[10px] uppercase">
-                              {b.paymentMode}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            <span className="font-black text-stone-950 text-sm block">
-                              ₹{b.grandTotal.toLocaleString("en-IN")}
-                            </span>
-                            {(b.totalSavings || b.discount) > 0 && (
-                              <span className="text-[10px] text-emerald-700 font-bold block">
-                                Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
-                                className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                title="View / Download PDF Invoice"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-amber-700" />
-                                <span>PDF</span>
-                              </button>
-                              <button
-                                onClick={() => handleSendWhatsAppBill(b)}
-                                className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                title="Send WhatsApp Bill"
-                              >
-                                <Share2 className="w-3.5 h-3.5" />
-                                <span>WhatsApp</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Filter Badges & Sorts */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  {/* Payment Filter */}
+                  <select
+                    value={reportPaymentFilter}
+                    onChange={e => setReportPaymentFilter(e.target.value)}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="all">All Modes</option>
+                    <option value="cash">💵 Cash Only</option>
+                    <option value="upi">📱 UPI QR Only</option>
+                    <option value="card">💳 Card Only</option>
+                    <option value="khata">📖 Khata Only</option>
+                  </select>
+
+                  {/* Sort Order */}
+                  <select
+                    value={reportSortBy}
+                    onChange={e => setReportSortBy(e.target.value as any)}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="latest">Sort: Latest First</option>
+                    <option value="highest">Sort: Highest Amount</option>
+                    <option value="lowest">Sort: Lowest Amount</option>
+                  </select>
                 </div>
+              </div>
+
+              {/* Bills History Table */}
+              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
+                  <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
+                    Completed Showroom Invoices ({filteredReportBills.length})
+                  </h3>
+                  {reportSearch || reportPaymentFilter !== "all" ? (
+                    <button
+                      onClick={() => {
+                        setReportSearch("");
+                        setReportPaymentFilter("all");
+                        setReportSortBy("latest");
+                      }}
+                      className="text-xs text-amber-700 hover:underline font-bold cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                  ) : null}
+                </div>
+
+                {filteredReportBills.length === 0 ? (
+                  <div className="p-12 text-center text-stone-400">
+                    <Receipt className="w-12 h-12 mx-auto mb-2 opacity-30 text-stone-500" />
+                    <p className="text-sm font-bold text-stone-700">No matching bills found</p>
+                    <p className="text-xs text-stone-400 mt-1">Try clearing search or filters to see all completed bills.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
+                        <tr>
+                          <th className="px-4 py-3">Bill No &amp; Time</th>
+                          <th className="px-4 py-3">Customer Details</th>
+                          <th className="px-4 py-3">Items Purchased</th>
+                          <th className="px-4 py-3">Payment</th>
+                          <th className="px-4 py-3 text-right">Grand Total</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {filteredReportBills.map(b => (
+                          <React.Fragment key={b.id}>
+                            <tr className="hover:bg-amber-50/40 transition">
+                              <td className="px-4 py-3">
+                                <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
+                                <p className="text-[10px] text-stone-500">{b.createdAt}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="font-bold text-stone-900">{b.customer.name}</p>
+                                <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
+                              </td>
+                              <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
+                                <button
+                                  onClick={() => setReportExpandedBillId(reportExpandedBillId === b.id ? null : b.id)}
+                                  className="text-left hover:text-stone-900 hover:underline cursor-pointer group"
+                                  title="Click to view full item breakdown"
+                                >
+                                  <span className="font-semibold text-stone-800">
+                                    {b.items.reduce((s, it) => s + it.quantity, 0)} Pcs:{" "}
+                                  </span>
+                                  {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
+                                  b.paymentMode === "cash" 
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    : b.paymentMode === "upi"
+                                    ? "bg-purple-50 text-purple-800 border-purple-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}>
+                                  {b.paymentMode}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono">
+                                <span className="font-black text-stone-950 text-sm block">
+                                  ₹{b.grandTotal.toLocaleString("en-IN")}
+                                </span>
+                                {(b.totalSavings || b.discount) > 0 && (
+                                  <span className="text-[10px] text-emerald-700 font-bold block">
+                                    Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
+                                    className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                    title="View / Download PDF Invoice"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>PDF</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleSendWhatsAppBill(b)}
+                                    className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                    title="Send WhatsApp Bill"
+                                  >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {/* Expandable item details row */}
+                            {reportExpandedBillId === b.id && (
+                              <tr className="bg-stone-50/70 border-b border-stone-200">
+                                <td colSpan={6} className="px-6 py-3">
+                                  <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
+                                    <div className="flex items-center justify-between text-xs font-bold text-stone-700 border-b pb-1.5">
+                                      <span>Itemized Receipt Details</span>
+                                      <span>Bill Subtotal: ₹{b.subtotal.toLocaleString("en-IN")}</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      {b.items.map((it, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-xs">
+                                          <span className="text-stone-800 font-medium">
+                                            {it.quantity}x {it.product.name} ({it.selectedSize || "Standard"}) · SKU: {it.product.sku}
+                                          </span>
+                                          <span className="font-mono font-bold text-stone-900">
+                                            ₹{(it.price * it.quantity).toLocaleString("en-IN")}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {b.alteration && (
+                                      <div className="pt-2 border-t border-dashed border-stone-200 text-xs text-amber-800 flex items-center gap-1.5 font-medium">
+                                        <Scissors className="w-3.5 h-3.5" />
+                                        <span>Alteration: {b.alteration.garmentName} (Ready Date: {b.alteration.readyDate})</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </div>
