@@ -1349,7 +1349,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 pb-6">
                   {filteredProducts.map(prod => {
                     const theme = getCategoryTheme(prod.category);
                     const discountPct = prod.mrp > prod.price ? Math.round(((prod.mrp - prod.price) / prod.mrp) * 100) : 0;
@@ -1357,20 +1357,20 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     return (
                       <div
                         key={prod.id}
-                        className="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group hover:border-amber-400 overflow-hidden relative"
+                        className="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group hover:border-amber-400 overflow-hidden relative min-w-0"
                       >
                         {/* Category Color Top Accent Strip */}
                         <div className={`h-1.5 w-full bg-gradient-to-r ${theme.strip}`} />
 
-                        <div className="p-3.5 flex-1 flex flex-col justify-between">
+                        <div className="p-3.5 flex-1 flex flex-col justify-between min-w-0">
                           <div>
                             {/* Top Meta Row: SKU + Offer/Discount + Stock */}
                             <div className="flex items-center justify-between gap-1 mb-2">
-                              <span className="text-[10px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-md">
+                              <span className="text-[10px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-md truncate max-w-[120px]">
                                 {prod.sku}
                               </span>
 
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 shrink-0">
                                 {prod.badge ? (
                                   <span className="text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300/80 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
                                     {prod.badge}
@@ -1400,7 +1400,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <span className="text-sm shrink-0 mt-0.5" title={theme.label}>{theme.icon}</span>
                               <h3
                                 onClick={() => handleAddToCart(prod)}
-                                className="text-xs font-extrabold text-stone-900 line-clamp-2 leading-snug group-hover:text-amber-800 transition cursor-pointer"
+                                className="text-xs font-extrabold text-stone-900 line-clamp-2 leading-snug group-hover:text-amber-800 transition cursor-pointer break-words"
                               >
                                 {prod.name}
                               </h3>
@@ -1422,29 +1422,29 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                             )}
                           </div>
 
-                          {/* Card Footer: Price + Quick Tag Print + Add to Bill */}
-                          <div className="mt-3.5 pt-2.5 border-t border-stone-100 flex items-center justify-between gap-2">
-                            <div>
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-base font-black text-stone-950 font-mono">
+                          {/* Card Footer: Price + Quick Tag Print + Add to Bill (No Overflow Cutoff) */}
+                          <div className="mt-3.5 pt-2.5 border-t border-stone-100 flex items-center justify-between gap-1.5 flex-wrap">
+                            <div className="min-w-0">
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-sm lg:text-base font-black text-stone-950 font-mono">
                                   ₹{prod.price.toLocaleString("en-IN")}
                                 </span>
                                 {prod.mrp > prod.price && (
-                                  <span className="text-[10px] text-stone-400 line-through font-mono">
+                                  <span className="text-[9.5px] text-stone-400 line-through font-mono">
                                     ₹{prod.mrp.toLocaleString("en-IN")}
                                   </span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                               {/* Direct Barcode Tag Print Button right on POS Card */}
                               <button
                                 onClick={() => {
                                   setSelectedProductForBarcode(prod);
                                   setBarcodeStickerCount(4);
                                 }}
-                                className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl transition cursor-pointer"
+                                className="p-1.5 sm:p-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl transition cursor-pointer shrink-0"
                                 title="Print Barcode Sticker Tag"
                               >
                                 <Tag className="w-3.5 h-3.5" />
@@ -1453,10 +1453,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               {/* Add to Bill Button */}
                               <button
                                 onClick={() => handleAddToCart(prod)}
-                                className="px-3 py-1.5 bg-stone-950 hover:bg-amber-400 text-amber-300 hover:text-stone-950 border border-amber-500/30 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                className="px-2.5 sm:px-3 py-1.5 bg-stone-950 hover:bg-amber-400 text-amber-300 hover:text-stone-950 border border-amber-500/30 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-xs shrink-0"
                                 title="Add to Bill"
                               >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-3 h-3" />
                                 <span>Add</span>
                               </button>
                             </div>
