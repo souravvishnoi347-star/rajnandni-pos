@@ -745,6 +745,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       sarees: { skuPrefix: "RJ-SAR", barcodeBase: 8901000, defaultSizes: ["Free Size (5.5m + Blouse)"] },
       kurtis: { skuPrefix: "RJ-KRT", barcodeBase: 8902000, defaultSizes: ["M", "L", "XL", "XXL"] },
       lehengas: { skuPrefix: "RJ-LHG", barcodeBase: 8903000, defaultSizes: ["Free Size (Semi-Stitched)"] },
+      kidswear: { skuPrefix: "RJ-KID", barcodeBase: 8912000, defaultSizes: ["2-3 Yrs", "4-5 Yrs", "6-7 Yrs", "8-9 Yrs", "10-12 Yrs"] },
       jewellery: { skuPrefix: "RJ-JWL", barcodeBase: 8904000, defaultSizes: ["Standard Set"] },
       footwear: { skuPrefix: "RJ-FTW", barcodeBase: 8905000, defaultSizes: ["37", "38", "39", "40"] },
       cosmetics: { skuPrefix: "RJ-COS", barcodeBase: 8910000, defaultSizes: ["Standard", "Pack"] },
@@ -838,6 +839,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         return { icon: "🥻", label: "Royal Sarees", strip: "from-indigo-600 via-violet-600 to-purple-600", badge: "bg-indigo-50 text-indigo-900 border-indigo-200" };
       case "lehengas":
         return { icon: "👗", label: "Bridal & Lehengas", strip: "from-rose-600 via-crimson-600 to-pink-600", badge: "bg-rose-50 text-rose-900 border-rose-200" };
+      case "kidswear":
+        return { icon: "🧸", label: "Kids Wear & Ethnic", strip: "from-orange-500 via-amber-400 to-yellow-400", badge: "bg-orange-50 text-orange-900 border-orange-200" };
       case "kurtis":
         return { icon: "👚", label: "Kurtis & Suits", strip: "from-amber-500 via-orange-500 to-yellow-500", badge: "bg-amber-50 text-amber-900 border-amber-200" };
       case "handbags":
@@ -1296,6 +1299,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   { id: "sarees", label: "Sarees", icon: "🥻", count: products.filter(p => p.category === "sarees").length },
                   { id: "lehengas", label: "Lehengas & Gowns", icon: "👗", count: products.filter(p => p.category === "lehengas").length },
                   { id: "kurtis", label: "Kurtis & Suits", icon: "👚", count: products.filter(p => p.category === "kurtis").length },
+                  { id: "kidswear", label: "Kids Wear", icon: "🧸", count: products.filter(p => p.category === "kidswear").length },
                   { id: "handbags", label: "Handbags & Purses", icon: "👜", count: products.filter(p => p.category === "handbags").length },
                   { id: "bangles", label: "Bangles & Kada", icon: "💫", count: products.filter(p => p.category === "bangles").length },
                   { id: "earrings", label: "Earrings & Jhumkas", icon: "💎", count: products.filter(p => p.category === "earrings").length },
@@ -2055,6 +2059,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                   {[
                     { id: "all", label: "All" },
+                    { id: "kidswear", label: "🧸 Kids Wear" },
                     { id: "handbags", label: "👜 Handbags" },
                     { id: "bangles", label: "💫 Bangles" },
                     { id: "earrings", label: "💎 Earrings" },
@@ -2892,6 +2897,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     }}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mt-1 text-xs font-bold focus:ring-1 focus:ring-amber-500"
                   >
+                    <option value="kidswear">🧸 Kids Wear &amp; Ethnic (RJ-KID)</option>
                     <option value="handbags">👜 Handbags &amp; Purses (RJ-BAG)</option>
                     <option value="bangles">💫 Bangles &amp; Kada (RJ-BNG)</option>
                     <option value="earrings">💎 Earrings &amp; Jhumkas (RJ-EAR)</option>

@@ -3,6 +3,7 @@ export type ProductCategory =
   | "sarees"
   | "lehengas" 
   | "kurtis" 
+  | "kidswear"
   | "handbags"
   | "bangles"
   | "earrings"
@@ -17,7 +18,7 @@ export interface ProductItem {
   sku: string;
   barcode: string;
   name: string;
-  category: "sarees" | "lehengas" | "kurtis" | "handbags" | "bangles" | "earrings" | "jewellery" | "footwear" | "cosmetics" | "handloom" | "parlour";
+  category: "sarees" | "lehengas" | "kurtis" | "kidswear" | "handbags" | "bangles" | "earrings" | "jewellery" | "footwear" | "cosmetics" | "handloom" | "parlour";
   price: number;
   mrp: number;
   purchaseCost: number;
