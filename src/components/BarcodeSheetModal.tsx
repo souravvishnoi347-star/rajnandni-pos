@@ -400,18 +400,17 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
             margin: 0 !important;
           }
           .thermal-row {
-            height: 38mm !important;
-            max-height: 38mm !important;
-            min-height: 38mm !important;
-            width: 100mm !important;
-            max-width: 100mm !important;
+            height: 36mm !important;
+            max-height: 36mm !important;
+            width: 98mm !important;
+            max-width: 98mm !important;
             display: flex !important;
             justify-content: flex-start !important;
             align-items: flex-start !important;
             gap: 2mm !important;
             box-sizing: border-box !important;
             padding: 0 !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -999,9 +998,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
               html, body {
                 margin: 0 !important;
                 padding: 0 !important;
-                height: 100% !important;
                 background: white !important;
-                overflow: hidden !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
@@ -1011,9 +1008,7 @@ export default function BarcodeSheetModal({ product, onClose }: BarcodeSheetModa
               }
               #barcode-print-sheet {
                 display: block !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: 0 !important;
+                position: static !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
