@@ -149,7 +149,7 @@ function InvoiceContent() {
     const rawPhone = bill.customer.phone.replace(/[^0-9]/g, "");
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
     const currentUrl = typeof window !== "undefined" ? window.location.href : "";
-    const msg = `🌸 *RAJNANDINI - DIGITAL TAX INVOICE* 🌸\n\nNamaste ${bill.customer.name} Ji! 🙏\n\n🧾 *Invoice No:* ${bill.billNo}\n💰 *Total Amount:* ₹${bill.grandTotal.toLocaleString("en-IN")}\n📅 *Date:* ${bill.createdAt}\n\n📄 *View & Download Official PDF Bill (Zudio Style):*\n${currentUrl}\n\n*Darshan Enterprises*\nNear PSC Petropump, Ranipur, Haridwar\nGSTIN: 05GNZPS9902M1ZR\n\nThank you for shopping with Rajnandini! 💖`;
+    const msg = `🌸 *RAJNANDINI - DIGITAL TAX INVOICE* 🌸\n\nNamaste ${bill.customer.name} Ji! 🙏\n\n🧾 *Invoice No:* ${bill.billNo}\n💰 *Total Amount:* ₹${bill.grandTotal.toLocaleString("en-IN")}\n📅 *Date:* ${bill.createdAt}\n\n📄 *View & Download Official PDF Bill (Zudio Style):*\n${currentUrl}\n\n*Darshan Enterprises*\nNear PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401\nGSTIN: 05GNZPS9902M1ZR\nPh: +91 7464987898\n\nThank you for shopping with Rajnandini! 💖`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -191,10 +191,10 @@ function InvoiceContent() {
   const cgstAmount = Math.round((totalGst / 2) * 100) / 100;
   const sgstAmount = Math.round((totalGst / 2) * 100) / 100;
 
-  // Mask customer phone like Zudio: ******5639
-  const maskedPhone = bill.customer.phone && bill.customer.phone.length >= 10
-    ? `******${bill.customer.phone.slice(-4)}`
-    : (bill.customer.phone || "WALK-IN");
+  // Customer phone: Show full phone number per user request
+  const customerPhone = bill.customer.phone && bill.customer.phone.trim() !== ""
+    ? bill.customer.phone
+    : "WALK-IN";
 
   const totalQty = bill.items.reduce((s, it) => s + it.quantity, 0);
 
@@ -256,24 +256,12 @@ function InvoiceContent() {
             </p>
           </div>
 
-          {/* Feedback smiley row matching inspiration */}
-          <div className="border-t border-b border-black py-2.5 my-2 text-center text-black">
-            <p className="text-xs text-black font-bold mb-1">
-              Tell us about your overall experience
-            </p>
-            <div className="flex justify-center items-center gap-4 text-xl">
-              <span className="cursor-pointer hover:scale-125 transition-transform" title="Good">😊</span>
-              <span className="cursor-pointer hover:scale-125 transition-transform" title="Neutral">😐</span>
-              <span className="cursor-pointer hover:scale-125 transition-transform" title="Bad">☹️</span>
-            </div>
-          </div>
-
           {/* Official Company Legal Details (User Mandated) */}
-          <div className="text-center py-2 text-[11px] leading-relaxed text-black">
+          <div className="text-center py-2 border-t-2 border-black text-[11px] leading-relaxed text-black">
             <p className="font-black text-sm tracking-wide">Darshan Enterprises</p>
-            <p className="text-[11px] font-bold">Store Contact Number : +91 98970 00000</p>
+            <p className="text-[11px] font-bold">Store Contact Number : +91 7464987898</p>
             <p className="text-[11px] font-semibold max-w-md mx-auto">
-              <strong>Place Of Supply :</strong> Near PSC Petropump, Ranipur, Haridwar, Uttarakhand - 249401
+              <strong>Place Of Supply :</strong> Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401
             </p>
             <p className="font-black text-xs mt-0.5 tracking-wider">
               GSTIN NO : 05GNZPS9902M1ZR
@@ -293,7 +281,7 @@ function InvoiceContent() {
               <p><strong>INVOICE NO. :</strong> {bill.billNo}</p>
               <p><strong>COUNTER :</strong> 1</p>
               <p><strong>CUSTOMER ID :</strong> {bill.customer.name.toUpperCase()}</p>
-              <p><strong>MOBILE NO :</strong> {maskedPhone}</p>
+              <p><strong>MOBILE NO :</strong> {customerPhone}</p>
             </div>
             <div className="text-right">
               <p>{bill.createdAt}</p>
@@ -308,11 +296,6 @@ function InvoiceContent() {
               <span className="w-[20%] text-center">QTY &amp; RATE</span>
               <span className="w-[28%] text-right">TOTAL AMOUNT</span>
             </div>
-          </div>
-
-          {/* Tax rate subheader */}
-          <div className="text-[11px] font-black py-0.5 text-black uppercase">
-            GST RATE: APPAREL 5% (CGST 2.5% + SGST 2.5%)
           </div>
 
           {/* Item Rows: Spacious, legible, zero overlapping */}
@@ -402,7 +385,7 @@ function InvoiceContent() {
             <p className="font-black text-[11px] uppercase mb-1">Tender Detail</p>
             <div className="flex justify-between items-center font-bold">
               <span className="uppercase">{bill.paymentMode} PAYMENT</span>
-              <span className="font-mono">************{maskedPhone.slice(-4)}</span>
+              <span className="font-mono">{customerPhone !== "WALK-IN" ? customerPhone : ""}</span>
               <span className="font-black text-xs">₹{bill.grandTotal.toFixed(2)}</span>
             </div>
           </div>

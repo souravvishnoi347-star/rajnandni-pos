@@ -292,7 +292,7 @@ export default function StorefrontPage() {
           <h2 className="text-2xl font-serif tracking-[0.2em] uppercase mb-6 text-stone-900">RAJNANDINI</h2>
           <p className="text-sm text-stone-500 mb-12 font-medium max-w-md mx-auto leading-relaxed">
             A modern take on timeless Indian elegance. <br/>
-            Near PSC Petropump, Ranipur, Haridwar
+            Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401 · Ph: +91 7464987898
           </p>
           
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 mb-16">

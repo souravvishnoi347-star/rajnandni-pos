@@ -695,8 +695,9 @@ export default function RajnandiniPosPage() {
     const message = 
 `🌸 *RAJNANDINI* 🌸
 *Darshan Enterprises*
-Near PSC Petropump, Ranipur, Haridwar
+Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401
 GSTIN: 05GNZPS9902M1ZR
+Ph: +91 7464987898
 ------------------------------------
 *INVOICE / BILL DETAILS*
 📄 *Bill No:* ${bill.billNo}
@@ -732,7 +733,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   const handleSendAlterationReadyWhatsApp = (alt: AlterationDetail, phone: string, name: string) => {
     const rawPhone = phone.replace(/[^0-9]/g, "");
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
-    const msg = `🌸 *RAJNANDINI - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap store aakar trial le sakte hain.\n\n📍 *Rajnandini (Darshan Enterprises)*\nNear PSC Petropump, Ranipur, Haridwar - 249401\n📞 Support: +91 98970 00000`;
+    const msg = `🌸 *RAJNANDINI - ALTERATION READY* 🌸\n\nNamaste ${name || "Ma'am"} ji! 🙏\n\nAapka garment (*${alt.garmentName}*) alteration & fitting ke baad ready hai. Aap store aakar trial le sakte hain.\n\n📍 *Rajnandini (Darshan Enterprises)*\nNear PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401\n📞 Support: +91 7464987898`;
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -1017,9 +1018,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <span>Darshan Enterprises</span>
             </div>
             <p className="text-[11px] text-stone-400 mt-2.5 leading-relaxed">
-              Near PSC Petropump, Ranipur, Haridwar - 249401
+              Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401
               <br />
-              <span className="font-mono text-amber-200/80">GSTIN: 05GNZPS9902M1ZR</span>
+              <span className="font-mono text-amber-200/80">GSTIN: 05GNZPS9902M1ZR · Ph: +91 7464987898</span>
             </p>
           </div>
 
@@ -1116,9 +1117,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </span>
               </div>
               <p className="text-[11px] text-stone-500 font-medium flex items-center gap-1.5">
-                <span>Near PSC Petropump, Ranipur, Haridwar - 249401</span>
+                <span>Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401</span>
                 <span className="text-stone-300">•</span>
-                <span className="font-mono text-stone-500 font-bold">GSTIN: 05GNZPS9902M1ZR</span>
+                <span className="font-mono text-stone-500 font-bold">GSTIN: 05GNZPS9902M1ZR · Ph: +91 7464987898</span>
               </p>
             </div>
           </div>
@@ -2671,8 +2672,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <div className="text-center pb-2 border-b border-gray-300">
                 <p className="font-bold text-sm">RAJNANDINI</p>
                 <p className="text-[10.5px] font-bold text-stone-700">Darshan Enterprises</p>
-                <p className="text-[9.5px] text-gray-500">Near PSC Petropump, Ranipur, Haridwar - 249401</p>
-                <p className="text-[9.5px] font-semibold text-gray-700">GSTIN: 05GNZPS9902M1ZR</p>
+                <p className="text-[9.5px] text-gray-500">Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401</p>
+                <p className="text-[9.5px] font-semibold text-gray-700">GSTIN: 05GNZPS9902M1ZR · Ph: +91 7464987898</p>
               </div>
 
               <div className="py-2 border-b border-gray-300 text-[11px] space-y-0.5">
@@ -2789,11 +2790,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <p style={{ fontSize: "12.5px", fontWeight: "900", margin: "2px 0", letterSpacing: "0.5px", color: "#000" }}>
               Darshan Enterprises
             </p>
-            <p style={{ fontSize: "11.5px", fontWeight: "700", margin: "2px 0", color: "#000" }}>
-              Near PSC Petropump, Ranipur, Haridwar - 249401
+            <p style={{ fontSize: "11px", fontWeight: "700", margin: "2px 0", color: "#000" }}>
+              Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401
             </p>
             <p style={{ fontSize: "12px", fontWeight: "800", margin: "2px 0", color: "#000" }}>
-              GSTIN: 05GNZPS9902M1ZR · Ph: +91 98970 00000
+              GSTIN: 05GNZPS9902M1ZR · Ph: +91 7464987898
             </p>
           </div>
 
