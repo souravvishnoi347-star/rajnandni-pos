@@ -2773,63 +2773,110 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           ========================================================= */}
       {lastBill && (
         <div id="thermal-receipt-area" className="hidden print:block">
-          <div style={{ textAlign: "center", marginBottom: "4px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>RAJNANDINI</h2>
-            <p style={{ fontSize: "10px", fontWeight: "bold", margin: "1px 0" }}>Darshan Enterprises</p>
-            <p style={{ fontSize: "8.5px", margin: "1px 0" }}>Near PSC Petropump, Ranipur, Haridwar - 249401</p>
-            <p style={{ fontSize: "8.5px", fontWeight: "bold", margin: "1px 0" }}>GSTIN: 05GNZPS9902M1ZR · Ph: +91 98970 00000</p>
+          {/* Brand Header */}
+          <div style={{ textAlign: "center", marginBottom: "8px", paddingBottom: "6px" }}>
+            <h1 style={{ fontSize: "20px", fontWeight: "900", letterSpacing: "1px", margin: "0 0 2px 0", textTransform: "uppercase" }}>
+              RAJNANDINI
+            </h1>
+            <p style={{ fontSize: "12px", fontWeight: "800", margin: "2px 0", letterSpacing: "0.5px" }}>
+              Darshan Enterprises
+            </p>
+            <p style={{ fontSize: "11px", fontWeight: "600", margin: "2px 0", color: "#222" }}>
+              Near PSC Petropump, Ranipur, Haridwar - 249401
+            </p>
+            <p style={{ fontSize: "11px", fontWeight: "700", margin: "2px 0" }}>
+              GSTIN: 05GNZPS9902M1ZR · Ph: +91 98970 00000
+            </p>
           </div>
-          <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "3px 0", fontSize: "10px", margin: "4px 0" }}>
-            <div>Bill No: {lastBill.billNo}</div>
-            <div>Date: {lastBill.createdAt}</div>
-            <div>Cust: {lastBill.customer.name} ({lastBill.customer.phone})</div>
+
+          {/* Meta Info Section */}
+          <div style={{ borderTop: "2px dashed #000", borderBottom: "2px dashed #000", padding: "6px 0", margin: "8px 0", fontSize: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+              <span style={{ fontWeight: "700" }}>Bill No: <span style={{ fontFamily: "monospace", fontSize: "13px" }}>{lastBill.billNo}</span></span>
+              <span>{lastBill.createdAt.split(",")[0]}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "11.5px", color: "#333" }}>
+              <span>Time: {lastBill.createdAt.split(",")[1] || ""}</span>
+              <span style={{ fontWeight: "700", textTransform: "uppercase" }}>Pay: {lastBill.paymentMode}</span>
+            </div>
+            <div style={{ marginTop: "4px", paddingTop: "3px", borderTop: "1px dotted #666" }}>
+              <span style={{ fontWeight: "700" }}>Customer: </span>
+              <span>{lastBill.customer.name} {lastBill.customer.phone !== "NA" && `(${lastBill.customer.phone})`}</span>
+            </div>
           </div>
-          <div style={{ margin: "4px 0" }}>
+
+          {/* Purchased Items List */}
+          <div style={{ margin: "8px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "800", fontSize: "12px", paddingBottom: "4px", borderBottom: "1px solid #000", textTransform: "uppercase" }}>
+              <span>Item Description</span>
+              <span>Amount</span>
+            </div>
             {lastBill.items.map((it, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "2px" }}>
-                <span style={{ maxWidth: "65%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {it.quantity}x {it.product.name} ({it.selectedSize || "Std"})
-                </span>
-                <span>₹{(it.quantity * it.price).toLocaleString("en-IN")}</span>
+              <div key={idx} style={{ padding: "6px 0", borderBottom: "1px dotted #ddd" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "700" }}>
+                  <span style={{ maxWidth: "72%", wordBreak: "break-word" }}>
+                    {it.quantity}x {it.product.name}
+                  </span>
+                  <span style={{ fontWeight: "800", whiteSpace: "nowrap" }}>
+                    ₹{(it.quantity * it.price).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div style={{ fontSize: "11px", color: "#555", marginTop: "1px" }}>
+                  <span>SKU: {it.product.sku}</span>
+                  {it.selectedSize && <span style={{ marginLeft: "8px" }}>Size: {it.selectedSize}</span>}
+                  <span style={{ marginLeft: "8px" }}>@ ₹{it.price.toLocaleString("en-IN")}/pc</span>
+                </div>
               </div>
             ))}
           </div>
-          <div style={{ borderTop: "1px dashed #000", paddingTop: "3px", fontSize: "11px", fontWeight: "bold" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+
+          {/* Totals & Savings */}
+          <div style={{ borderTop: "2px dashed #000", paddingTop: "6px", marginTop: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "600", marginBottom: "3px" }}>
               <span>Subtotal:</span>
               <span>₹{lastBill.subtotal.toLocaleString("en-IN")}</span>
             </div>
+
             {lastBill.discount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
-                <span>Bargain Disc ({lastBill.discountReason || "Deal"}):</span>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", fontWeight: "700", color: "#000", marginBottom: "3px" }}>
+                <span>Discount ({lastBill.discountReason || "Special Deal"}):</span>
                 <span>-₹{lastBill.discount.toLocaleString("en-IN")}</span>
               </div>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginTop: "2px" }}>
-              <span>TOTAL:</span>
+
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "17px", fontWeight: "900", marginTop: "6px", paddingTop: "6px", borderTop: "2px solid #000" }}>
+              <span>TOTAL PAID:</span>
               <span>₹{lastBill.grandTotal.toLocaleString("en-IN")}</span>
             </div>
+
             {(lastBill.totalSavings || lastBill.discount) > 0 && (
-              <div style={{ textAlign: "center", fontSize: "10px", marginTop: "3px", fontWeight: "bold" }}>
-                *** YOU SAVED ₹{(lastBill.totalSavings || lastBill.discount).toLocaleString("en-IN")} TODAY! ***
+              <div style={{ textAlign: "center", fontSize: "12px", marginTop: "6px", padding: "4px", fontWeight: "800", border: "1px dashed #000", borderRadius: "4px" }}>
+                *** AAPKI KUL BACHAT: ₹{(lastBill.totalSavings || lastBill.discount).toLocaleString("en-IN")} ***
               </div>
             )}
-            <div style={{ fontSize: "9px", marginTop: "2px" }}>Paid Via: {lastBill.paymentMode.toUpperCase()}</div>
+
+            <div style={{ fontSize: "11px", marginTop: "5px", textAlign: "right", fontWeight: "700" }}>
+              Payment Mode: {lastBill.paymentMode.toUpperCase()}
+            </div>
           </div>
 
+          {/* Alteration Note if present */}
           {lastBill.alteration && (
-            <div style={{ borderTop: "1px dashed #000", marginTop: "4px", paddingTop: "3px", fontSize: "9px" }}>
-              <div style={{ fontWeight: "bold" }}>✂️ ALTERATION NOTE:</div>
-              <div>Item: {lastBill.alteration.garmentName}</div>
-              <div>Notes: {lastBill.alteration.fittingNotes}</div>
-              <div>Ready: {lastBill.alteration.readyDate}</div>
+            <div style={{ borderTop: "2px dashed #000", marginTop: "8px", paddingTop: "6px", fontSize: "11.5px" }}>
+              <div style={{ fontWeight: "900", fontSize: "12px", marginBottom: "2px" }}>✂️ ALTERATION / FITTING SLIP:</div>
+              <div><strong>Garment:</strong> {lastBill.alteration.garmentName}</div>
+              <div><strong>Fitting:</strong> {lastBill.alteration.fittingNotes}</div>
+              <div><strong>Ready Date:</strong> {lastBill.alteration.readyDate}</div>
             </div>
           )}
 
-          <div style={{ textAlign: "center", marginTop: "8px", fontSize: "9px", borderTop: "1px dashed #000", paddingTop: "4px" }}>
-            Thank You! Visit Again 💖
+          {/* Footer Note */}
+          <div style={{ textAlign: "center", marginTop: "12px", fontSize: "11px", borderTop: "2px dashed #000", paddingTop: "8px", lineHeight: "1.4" }}>
+            <span style={{ fontSize: "12px", fontWeight: "800" }}>Thank You! Visit Again 🙏</span>
             <br />
             Goods once sold will not be returned without bill.
+            <br />
+            <span style={{ fontSize: "10px", color: "#444" }}>Exchange allowed within 7 days with tag intact.</span>
           </div>
         </div>
       )}
