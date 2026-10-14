@@ -2916,6 +2916,24 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               Thank You! Visit Again 🙏
             </span>
           </div>
+
+          {/* Instagram Follow QR for Thermal Roll */}
+          <div style={{ marginTop: "10px", textAlign: "center", borderTop: "1.5px dashed #000", paddingTop: "8px" }}>
+            <p style={{ fontSize: "11px", fontWeight: "900", margin: "0 0 2px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              📸 FOLLOW US ON INSTAGRAM
+            </p>
+            <p style={{ fontSize: "10px", fontWeight: "700", margin: "0 0 4px 0" }}>
+              Scan for new arrivals &amp; festive deals
+            </p>
+            <img
+              src="/instagram-qr.png"
+              alt="Instagram @RAJNANDINISTORE"
+              style={{ width: "110px", height: "auto", margin: "0 auto", display: "block" }}
+            />
+            <p style={{ fontSize: "11.5px", fontWeight: "900", margin: "3px 0 0 0", fontFamily: "monospace" }}>
+              @RAJNANDINISTORE
+            </p>
+          </div>
         </div>
       )}
 

@@ -444,12 +444,15 @@ function InvoiceContent() {
             <svg ref={invoiceBarcodeSvgRef} className="max-w-[280px] h-auto" />
           </div>
 
-          {/* Social Follow & Rajnandini Fanz QR matching inspiration */}
-          <div className="text-center my-6 border-t border-stone-200 pt-4">
-            <p className="text-xs font-bold text-stone-900 mb-2">
-              Love what's in? Follow to know more
+          {/* Social Follow & Instagram QR Code */}
+          <div className="text-center my-6 border-t-2 border-black pt-4 text-black">
+            <p className="text-xs font-black text-black mb-1 uppercase tracking-wider">
+              Follow Us on Instagram
             </p>
-            <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white mb-4">
+            <p className="text-[11px] font-bold text-black mb-2">
+              Scan to view latest ethnic collections &amp; offers
+            </p>
+            <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white mb-3">
               <svg className="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
                 <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
@@ -457,25 +460,17 @@ function InvoiceContent() {
               </svg>
             </div>
 
-            {/* QR Code Container matching Zudio Fanz card */}
-            <div className="max-w-[220px] mx-auto p-4 rounded-2xl border border-stone-300 bg-white shadow-xs">
-              <p className="font-black text-xs uppercase tracking-wider mb-2">
-                rajnandini <span className="text-amber-500 font-extrabold">FANZ</span>
-              </p>
-              {qrDataUrl ? (
-                <img src={qrDataUrl} alt="Rajnandini Fanz QR" className="w-28 h-28 mx-auto border border-stone-200 rounded-lg p-1" />
-              ) : (
-                <div className="w-28 h-28 mx-auto bg-stone-100 flex items-center justify-center text-[10px] text-stone-400">
-                  QR Loading...
-                </div>
-              )}
-              <p className="text-[9px] font-bold text-stone-900 mt-2 lowercase">
-                rajnandini
+            {/* Official Instagram QR Code Card */}
+            <div className="max-w-[210px] mx-auto p-2.5 rounded-xl border-2 border-black bg-white shadow-xs">
+              <img
+                src="/instagram-qr.png"
+                alt="Instagram @RAJNANDINISTORE"
+                className="w-44 h-auto mx-auto object-contain"
+              />
+              <p className="text-[11.5px] font-black text-black mt-1.5 tracking-wide uppercase font-mono">
+                @RAJNANDINISTORE
               </p>
             </div>
-            <p className="text-[9.5px] text-stone-600 underline cursor-pointer mt-2">
-              Download your Rajnandini Fanz QR
-            </p>
           </div>
         </div>
 
