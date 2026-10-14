@@ -79,7 +79,9 @@
   }
 
   #thermal-receipt-area,
-  #thermal-receipt-area * {
+  #thermal-receipt-area *,
+  #zudio-style-invoice,
+  #zudio-style-invoice * {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
     border-color: #000000 !important;

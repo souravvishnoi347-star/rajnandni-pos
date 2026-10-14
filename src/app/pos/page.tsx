@@ -2775,9 +2775,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         <div id="thermal-receipt-area" className="hidden print:block">
           {/* Brand Header */}
           <div style={{ textAlign: "center", marginBottom: "8px", paddingBottom: "6px" }}>
+            <img
+              src="/rajnandini-logo.jpg"
+              alt="Rajnandini"
+              style={{ width: "55px", height: "55px", borderRadius: "50%", margin: "0 auto 4px auto", display: "block", border: "1.5px solid #000" }}
+            />
             <h1 style={{ fontSize: "20px", fontWeight: "900", letterSpacing: "1px", margin: "0 0 2px 0", textTransform: "uppercase" }}>
               RAJNANDINI
             </h1>
+            <p style={{ fontSize: "10px", fontWeight: "800", margin: "1px 0", textTransform: "uppercase", letterSpacing: "1px" }}>
+              Fashion · Jewellery · Beauty
+            </p>
             <p style={{ fontSize: "12.5px", fontWeight: "900", margin: "2px 0", letterSpacing: "0.5px", color: "#000" }}>
               Darshan Enterprises
             </p>
@@ -2844,6 +2852,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               </div>
             )}
 
+            {/* Detailed GST Breakdown (5% Apparel: CGST 2.5% + SGST 2.5%) */}
+            <div style={{ borderTop: "1.5px dashed #000", borderBottom: "1.5px dashed #000", padding: "4px 0", margin: "6px 0", fontSize: "11.5px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px", fontWeight: "700" }}>
+                <span>Net Taxable Value:</span>
+                <span style={{ fontWeight: "800" }}>₹{(Math.round((lastBill.grandTotal / 1.05) * 100) / 100).toFixed(2)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px", fontWeight: "700" }}>
+                <span>CGST @ 2.5%:</span>
+                <span style={{ fontWeight: "800" }}>₹{(Math.round(((lastBill.grandTotal - Math.round((lastBill.grandTotal / 1.05) * 100) / 100) / 2) * 100) / 100).toFixed(2)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px", fontWeight: "700" }}>
+                <span>SGST @ 2.5%:</span>
+                <span style={{ fontWeight: "800" }}>₹{(Math.round(((lastBill.grandTotal - Math.round((lastBill.grandTotal / 1.05) * 100) / 100) / 2) * 100) / 100).toFixed(2)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "900", borderTop: "1px dashed #000", paddingTop: "2px", marginTop: "2px" }}>
+                <span>Total GST (5%):</span>
+                <span>₹{(Math.round((lastBill.grandTotal - Math.round((lastBill.grandTotal / 1.05) * 100) / 100) * 100) / 100).toFixed(2)}</span>
+              </div>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "18px", fontWeight: "900", marginTop: "6px", paddingTop: "6px", borderTop: "2px solid #000" }}>
               <span>TOTAL PAID:</span>
               <span>₹{lastBill.grandTotal.toLocaleString("en-IN")}</span>
@@ -2870,11 +2898,23 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </div>
           )}
 
-          {/* Footer Note */}
-          <div style={{ textAlign: "center", marginTop: "12px", fontSize: "12px", borderTop: "2px dashed #000", paddingTop: "8px", lineHeight: "1.5", color: "#000" }}>
-            <span style={{ fontSize: "13px", fontWeight: "900", display: "block", marginBottom: "3px" }}>Thank You! Visit Again 🙏</span>
-            <span style={{ fontWeight: "800", display: "block" }}>Goods once sold will not be returned without bill.</span>
-            <span style={{ fontSize: "11.5px", fontWeight: "800", display: "block", marginTop: "2px" }}>Exchange allowed within 7 days with tag intact.</span>
+          {/* Footer Note / Return Policy */}
+          <div style={{ textAlign: "center", marginTop: "10px", fontSize: "11px", border: "2px solid #000", padding: "6px 4px", lineHeight: "1.4", color: "#000", borderRadius: "4px" }}>
+            <span style={{ fontSize: "12px", fontWeight: "900", display: "block", marginBottom: "2px", textTransform: "uppercase" }}>
+              ★ RETURN &amp; EXCHANGE POLICY ★
+            </span>
+            <span style={{ fontWeight: "900", display: "block", fontSize: "11px" }}>
+              NO CASH REFUND / MONEY RETURN — ONLY EXCHANGE ALLOWED.
+            </span>
+            <span style={{ fontSize: "10.5px", fontWeight: "800", display: "block", marginTop: "2px" }}>
+              Exchange allowed within 5 DAYS ONLY with original bill &amp; tags intact.
+            </span>
+            <span style={{ fontSize: "9.5px", fontWeight: "700", display: "block", marginTop: "1px" }}>
+              Altered, washed, or damaged garments will not be exchanged.
+            </span>
+            <span style={{ fontSize: "12.5px", fontWeight: "900", display: "block", marginTop: "5px" }}>
+              Thank You! Visit Again 🙏
+            </span>
           </div>
         </div>
       )}

@@ -239,22 +239,26 @@ function InvoiceContent() {
         {/* PAGE 1: HEADER & TAX INVOICE */}
         <div>
           {/* Brand Logo & Store details */}
-          <div className="flex items-start justify-between pb-4">
-            <div>
-              {/* Clean lowercase bold brand font matching Zudio style */}
-              <h1 className="text-3xl font-black tracking-tight leading-none" style={{ letterSpacing: "-1px" }}>
-                rajnandini
-              </h1>
-            </div>
-            <div className="text-right text-[11px] leading-tight">
-              <p className="font-semibold text-stone-900">Rajnandini - Haridwar - Ranipur</p>
-              <p className="text-[10px] text-stone-500 cursor-pointer">Store Details &gt;</p>
-            </div>
+          <div className="flex flex-col items-center justify-center text-center pb-3">
+            <img
+              src="/rajnandini-logo.jpg"
+              alt="Rajnandini"
+              className="w-20 h-20 rounded-full object-cover border-2 border-black mb-2 shadow-xs"
+            />
+            <h1 className="text-3xl font-black tracking-wider uppercase text-black" style={{ letterSpacing: "1px" }}>
+              RAJNANDINI
+            </h1>
+            <p className="text-[11px] font-extrabold tracking-widest text-black uppercase mt-0.5">
+              Fashion · Jewellery · Beauty
+            </p>
+            <p className="text-[11px] font-bold text-black mt-0.5">
+              Rajnandini - Haridwar - Ranipur
+            </p>
           </div>
 
           {/* Feedback smiley row matching inspiration */}
-          <div className="border-t border-b border-stone-200 py-3 my-2 text-center">
-            <p className="text-xs text-stone-700 font-medium mb-1.5">
+          <div className="border-t border-b border-black py-2.5 my-2 text-center text-black">
+            <p className="text-xs text-black font-bold mb-1">
               Tell us about your overall experience
             </p>
             <div className="flex justify-center items-center gap-4 text-xl">
@@ -265,26 +269,26 @@ function InvoiceContent() {
           </div>
 
           {/* Official Company Legal Details (User Mandated) */}
-          <div className="text-center py-2 text-[11px] leading-relaxed">
-            <p className="font-bold text-sm tracking-wide">Darshan Enterprises</p>
-            <p className="text-[10.5px]">Store Contact Number : +91 98970 00000</p>
-            <p className="text-[10.5px] max-w-md mx-auto">
+          <div className="text-center py-2 text-[11px] leading-relaxed text-black">
+            <p className="font-black text-sm tracking-wide">Darshan Enterprises</p>
+            <p className="text-[11px] font-bold">Store Contact Number : +91 98970 00000</p>
+            <p className="text-[11px] font-semibold max-w-md mx-auto">
               <strong>Place Of Supply :</strong> Near PSC Petropump, Ranipur, Haridwar, Uttarakhand - 249401
             </p>
-            <p className="font-bold text-xs mt-0.5 tracking-wider">
+            <p className="font-black text-xs mt-0.5 tracking-wider">
               GSTIN NO : 05GNZPS9902M1ZR
             </p>
           </div>
 
           {/* TAX INVOICE Title */}
           <div className="text-center my-3">
-            <h2 className="text-sm font-black tracking-widest uppercase inline-block border-b-2 border-black pb-0.5">
+            <h2 className="text-sm font-black tracking-widest uppercase inline-block border-b-2 border-black pb-0.5 text-black">
               TAX INVOICE
             </h2>
           </div>
 
-          {/* Meta Grid matching inspiration */}
-          <div className="grid grid-cols-2 text-[10.5px] py-2 border-t border-dashed border-stone-300 space-y-0.5">
+          {/* Meta Grid */}
+          <div className="grid grid-cols-2 text-[11px] font-bold py-2 border-t-2 border-dashed border-black space-y-0.5 text-black font-mono">
             <div>
               <p><strong>INVOICE NO. :</strong> {bill.billNo}</p>
               <p><strong>COUNTER :</strong> 1</p>
@@ -297,149 +301,142 @@ function InvoiceContent() {
             </div>
           </div>
 
-          {/* Table Header matching inspiration */}
-          <div className="border-t border-b border-black py-1.5 my-2">
-            <div className="grid grid-cols-12 text-[10px] font-black uppercase">
-              <div className="col-span-5">Item<br />Description</div>
-              <div className="col-span-2 text-right">Price</div>
-              <div className="col-span-2 text-center">QTY/Unit<br />HSN-SAC</div>
-              <div className="col-span-1 text-right">Disc.Amt</div>
-              <div className="col-span-2 text-right">Net.Amt<br />Taxable</div>
+          {/* Table Header: Clean 3-section layout avoiding squishing */}
+          <div className="border-t-2 border-b-2 border-black py-1.5 my-2 font-mono text-[11px] font-black uppercase text-black">
+            <div className="flex justify-between items-center">
+              <span className="w-[52%] text-left">ITEM &amp; CODE</span>
+              <span className="w-[20%] text-center">QTY &amp; RATE</span>
+              <span className="w-[28%] text-right">TOTAL AMOUNT</span>
             </div>
           </div>
 
           {/* Tax rate subheader */}
-          <div className="text-[10px] font-bold py-1">
-            A) CGST@2.5% SGST@2.5%
+          <div className="text-[11px] font-black py-0.5 text-black uppercase">
+            GST RATE: APPAREL 5% (CGST 2.5% + SGST 2.5%)
           </div>
 
-          {/* Item Rows */}
-          <div className="space-y-3 py-1 text-[10.5px]">
+          {/* Item Rows: Spacious, legible, zero overlapping */}
+          <div className="space-y-3 py-1.5 text-[11.5px] font-mono text-black">
             {bill.items.map((it, idx) => {
               const itemTotal = it.price * it.quantity;
               const itemTaxable = Math.round((itemTotal / 1.05) * 100) / 100;
-              const discAmt = it.originalPrice && it.originalPrice > it.price
-                ? (it.originalPrice - it.price) * it.quantity
-                : 0;
+              const hsnCode = it.product.sku?.startsWith("RJ-SAR") ? "54075200" : "62059090";
 
               return (
-                <div key={idx} className="border-b border-stone-100 pb-2">
-                  <div className="grid grid-cols-12 items-start">
-                    <div className="col-span-5 font-mono text-[10px] font-bold">
-                      {it.product.barcode || `3009${idx}8794`}
-                    </div>
-                    <div className="col-span-2 text-right font-mono">
-                      ₹{it.price.toFixed(2)}
-                    </div>
-                    <div className="col-span-2 text-center font-mono">
-                      {it.quantity} PC
-                    </div>
-                    <div className="col-span-1 text-right font-mono text-stone-600">
-                      ₹{discAmt.toFixed(2)}
-                    </div>
-                    <div className="col-span-2 text-right font-bold font-mono">
+                <div key={idx} className="border-b border-dashed border-black pb-2.5">
+                  {/* Line 1: Item Name (Bold) and Item Total (Bold, Large) */}
+                  <div className="flex justify-between items-start text-black font-sans font-black text-[13px]">
+                    <span className="max-w-[70%] leading-tight">
+                      {idx + 1}. {it.product.name}
+                    </span>
+                    <span className="text-right font-mono font-black text-[14px] whitespace-nowrap">
                       ₹{itemTotal.toFixed(2)}
-                    </div>
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-12 text-[10px] text-stone-700 mt-0.5">
-                    <div className="col-span-5 font-bold uppercase truncate pr-1">
-                      {it.product.name}
-                    </div>
-                    <div className="col-span-2"></div>
-                    <div className="col-span-2 text-center font-mono text-[9px] text-stone-500">
-                      {it.product.sku?.startsWith("RJ-SAR") ? "54075200" : "62059090"}
-                    </div>
-                    <div className="col-span-1"></div>
-                    <div className="col-span-2 text-right font-mono text-[9.5px] text-stone-600">
-                      ₹{itemTaxable.toFixed(2)}
-                    </div>
+                  {/* Line 2: Barcode / SKU + Qty x Rate */}
+                  <div className="flex justify-between items-center text-[11px] font-mono font-bold text-black mt-1">
+                    <span>
+                      HSN: {hsnCode} · Barcode: {it.product.barcode || `890100${idx + 1}`}
+                    </span>
+                    <span className="text-right font-black">
+                      {it.quantity} PC @ ₹{it.price.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Line 3: Taxable Value & GST share */}
+                  <div className="flex justify-between text-[10.5px] text-black font-mono font-semibold mt-0.5">
+                    <span>Taxable Value: ₹{itemTaxable.toFixed(2)}</span>
+                    <span>GST (5%): ₹{(itemTotal - itemTaxable).toFixed(2)}</span>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Gross Total & Total Invoice Amount matching inspiration */}
-          <div className="border-t border-b border-black py-2 my-3 space-y-1 text-xs font-bold font-mono">
+          {/* Gross Total & Total Invoice Amount */}
+          <div className="border-t-2 border-b-2 border-black py-2.5 my-3 space-y-1 text-xs font-bold font-mono text-black">
             <div className="flex justify-between">
               <span>Gross Total:</span>
               <span>₹{bill.subtotal.toFixed(2)}</span>
             </div>
             {bill.discount > 0 && (
-              <div className="flex justify-between text-stone-600 font-normal">
-                <span>Special Discount:</span>
+              <div className="flex justify-between font-bold text-black">
+                <span>Special Discount ({bill.discountReason || "Deal"}):</span>
                 <span>-₹{bill.discount.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-black pt-1 border-t border-stone-200">
-              <span>Total Invoice Amount:</span>
+            <div className="flex justify-between text-[16px] font-black pt-1.5 border-t border-black">
+              <span>TOTAL INVOICE AMOUNT:</span>
               <span>₹{bill.grandTotal.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Tax Details Table matching inspiration */}
-          <div className="my-4">
-            <p className="text-[11px] font-bold text-center mb-1 uppercase tracking-wide">
-              Tax Details
+          {/* Tax Details Table: Detailed CGST & SGST Breakdown */}
+          <div className="my-3 border-2 border-black rounded-xs p-2.5 text-black font-mono text-[11px]">
+            <p className="text-[12px] font-black text-center mb-2 uppercase tracking-wider border-b-2 border-black pb-1">
+              TAX DETAILS (DETAILED GST BREAKDOWN)
             </p>
-            <div className="border border-stone-300 text-[9.5px] font-mono">
-              <div className="grid grid-cols-6 bg-stone-100 p-1.5 font-bold border-b border-stone-300 text-center">
-                <div>GST IND</div>
-                <div>Taxable Value</div>
-                <div>CGST</div>
-                <div>SGST</div>
-                <div>CESS</div>
-                <div>Total Amount</div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] font-bold">
+                <span>Net Taxable Value:</span>
+                <span>₹{taxableValue.toFixed(2)}</span>
               </div>
-              <div className="grid grid-cols-6 p-1.5 text-center border-b border-stone-200">
-                <div>A)</div>
-                <div>₹{taxableValue.toFixed(2)}</div>
-                <div>₹{cgstAmount.toFixed(2)}</div>
-                <div>₹{sgstAmount.toFixed(2)}</div>
-                <div>₹0.00</div>
-                <div>₹{totalAmount.toFixed(2)}</div>
+              <div className="flex justify-between text-[11px] font-bold">
+                <span>CGST (Central Tax @ 2.5%):</span>
+                <span>₹{cgstAmount.toFixed(2)}</span>
               </div>
-              <div className="grid grid-cols-6 p-1.5 font-bold text-center bg-stone-50">
-                <div>Total</div>
-                <div>₹{taxableValue.toFixed(2)}</div>
-                <div>₹{cgstAmount.toFixed(2)}</div>
-                <div>₹{sgstAmount.toFixed(2)}</div>
-                <div>₹0.00</div>
-                <div>₹{totalAmount.toFixed(2)}</div>
+              <div className="flex justify-between text-[11px] font-bold">
+                <span>SGST (State Tax @ 2.5%):</span>
+                <span>₹{sgstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[12px] font-black border-t-2 border-dashed border-black pt-1.5">
+                <span>TOTAL TAX AMOUNT (GST 5%):</span>
+                <span>₹{totalGst.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
-          {/* Tender Detail matching inspiration */}
-          <div className="border-t border-b border-black py-2 my-3 text-[11px] font-mono">
-            <p className="font-bold text-[10px] uppercase mb-1">Tender Detail</p>
-            <div className="flex justify-between items-center">
-              <span className="uppercase font-bold">{bill.paymentMode} PAYMENT</span>
-              <span className="text-stone-500 font-mono">************{maskedPhone.slice(-4)}</span>
-              <span className="font-bold">₹{bill.grandTotal.toFixed(2)}</span>
+          {/* Tender Detail */}
+          <div className="border-t-2 border-b-2 border-black py-2 my-3 text-[11px] font-mono text-black">
+            <p className="font-black text-[11px] uppercase mb-1">Tender Detail</p>
+            <div className="flex justify-between items-center font-bold">
+              <span className="uppercase">{bill.paymentMode} PAYMENT</span>
+              <span className="font-mono">************{maskedPhone.slice(-4)}</span>
+              <span className="font-black text-xs">₹{bill.grandTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        {/* PAGE 2 / FOOTER SECTION MATCHING INSPIRATION */}
-        <div className="pt-2 text-[10.5px]">
-          <div className="flex justify-between font-bold font-mono py-1 border-b border-stone-300">
-            <span>TOTAL RECEIVED AMOUNT</span>
+        {/* PAGE 2 / FOOTER SECTION */}
+        <div className="pt-2 text-[11px] text-black">
+          <div className="flex justify-between font-black font-mono py-1.5 border-b-2 border-black text-xs">
+            <span>TOTAL RECEIVED AMOUNT:</span>
             <span>₹{bill.grandTotal.toFixed(2)}</span>
           </div>
 
-          <div className="py-2 space-y-0.5 text-[10px] font-bold">
+          <div className="py-2 space-y-0.5 text-[10.5px] font-bold font-mono">
             <p>NO OF ITEMS : {bill.items.length}</p>
             <p>TOTAL QTY : {totalQty}.00</p>
           </div>
 
-          {/* Terms & Conditions matching inspiration */}
-          <div className="text-[9.5px] text-stone-600 leading-normal my-4 space-y-1 text-center border-t border-stone-200 pt-3">
-            <p>* All Offers are subject to applicable T&amp;C.</p>
-            <p>* No return / Exchange / Refund on Altered, Washed or Damaged garments.</p>
-            <p>* Please retain the product label to be eligible to return/ exchange the product within 7 days.</p>
-            <p className="font-bold text-stone-800">* This is computer generated invoice and hence does not require any signature.</p>
+          {/* Terms & Conditions / Return & Exchange Policy */}
+          <div className="text-[10px] text-black leading-snug my-4 p-3 border-2 border-black rounded-xs space-y-1.5 text-center font-sans">
+            <p className="font-black text-[12px] uppercase tracking-wide text-black">
+              ★ RETURN &amp; EXCHANGE POLICY ★
+            </p>
+            <p className="font-black text-[11px] text-black">
+              • NO CASH REFUND / MONEY RETURN — ONLY EXCHANGE ALLOWED.
+            </p>
+            <p className="font-bold text-[10.5px] text-black">
+              • Exchange valid within 5 DAYS ONLY with original bill &amp; price tags intact.
+            </p>
+            <p className="font-semibold text-[9.5px] text-black">
+              • Altered, washed, worn, or damaged garments will not be exchanged.
+            </p>
+            <p className="font-bold text-[9px] pt-1 border-t border-dashed border-black text-black">
+              * This is a computer generated tax invoice and does not require a physical signature.
+            </p>
           </div>
 
           {/* INVOICE BARCODE MATCHING INSPIRATION */}
