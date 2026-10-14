@@ -23,6 +23,23 @@ function InvoiceContent() {
       return;
     }
 
+    // 1. Check local storage first (instant priority for fresh POS checkout in this browser)
+    try {
+      const rawBills = localStorage.getItem("rajnandni_bills");
+      if (rawBills) {
+        const bills: CompletedBill[] = JSON.parse(rawBills);
+        const found = bills.find(b => b.billNo === billId || b.id === billId);
+        if (found) {
+          setBill(found);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Local storage check note:", e);
+    }
+
+    // 2. Fallback to Supabase cloud database
     const fetchInvoice = async () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -34,6 +51,8 @@ function InvoiceContent() {
             .from("bills")
             .select("*")
             .eq("invoice_number", billId)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (!error && data) {
@@ -88,26 +107,10 @@ function InvoiceContent() {
         }
       }
 
-      loadFromLocal();
+      setLoading(false);
     };
 
     fetchInvoice();
-
-    function loadFromLocal() {
-      try {
-        const rawBills = localStorage.getItem("rajnandni_bills");
-        if (rawBills) {
-          const bills: CompletedBill[] = JSON.parse(rawBills);
-          const found = bills.find(b => b.billNo === billId || b.id === billId);
-          if (found) {
-            setBill(found);
-          }
-        }
-      } catch (e) {
-        console.error("Local storage load error:", e);
-      }
-      setLoading(false);
-    }
   }, [billId]);
 
   // Render Barcode for the invoice number (like Zudio's footer barcode)

@@ -176,4 +176,23 @@ export const SupabaseService = {
       return false;
     }
   },
+
+  async fetchRecentBills(): Promise<any[] | null> {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from("bills")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) {
+        console.error("Supabase fetchRecentBills error:", error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.error("Failed to query bills from Supabase:", err);
+      return null;
+    }
+  },
 };
