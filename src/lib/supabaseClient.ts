@@ -177,6 +177,63 @@ export const SupabaseService = {
     }
   },
 
+  async updateSale(bill: {
+    invoiceNumber: string;
+    customerName: string;
+    customerPhone: string;
+    subtotal: number;
+    discount: number;
+    tax: number;
+    total: number;
+    paymentMode: string;
+    items: any[];
+  }): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase
+        .from("bills")
+        .update({
+          customer_name: bill.customerName,
+          customer_phone: bill.customerPhone,
+          subtotal: bill.subtotal,
+          discount: bill.discount,
+          tax: bill.tax,
+          total: bill.total,
+          payment_mode: bill.paymentMode,
+          items: bill.items,
+        })
+        .eq("invoice_number", bill.invoiceNumber);
+
+      if (error) {
+        console.error("Supabase updateSale error:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to update bill in Supabase:", err);
+      return false;
+    }
+  },
+
+  async deleteBill(invoiceNumber: string): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase
+        .from("bills")
+        .delete()
+        .eq("invoice_number", invoiceNumber);
+
+      if (error) {
+        console.error("Supabase deleteBill error:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to delete bill from Supabase:", err);
+      return false;
+    }
+  },
+
   async fetchRecentBills(): Promise<any[] | null> {
     if (!supabase) return null;
     try {

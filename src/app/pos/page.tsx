@@ -111,6 +111,7 @@ export default function RajnandiniPosPage() {
   // Modals & Popups
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState<boolean>(false);
   const [lastBill, setLastBill] = useState<CompletedBill | null>(null);
+  const [editingBill, setEditingBill] = useState<CompletedBill | null>(null);
   const [upiQrUrl, setUpiQrUrl] = useState<string>("");
   const [selectedProductForBarcode, setSelectedProductForBarcode] = useState<ProductItem | null>(null);
   const [barcodeStickerCount, setBarcodeStickerCount] = useState<number>(4);
@@ -189,8 +190,30 @@ export default function RajnandiniPosPage() {
       localStorage.setItem("rajnandni_products", JSON.stringify(localMerged));
       localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
 
+      // Deleted fake/test bills to permanently purge from cache
+      const KNOWN_PURGED_BILLS = [
+        "RJN-2026-0101", "RJN-2026-0102", "RJN-2026-0103", "RJN-2026-0104", "RJN-2026-0105",
+        "RJN-2026-0106", "RJN-2026-0107", "RJN-2026-0108", "RJN-2026-0109", "RJN-2026-0110"
+      ];
+      let allDeletedBillNos = new Set<string>(KNOWN_PURGED_BILLS);
+      try {
+        const userDeletedRaw = localStorage.getItem("rajnandni_deleted_bills");
+        if (userDeletedRaw) {
+          const list: string[] = JSON.parse(userDeletedRaw);
+          list.forEach(item => allDeletedBillNos.add(item));
+        }
+      } catch {}
+      localStorage.setItem("rajnandni_deleted_bills", JSON.stringify(Array.from(allDeletedBillNos)));
+
       const savedBills = localStorage.getItem("rajnandni_bills");
-      if (savedBills) setCompletedBills(JSON.parse(savedBills));
+      if (savedBills) {
+        try {
+          const parsedBills: CompletedBill[] = JSON.parse(savedBills);
+          const cleanBills = parsedBills.filter(b => !allDeletedBillNos.has(b.billNo));
+          setCompletedBills(cleanBills);
+          localStorage.setItem("rajnandni_bills", JSON.stringify(cleanBills));
+        } catch {}
+      }
 
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
@@ -230,45 +253,70 @@ export default function RajnandiniPosPage() {
         // Sync recent bills from Supabase to guarantee accurate invoice sequences across devices
         SupabaseService.fetchRecentBills().then((remoteBills) => {
           if (remoteBills && remoteBills.length > 0) {
-            const mappedRemote: CompletedBill[] = remoteBills.map((b: any) => ({
-              id: b.id,
-              billNo: b.invoice_number,
-              customer: {
-                name: b.customer_name || "Walk-in Guest",
-                phone: b.customer_phone || "NA",
-                notes: ""
-              },
-              items: (b.items || []).map((it: any) => ({
-                product: {
-                  id: it.id || "",
-                  name: it.name || "Ethnic Item",
-                  sku: it.sku || "",
-                  barcode: it.barcode || "8901001",
-                  category: "sarees",
-                  price: Number(it.price) || 0,
-                  mrp: Number(it.mrp || it.price) || 0,
-                  purchaseCost: 0,
-                  stock: 1
+            const mappedRemote: CompletedBill[] = remoteBills
+              .filter((b: any) => !allDeletedBillNos.has(b.invoice_number))
+              .map((b: any) => ({
+                id: b.id,
+                billNo: b.invoice_number,
+                customer: {
+                  name: b.customer_name || "Walk-in Guest",
+                  phone: b.customer_phone || "NA",
+                  notes: ""
                 },
-                quantity: it.quantity || 1,
-                price: Number(it.price) || 0,
-                originalPrice: Number(it.mrp || it.price) || 0,
-                selectedSize: it.size || "Standard",
-                customDiscount: 0
-              })),
-              subtotal: Number(b.subtotal) || 0,
-              discount: Number(b.discount) || 0,
-              taxGst: Number(b.tax) || 0,
-              grandTotal: Number(b.total) || 0,
-              paidAmount: Number(b.total) || 0,
-              paymentMode: b.payment_mode || "UPI",
-              createdAt: new Date(b.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
-            }));
+                items: (b.items || []).map((it: any) => ({
+                  product: {
+                    id: it.id || "",
+                    name: it.name || "Ethnic Item",
+                    sku: it.sku || "",
+                    barcode: it.barcode || "8901001",
+                    category: "sarees",
+                    price: Number(it.price) || 0,
+                    mrp: Number(it.mrp || it.price) || 0,
+                    purchaseCost: 0,
+                    stock: 1
+                  },
+                  quantity: it.quantity || 1,
+                  price: Number(it.price) || 0,
+                  originalPrice: Number(it.mrp || it.price) || 0,
+                  selectedSize: it.size || "Standard",
+                  customDiscount: 0
+                })),
+                subtotal: Number(b.subtotal) || 0,
+                discount: Number(b.discount) || 0,
+                taxGst: Number(b.tax) || 0,
+                grandTotal: Number(b.total) || 0,
+                paidAmount: Number(b.total) || 0,
+                paymentMode: b.payment_mode || "UPI",
+                createdAt: new Date(b.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+              }));
 
             setCompletedBills(prev => {
               const billMap = new Map<string, CompletedBill>();
               mappedRemote.forEach(b => billMap.set(b.billNo, b));
-              prev.forEach(b => billMap.set(b.billNo, b));
+              // Merge any valid local bills not yet in remote, and sync them to cloud
+              prev.forEach(b => {
+                if (!allDeletedBillNos.has(b.billNo) && !billMap.has(b.billNo)) {
+                  billMap.set(b.billNo, b);
+                  SupabaseService.recordSale({
+                    invoiceNumber: b.billNo,
+                    customerName: b.customer.name,
+                    customerPhone: b.customer.phone,
+                    subtotal: b.subtotal,
+                    discount: b.discount,
+                    tax: b.taxGst || 0,
+                    total: b.grandTotal,
+                    paymentMode: b.paymentMode,
+                    items: b.items.map(it => ({
+                      id: it.product.id,
+                      name: it.product.name,
+                      sku: it.product.sku,
+                      price: it.price,
+                      quantity: it.quantity,
+                      isService: it.product.isService
+                    }))
+                  }).catch(() => {});
+                }
+              });
               const merged = Array.from(billMap.values()).sort((a, b) => b.billNo.localeCompare(a.billNo));
               localStorage.setItem("rajnandni_bills", JSON.stringify(merged));
               return merged;
@@ -625,9 +673,69 @@ export default function RajnandiniPosPage() {
     });
   };
 
-  // Complete Checkout
+  // Complete Checkout or Update Existing Bill
   const handleCheckout = () => {
-    // Generate guaranteed unique sequential Bill Number (e.g. RJN-2026-0106)
+    // If in Edit Mode, update the existing bill without generating a new bill number
+    if (editingBill) {
+      const updatedBill: CompletedBill = {
+        ...editingBill,
+        customer: {
+          name: customer.name.trim() || "Walk-in Guest",
+          phone: customer.phone.trim() || "NA",
+          notes: customer.notes.trim()
+        },
+        items: [...cart],
+        subtotal,
+        discount: discountAmount,
+        discountReason: (discountAmount > 0 || itemLevelSavings > 0) ? discountReason : undefined,
+        taxGst: 0,
+        grandTotal,
+        paidAmount: grandTotal,
+        originalTotal: catalogTotal,
+        totalSavings: totalSavings,
+        paymentMode,
+        alteration: alterationEnabled ? { ...alterationData, required: true } : undefined
+      };
+
+      const nextBills = completedBills.map(b => b.billNo === editingBill.billNo ? updatedBill : b);
+      saveBillsLocally(nextBills);
+
+      if (isSupabaseConfigured()) {
+        SupabaseService.updateSale({
+          invoiceNumber: editingBill.billNo,
+          customerName: customer.name.trim() || "Walk-in Guest",
+          customerPhone: customer.phone.trim() || "NA",
+          subtotal,
+          discount: discountAmount,
+          tax: 0,
+          total: grandTotal,
+          paymentMode,
+          items: cart.map(ci => ({
+            id: ci.product.id,
+            name: ci.product.name,
+            sku: ci.product.sku,
+            price: ci.price,
+            quantity: ci.quantity,
+            isService: ci.product.isService
+          }))
+        }).catch(err => console.error("Cloud bill update error:", err));
+      }
+
+      setLastBill(updatedBill);
+      setShowCheckoutSuccess(true);
+      setEditingBill(null);
+
+      // Reset Cart
+      setCart([]);
+      setCustomer({ name: "", phone: "", notes: "" });
+      setDiscountAmount(0);
+      setAgreedDealPrice("");
+      setEditingPriceIdx(null);
+      setAlterationEnabled(false);
+      return;
+    }
+
+    // Generate guaranteed unique sequential Bill Number (e.g. RJN-2026-0125)
     const existingBills: CompletedBill[] = [];
     try {
       const raw = localStorage.getItem("rajnandni_bills");
@@ -635,8 +743,18 @@ export default function RajnandiniPosPage() {
     } catch {}
     existingBills.push(...completedBills);
 
-    let maxSeq = 105; // Starting base from Supabase records (RJN-2026-0105 already exists in DB)
+    let deletedSet = new Set<string>();
+    try {
+      const deletedRaw = localStorage.getItem("rajnandni_deleted_bills");
+      if (deletedRaw) {
+        const list: string[] = JSON.parse(deletedRaw);
+        list.forEach(item => deletedSet.add(item));
+      }
+    } catch {}
+
+    let maxSeq = 110; // Sequence base after purging old test bills
     for (const b of existingBills) {
+      if (deletedSet.has(b.billNo)) continue;
       const match = (b.billNo || "").match(/RJN-\d{4}-(\d+)/);
       if (match) {
         const seq = parseInt(match[1], 10);
@@ -683,7 +801,7 @@ export default function RajnandiniPosPage() {
     const nextBills = [newBill, ...completedBills];
     saveBillsLocally(nextBills);
 
-    // If Supabase configured, push sale to cloud
+    // Push sale to Supabase cloud to guarantee GST and sales records
     if (isSupabaseConfigured()) {
       SupabaseService.recordSale({
         invoiceNumber: billNumber,
@@ -729,6 +847,93 @@ export default function RajnandiniPosPage() {
     setAgreedDealPrice("");
     setEditingPriceIdx(null);
     setAlterationEnabled(false);
+  };
+
+  // Start Editing an existing bill (re-loads into cart for bargaining or adding more items)
+  const handleStartEditBill = (billToEdit: CompletedBill) => {
+    if (cart.length > 0) {
+      if (!confirm("Your current checkout cart has items. Discard current cart and edit this bill?")) {
+        return;
+      }
+    }
+    setEditingBill(billToEdit);
+    const loadedCart: CartItem[] = (billToEdit.items || []).map(it => ({
+      product: it.product || {
+        id: (it as any).id || `prod-${Date.now()}`,
+        name: it.product?.name || (it as any).name || "Item",
+        sku: it.product?.sku || (it as any).sku || "",
+        barcode: it.product?.barcode || "8901001",
+        category: it.product?.category || "sarees",
+        price: it.price || 0,
+        mrp: it.originalPrice || it.price || 0,
+        purchaseCost: 0,
+        stock: 10,
+        isService: (it as any).isService || false
+      },
+      quantity: it.quantity || 1,
+      price: it.price || 0,
+      originalPrice: it.originalPrice || it.price || 0,
+      selectedSize: it.selectedSize || "Standard",
+      customDiscount: 0
+    }));
+    setCart(loadedCart);
+    setCustomer({
+      name: billToEdit.customer.name === "Walk-in Guest" ? "" : billToEdit.customer.name,
+      phone: billToEdit.customer.phone === "NA" ? "" : billToEdit.customer.phone,
+      notes: billToEdit.customer.notes || ""
+    });
+    setDiscountAmount(billToEdit.discount || 0);
+    setAgreedDealPrice(billToEdit.discount > 0 ? String(billToEdit.subtotal - billToEdit.discount) : "");
+    setDiscountReason(billToEdit.discountReason || "Negotiated Bargain");
+    setPaymentMode((billToEdit.paymentMode as any) || "upi");
+    if (billToEdit.alteration) {
+      setAlterationEnabled(true);
+      setAlterationData(billToEdit.alteration);
+    } else {
+      setAlterationEnabled(false);
+    }
+    setShowCheckoutSuccess(false);
+    setActiveTab("billing");
+  };
+
+  // Cancel Editing bill
+  const handleCancelEditBill = () => {
+    if (confirm("Cancel editing this bill? Unsaved changes in cart will be cleared.")) {
+      setEditingBill(null);
+      setCart([]);
+      setCustomer({ name: "", phone: "", notes: "" });
+      setDiscountAmount(0);
+      setAgreedDealPrice("");
+      setAlterationEnabled(false);
+    }
+  };
+
+  // Delete a single bill entry
+  const handleDeleteSingleBill = async (billToDelete: CompletedBill) => {
+    const confirmed = confirm(
+      `Are you sure you want to permanently delete bill ${billToDelete.billNo} (${billToDelete.customer.name} - ₹${billToDelete.grandTotal.toLocaleString("en-IN")})?\n\nThis will remove it from showroom reports and Cloud Database.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const deletedRaw = localStorage.getItem("rajnandni_deleted_bills");
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedList.includes(billToDelete.billNo)) {
+        deletedList.push(billToDelete.billNo);
+        localStorage.setItem("rajnandni_deleted_bills", JSON.stringify(deletedList));
+      }
+    } catch {}
+
+    const updatedBills = completedBills.filter(b => b.billNo !== billToDelete.billNo);
+    saveBillsLocally(updatedBills);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await SupabaseService.deleteBill(billToDelete.billNo);
+      } catch (err) {
+        console.error("Failed to delete bill from Supabase:", err);
+      }
+    }
   };
 
   // Trigger Thermal Slip Print
@@ -1564,6 +1769,25 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   )}
                 </div>
 
+                {/* Editing Bill Indicator Banner */}
+                {editingBill && (
+                  <div className="bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 px-3.5 py-2 flex items-center justify-between font-bold text-xs border-b border-amber-500 shadow-sm">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Edit3 className="w-4 h-4 text-stone-950 shrink-0" />
+                      <span className="truncate">
+                        Editing: <span className="font-mono font-black underline">{editingBill.billNo}</span> ({editingBill.customer.name})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditBill}
+                      className="px-2.5 py-1 bg-stone-950 text-white rounded-lg text-[10.5px] hover:bg-stone-800 shrink-0 cursor-pointer ml-2 transition"
+                    >
+                      Cancel Edit
+                    </button>
+                  </div>
+                )}
+
                 {/* Customer Inputs */}
                 <div className="p-3 bg-[#faf7f2] grid grid-cols-2 gap-2">
                   <div className="relative">
@@ -1995,10 +2219,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <button
                   disabled={cart.length === 0}
                   onClick={handleCheckout}
-                  className="w-full py-3.5 bg-gradient-to-r from-[#120e0c] via-[#231b15] to-[#120e0c] hover:from-stone-900 hover:to-stone-800 disabled:opacity-40 text-amber-300 border border-amber-500/40 rounded-2xl font-black text-sm shadow-lg shadow-stone-950/15 transition cursor-pointer flex items-center justify-center gap-2 group uppercase tracking-wider"
+                  className={`w-full py-3.5 ${
+                    editingBill
+                      ? "bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-700 hover:to-amber-600 text-stone-950 border border-amber-400"
+                      : "bg-gradient-to-r from-[#120e0c] via-[#231b15] to-[#120e0c] hover:from-stone-900 hover:to-stone-800 text-amber-300 border border-amber-500/40"
+                  } disabled:opacity-40 rounded-2xl font-black text-sm shadow-lg shadow-stone-950/15 transition cursor-pointer flex items-center justify-center gap-2 group uppercase tracking-wider`}
                 >
-                  <CheckCircle2 className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                  <span>Complete Bill &amp; Print · ₹{grandTotal.toLocaleString("en-IN")}</span>
+                  <CheckCircle2 className={`w-4 h-4 ${editingBill ? "text-stone-950" : "text-amber-400"} group-hover:scale-110 transition-transform`} />
+                  <span>
+                    {editingBill
+                      ? `Update & Re-save Bill (${editingBill.billNo}) · ₹${grandTotal.toLocaleString("en-IN")}`
+                      : `Complete Bill & Print · ₹${grandTotal.toLocaleString("en-IN")}`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -2640,6 +2872,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <td className="px-4 py-3 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
+                                    onClick={() => handleStartEditBill(b)}
+                                    className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
+                                    title="Edit this bill (Bargain, add more items)"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-amber-800" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
                                     onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
                                     className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
                                     title="View / Download PDF Invoice"
@@ -2654,6 +2894,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   >
                                     <Share2 className="w-3.5 h-3.5" />
                                     <span>WhatsApp</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSingleBill(b)}
+                                    className="p-1.5 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer font-bold transition"
+                                    title="Delete single bill entry"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </td>
@@ -2828,6 +3075,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               >
                 <Share2 className="w-4 h-4" />
                 <span>Send PDF &amp; Bill on WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => handleStartEditBill(lastBill)}
+                className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                title="Customer wants to bargain or buy more items"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-800" />
+                <span>Edit This Bill (Add More Items / Bargain)</span>
               </button>
             </div>
           </div>
