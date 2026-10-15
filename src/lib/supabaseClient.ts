@@ -152,9 +152,9 @@ export const SupabaseService = {
         return false;
       }
 
-      // Deduct stock for physical items
+      // Deduct stock for physical inventory items (skip custom/manual non-inventory items)
       for (const item of bill.items) {
-        if (!item.isService && item.id) {
+        if (!item.isService && item.id && !item.id.startsWith("manual-")) {
           try {
             await supabase.rpc("decrement_stock", {
               p_product_id: item.id,

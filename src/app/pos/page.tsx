@@ -144,6 +144,25 @@ export default function RajnandiniPosPage() {
     imageUrl: ""
   });
 
+  // Manual / No-Tag Item Modal
+  const [showManualItemModal, setShowManualItemModal] = useState<boolean>(false);
+  const [manualItemForm, setManualItemForm] = useState<{
+    name: string;
+    price: string;
+    quantity: number;
+    category: ProductItem["category"];
+    size: string;
+    saveToCatalog: boolean;
+  }>({
+    name: "",
+    price: "",
+    quantity: 1,
+    category: "sarees",
+    size: "Standard",
+    saveToCatalog: false
+  });
+  const manualItemNameInputRef = useRef<HTMLInputElement>(null);
+
   // Barcode quick scan input
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -567,6 +586,68 @@ export default function RajnandiniPosPage() {
     if (!product.isService && (product.category === "lehengas" || product.category === "kurtis")) {
       setAlterationData(d => ({ ...d, garmentName: product.name }));
     }
+  };
+
+  // Auto focus item name input when manual item modal opens
+  useEffect(() => {
+    if (showManualItemModal) {
+      setTimeout(() => {
+        manualItemNameInputRef.current?.focus();
+      }, 100);
+    }
+  }, [showManualItemModal]);
+
+  // Add Manual / No-Tag Custom Item to Cart
+  const handleAddManualItemToCart = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!manualItemForm.name.trim()) {
+      alert("Please enter item name (e.g. Matching Latkan, Fall Pico, Extra Dupatta, etc.)");
+      return;
+    }
+    const unitPrice = Number(manualItemForm.price);
+    if (isNaN(unitPrice) || unitPrice < 0) {
+      alert("Please enter a valid price (₹)");
+      return;
+    }
+    const qty = Math.max(1, Number(manualItemForm.quantity) || 1);
+    const cat = manualItemForm.category || "sarees";
+    const manualProd: ProductItem = {
+      id: `manual-${Date.now()}`,
+      sku: `MANUAL-${Date.now().toString().slice(-4)}`,
+      barcode: `NO-BARCODE`,
+      name: manualItemForm.name.trim(),
+      category: cat,
+      price: unitPrice,
+      mrp: unitPrice,
+      purchaseCost: 0,
+      stock: 999,
+      sizes: [manualItemForm.size || "Standard"],
+      isService: cat === "parlour"
+    };
+
+    setCart(prev => [
+      ...prev,
+      {
+        product: manualProd,
+        selectedSize: manualItemForm.size || "Standard",
+        quantity: qty,
+        price: unitPrice,
+        originalPrice: unitPrice,
+        isNegotiated: false,
+        customDiscount: 0
+      }
+    ]);
+
+    if (manualItemForm.saveToCatalog) {
+      const updatedCatalog = [manualProd, ...products];
+      saveProductsLocally(updatedCatalog);
+      if (isSupabaseConfigured()) {
+        SupabaseService.syncInitialProducts([manualProd]).catch(() => {});
+      }
+    }
+
+    setShowManualItemModal(false);
+    setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
   };
 
   // Item-level negotiation handlers
@@ -1554,13 +1635,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </div>
                 </div>
 
+                {/* Instant Manual / No-Barcode Item to Bill CTA */}
+                <button
+                  onClick={() => {
+                    setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
+                    setShowManualItemModal(true);
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 rounded-2xl text-xs font-black shadow-md hover:shadow-lg transition cursor-pointer shrink-0 border border-amber-600/30"
+                  title="Add items that do not have barcode tags"
+                >
+                  <Sparkles className="w-4 h-4 text-stone-950" />
+                  <span>+ Manual / No-Tag Item</span>
+                </button>
+
                 {/* Quick Add New Product / Handbag CTA */}
                 <button
                   onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#14100d] to-[#211a15] hover:from-stone-900 hover:to-stone-800 text-amber-300 border border-amber-500/40 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4 text-amber-400" />
-                  <span>+ Add New Item</span>
+                  <span>+ Add New Catalog Item</span>
                 </button>
               </div>
 
@@ -1759,14 +1853,28 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       {cart.reduce((s, i) => s + i.quantity, 0)} Pcs
                     </span>
                   </div>
-                  {cart.length > 0 && (
+                  <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => setCart([])}
-                      className="text-[11px] text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
+                      type="button"
+                      onClick={() => {
+                        setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
+                        setShowManualItemModal(true);
+                      }}
+                      className="text-[11px] text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-bold transition"
+                      title="Add item without barcode tag"
                     >
-                      <Trash2 className="w-3 h-3" /> Clear Bill
+                      <Plus className="w-3 h-3 text-amber-900" />
+                      <span>+ No-Tag Item</span>
                     </button>
-                  )}
+                    {cart.length > 0 && (
+                      <button
+                        onClick={() => setCart([])}
+                        className="text-[11px] text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
+                      >
+                        <Trash2 className="w-3 h-3" /> Clear Bill
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Editing Bill Indicator Banner */}
@@ -1824,6 +1932,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <p className="text-[11px] text-stone-400 mt-1 max-w-[240px] leading-relaxed">
                       Scan any garment or handbag barcode with your laser gun, or click any item on the left.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
+                        setShowManualItemModal(true);
+                      }}
+                      className="mt-3.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-stone-950" />
+                      <span>+ Add Item Without Barcode Tag</span>
+                    </button>
                   </div>
                 ) : (
                   cart.map((item, idx) => {
@@ -3524,6 +3643,201 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <span>Save &amp; Print Barcode Tag</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: QUICK MANUAL / UN-TAGGED ITEM TO BILL
+          ========================================================= */}
+      {showManualItemModal && (
+        <div className="no-print fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#14100d] via-[#211a15] to-[#14100d] text-white p-5 flex items-center justify-between border-b border-amber-500/30">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-wider font-serif">
+                    Add Manual / No-Tag Item
+                  </h3>
+                  <p className="text-[11px] text-amber-300 font-medium">
+                    Add any un-barcoded item, alteration, or custom accessory directly to bill
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManualItemModal(false)}
+                className="p-1.5 text-stone-400 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Suggestion Chips */}
+            <div className="bg-[#faf7f2] p-3 border-b border-stone-200/80">
+              <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-2">
+                ⚡ Quick Presets (Click to autofill)
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { name: "Saree Fall & Pico", cat: "sarees", price: 80 },
+                  { name: "Alteration / Fitting", cat: "kurtis", price: 100 },
+                  { name: "Matching Latkan / Tassels", cat: "lehengas", price: 150 },
+                  { name: "Matching Dupatta", cat: "kurtis", price: 250 },
+                  { name: "Blouse Astaar / Lining", cat: "sarees", price: 120 },
+                  { name: "Fancy Jewellery / Bangles", cat: "jewellery", price: 200 },
+                  { name: "Hair Accessories / Pin", cat: "cosmetics", price: 60 },
+                  { name: "Un-tagged Kurti / Top", cat: "kurtis", price: 499 },
+                  { name: "Un-tagged Saree", cat: "sarees", price: 999 },
+                  { name: "Kids Ethnic Wear", cat: "kidswear", price: 599 },
+                  { name: "Handbag / Clutches", cat: "handbags", price: 350 },
+                  { name: "Bridal Mehendi / Service", cat: "parlour", price: 500 }
+                ].map((preset, pIdx) => (
+                  <button
+                    key={pIdx}
+                    type="button"
+                    onClick={() => {
+                      setManualItemForm({
+                        ...manualItemForm,
+                        name: preset.name,
+                        category: preset.cat as any,
+                        price: String(preset.price)
+                      });
+                    }}
+                    className="text-[10.5px] px-2.5 py-1 bg-white hover:bg-amber-100 border border-stone-200 hover:border-amber-400 text-stone-700 hover:text-stone-950 font-bold rounded-lg cursor-pointer transition shadow-2xs"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAddManualItemToCart} className="p-5 space-y-4 overflow-y-auto text-xs">
+              {/* Item Name */}
+              <div>
+                <label className="block font-bold text-stone-800 mb-1">
+                  Item Description / Name <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  ref={manualItemNameInputRef}
+                  type="text"
+                  required
+                  placeholder="e.g. Matching Latkan, Extra Dupatta, Saree Fall & Pico..."
+                  value={manualItemForm.name}
+                  onChange={e => setManualItemForm({ ...manualItemForm, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Price, Quantity, Category in Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Price */}
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">
+                    Price (₹) <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400">₹</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 250"
+                      value={manualItemForm.price}
+                      onChange={e => setManualItemForm({ ...manualItemForm, price: e.target.value })}
+                      className="w-full pl-7 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-black text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={manualItemForm.quantity}
+                    onChange={e => setManualItemForm({ ...manualItemForm, quantity: Math.max(1, Number(e.target.value) || 1) })}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">Category</label>
+                  <select
+                    value={manualItemForm.category}
+                    onChange={e => setManualItemForm({ ...manualItemForm, category: e.target.value as any })}
+                    className="w-full px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:outline-none cursor-pointer"
+                  >
+                    <option value="sarees">👗 Sarees &amp; Falls</option>
+                    <option value="lehengas">✨ Lehengas &amp; Latkans</option>
+                    <option value="kurtis">👘 Kurtis &amp; Suits</option>
+                    <option value="kidswear">👶 Kids Wear</option>
+                    <option value="handbags">👜 Handbags &amp; Purses</option>
+                    <option value="jewellery">💍 Jewellery &amp; Bangles</option>
+                    <option value="cosmetics">💄 Cosmetics &amp; Pins</option>
+                    <option value="parlour">💅 Parlour &amp; Stitching</option>
+                    <option value="handloom">🧵 Handloom &amp; Fabrics</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Size / Variant / Note */}
+              <div>
+                <label className="block font-bold text-stone-800 mb-1">
+                  Size / Color / Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Free Size, Golden, Red, Regular Fitting"
+                  value={manualItemForm.size}
+                  onChange={e => setManualItemForm({ ...manualItemForm, size: e.target.value })}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+
+              {/* Optional: Checkbox to save to catalog */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
+                  <input
+                    type="checkbox"
+                    checked={manualItemForm.saveToCatalog}
+                    onChange={e => setManualItemForm({ ...manualItemForm, saveToCatalog: e.target.checked })}
+                    className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <span>Also save this product into store catalog inventory</span>
+                </label>
+                <p className="text-[10px] text-stone-500 pl-5 mt-0.5">
+                  Keep unchecked if this is a one-time bill item (like alteration or loose accessories).
+                </p>
+              </div>
+
+              {/* Submit CTA */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setShowManualItemModal(false)}
+                  className="px-4 py-2.5 border border-stone-200 text-stone-600 hover:text-stone-900 rounded-xl font-bold text-xs hover:bg-stone-50 cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4 text-stone-950" />
+                  <span>Add to Current Bill</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
