@@ -104,7 +104,7 @@ export default function RajnandiniPosPage() {
   // Sales Report Advanced Filters & Pagination
   const [reportSearch, setReportSearch] = useState<string>("");
   const [reportPaymentFilter, setReportPaymentFilter] = useState<string>("all");
-  const [reportDateFilter, setReportDateFilter] = useState<"all" | "today" | "yesterday" | "day_before" | "this_month" | "this_year" | "custom">("all");
+  const [reportDateFilter, setReportDateFilter] = useState<"all" | "today" | "yesterday" | "day_before" | "this_month" | "this_year" | "custom">("today");
   const [reportCustomDate, setReportCustomDate] = useState<string>(() => {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   });
@@ -1756,7 +1756,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </button>
 
             <button
-              onClick={() => setActiveTab("reports")}
+              onClick={() => {
+                setActiveTab("reports");
+                setReportDateFilter("today");
+                setReportPage(1);
+              }}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "reports"
                   ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
@@ -3128,12 +3132,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </span>
                   
                   {[
-                    { id: "all", label: "All Time (Saare Bill)" },
                     { id: "today", label: "Aaj (Today)" },
                     { id: "yesterday", label: "Kal (Yesterday)" },
                     { id: "day_before", label: "Parso (2 Days Ago)" },
                     { id: "this_month", label: "Iss Mahine (Month)" },
                     { id: "this_year", label: "Iss Saal (Year)" },
+                    { id: "all", label: "All Time (Saare Bill)" },
                     { id: "custom", label: "📅 Custom Tareekh" },
                   ].map(tab => {
                     const isActive = reportDateFilter === tab.id;
