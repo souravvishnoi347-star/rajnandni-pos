@@ -47,9 +47,12 @@ import {
   Download,
   Calendar,
   Filter,
-  Wallet
+  Wallet,
+  Users,
+  UserCheck,
+  MessageSquare
 } from "lucide-react";
-import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory } from "@/types/pos";
+import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory, CustomerProfile } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
 import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
 import BarcodeSheetModal from "@/components/BarcodeSheetModal";
@@ -67,7 +70,15 @@ export default function RajnandiniPosPage() {
   const [loginError, setLoginError] = useState<string>("");
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<"pos" | "inventory" | "alterations" | "reports">("pos");
+  const [activeTab, setActiveTab] = useState<"pos" | "inventory" | "alterations" | "reports" | "customers">("pos");
+  
+  // Customer Directory State
+  const [customerSearch, setCustomerSearch] = useState<string>("");
+  const [customerSortBy, setCustomerSortBy] = useState<"spend_desc" | "visits_desc" | "discount_desc" | "recent" | "name_asc">("spend_desc");
+  const [customerFilter, setCustomerFilter] = useState<"all" | "repeat" | "vip">("all");
+  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerProfile | null>(null);
+  const [customerPage, setCustomerPage] = useState<number>(1);
+  const [customerPageSize, setCustomerPageSize] = useState<number>(15);
   
   // Inventory state
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
@@ -1559,6 +1570,200 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     document.body.removeChild(link);
   };
 
+  // =========================================================
+  // CUSTOMER DIRECTORY & VIP RELATIONSHIP INTELLIGENCE (CRM)
+  // =========================================================
+
+  // Group all bills by customer phone number or name
+  const customerDirectory = useMemo<CustomerProfile[]>(() => {
+    const map = new Map<string, CustomerProfile>();
+
+    for (const bill of completedBills) {
+      const rawPhone = (bill.customer?.phone || "").trim();
+      const rawName = (bill.customer?.name || "").trim();
+
+      const cleanDigits = rawPhone.replace(/\D/g, "");
+      // Unique key: last 10 digits of phone if available, or cleaned phone, or trimmed lower name
+      let key = "";
+      if (cleanDigits.length >= 10) {
+        key = cleanDigits.slice(-10);
+      } else if (cleanDigits.length > 0) {
+        key = cleanDigits;
+      } else if (rawName && rawName.toLowerCase() !== "walk-in guest") {
+        key = rawName.toLowerCase();
+      } else {
+        key = `guest-${bill.id}`;
+      }
+
+      const displayPhone = rawPhone && rawPhone !== "NA" ? rawPhone : (cleanDigits || "NA");
+      const displayName = rawName && rawName.toLowerCase() !== "walk-in guest"
+        ? rawName
+        : (displayPhone !== "NA" ? `Customer ${displayPhone.slice(-4)}` : "Walk-in Guest");
+
+      const savings = bill.totalSavings || bill.discount || 0;
+      const itemsCount = (bill.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
+
+      const existing = map.get(key);
+      if (existing) {
+        existing.totalSpend += bill.grandTotal;
+        existing.totalDiscount += savings;
+        existing.visitCount += 1;
+        existing.bills.push(bill);
+        existing.purchasedItemsCount += itemsCount;
+        if (displayName && displayName !== "Walk-in Guest" && (!existing.name || existing.name === "Walk-in Guest" || existing.name.startsWith("Customer "))) {
+          existing.name = displayName;
+        }
+        if (displayPhone && displayPhone !== "NA" && existing.phone === "NA") {
+          existing.phone = displayPhone;
+        }
+      } else {
+        map.set(key, {
+          id: key,
+          phone: displayPhone,
+          name: displayName,
+          totalSpend: bill.grandTotal,
+          totalDiscount: savings,
+          visitCount: 1,
+          firstVisit: bill.createdAt,
+          lastVisit: bill.createdAt,
+          lastVisitRaw: bill.rawDate,
+          avgBillValue: bill.grandTotal,
+          bills: [bill],
+          purchasedItemsCount: itemsCount,
+          topCategories: []
+        });
+      }
+    }
+
+    return Array.from(map.values()).map(c => {
+      c.avgBillValue = c.visitCount > 0 ? Math.round(c.totalSpend / c.visitCount) : 0;
+      // Sort bills newest first for each customer
+      c.bills.sort((a, b) => (b.rawDate || b.createdAt).localeCompare(a.rawDate || a.createdAt));
+      // Top categories
+      const catCount: Record<string, number> = {};
+      c.bills.forEach(b => {
+        b.items.forEach(it => {
+          const cat = it.product?.category || "ethnic";
+          catCount[cat] = (catCount[cat] || 0) + (it.quantity || 1);
+        });
+      });
+      c.topCategories = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a]).slice(0, 3);
+      return c;
+    });
+  }, [completedBills]);
+
+  // Filtered & Sorted Customers
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
+
+    return customerDirectory.filter(c => {
+      if (customerFilter === "repeat" && c.visitCount < 2) return false;
+      if (customerFilter === "vip" && c.totalSpend < 3000) return false;
+
+      if (q) {
+        const matchesName = c.name.toLowerCase().includes(q);
+        const matchesPhone = c.phone.replace(/\D/g, "").includes(qDigits) || c.phone.toLowerCase().includes(q);
+        if (!matchesName && !matchesPhone) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      if (customerSortBy === "visits_desc") return b.visitCount - a.visitCount;
+      if (customerSortBy === "discount_desc") return b.totalDiscount - a.totalDiscount;
+      if (customerSortBy === "name_asc") return a.name.localeCompare(b.name);
+      if (customerSortBy === "recent") {
+        return (b.lastVisitRaw || b.lastVisit).localeCompare(a.lastVisitRaw || a.lastVisit);
+      }
+      return b.totalSpend - a.totalSpend;
+    });
+  }, [customerDirectory, customerSearch, customerFilter, customerSortBy]);
+
+  // Customer Directory Metrics
+  const customerAnalytics = useMemo(() => {
+    const totalCustomers = customerDirectory.length;
+    const totalSpend = customerDirectory.reduce((s, c) => s + c.totalSpend, 0);
+    const totalDiscounts = customerDirectory.reduce((s, c) => s + c.totalDiscount, 0);
+    const repeatCustomers = customerDirectory.filter(c => c.visitCount > 1).length;
+    const avgSpendPerCust = totalCustomers > 0 ? Math.round(totalSpend / totalCustomers) : 0;
+    return { totalCustomers, totalSpend, totalDiscounts, repeatCustomers, avgSpendPerCust };
+  }, [customerDirectory]);
+
+  // Customer Pagination
+  const totalCustomerPages = useMemo(() => {
+    if (customerPageSize >= 9999) return 1;
+    return Math.max(1, Math.ceil(filteredCustomers.length / customerPageSize));
+  }, [filteredCustomers.length, customerPageSize]);
+
+  const paginatedCustomers = useMemo(() => {
+    if (customerPageSize >= 9999) return filteredCustomers;
+    const start = (customerPage - 1) * customerPageSize;
+    return filteredCustomers.slice(start, start + customerPageSize);
+  }, [filteredCustomers, customerPage, customerPageSize]);
+
+  // Match customer in POS checkout when typing mobile number
+  const matchedCustomer = useMemo(() => {
+    const cleanDigits = (customer.phone || "").replace(/\D/g, "");
+    if (cleanDigits.length < 5) return null;
+    const lastDigits = cleanDigits.slice(-10);
+    return customerDirectory.find(c => {
+      const cDigits = c.phone.replace(/\D/g, "");
+      return cDigits.endsWith(lastDigits) || (cDigits.length >= 10 && lastDigits.endsWith(cDigits.slice(-10)));
+    }) || null;
+  }, [customer.phone, customerDirectory]);
+
+  // Export Customers to CSV
+  const handleExportCustomersCSV = () => {
+    if (filteredCustomers.length === 0) {
+      alert("No customer records to export!");
+      return;
+    }
+    const headers = [
+      "Customer Name", "Phone Number", "Total Spend (INR)", "Total Bargain Discount (INR)",
+      "Total Visits", "Average Bill Value", "Last Visit Date", "Top Categories"
+    ];
+    const rows = filteredCustomers.map(c => [
+      `"${c.name.replace(/"/g, '""')}"`,
+      `"${c.phone}"`,
+      c.totalSpend,
+      c.totalDiscount,
+      c.visitCount,
+      c.avgBillValue,
+      `"${c.lastVisit}"`,
+      `"${c.topCategories.join(", ")}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Rajnandini_Customer_Directory_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // WhatsApp Connect with Customer
+  const handleOpenWhatsAppCustomer = (c: CustomerProfile) => {
+    const digits = c.phone.replace(/\D/g, "");
+    if (!digits || digits.length < 10) {
+      alert("Customer phone number is invalid or not available.");
+      return;
+    }
+    const phoneWithCountry = digits.length === 10 ? `91${digits}` : digits;
+    const msg = encodeURIComponent(
+      `Namaste ${c.name === "Walk-in Guest" ? "ji" : c.name + " ji"}! 🙏\n\nGreetings from *Rajnandini Boutique & Parlour*, Haridwar.\nThank you for shopping with us! We have exciting new bridal and festive arrivals in sarees, lehengas & suits.\n\n📍 Near PSC petrolpump, Ranipur Goan, Haridwar\n📞 +91 7464987898`
+    );
+    window.open(`https://wa.me/${phoneWithCountry}?text=${msg}`, "_blank");
+  };
+
+  // Switch to POS and autofill this customer for billing
+  const handleStartBillForCustomer = (c: CustomerProfile) => {
+    setCustomer({
+      name: c.name === "Walk-in Guest" ? "" : c.name,
+      phone: c.phone === "NA" ? "" : c.phone,
+      notes: ""
+    });
+    setActiveTab("pos");
+  };
 
   // Show Royal Flagship Login Screen if not authenticated
   if (!isAuthenticated) {
@@ -1774,6 +1979,28 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   activeTab === "reports" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
                 }`}>
                   {completedBills.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab("customers");
+                setCustomerPage(1);
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+                activeTab === "customers"
+                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Customers</span>
+              {customerDirectory.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === "customers" ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600 border border-stone-200"
+                }`}>
+                  {customerDirectory.length}
                 </span>
               )}
             </button>
@@ -2122,28 +2349,61 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </div>
                 )}
 
-                {/* Customer Inputs */}
-                <div className="p-3 bg-[#faf7f2] grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <User className="w-3.5 h-3.5 text-amber-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Customer Name"
-                      value={customer.name}
-                      onChange={e => setCustomer({ ...customer, name: e.target.value })}
-                      className="w-full pl-8 pr-2.5 py-1.5 text-xs font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                    />
+                {/* Customer Inputs & Intelligent CRM Match */}
+                <div className="p-3 bg-[#faf7f2] space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-amber-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Customer Name"
+                        value={customer.name}
+                        onChange={e => setCustomer({ ...customer, name: e.target.value })}
+                        className="w-full pl-8 pr-2.5 py-1.5 text-xs font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 text-emerald-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        placeholder="WhatsApp Mobile No"
+                        value={customer.phone}
+                        onChange={e => {
+                          const newPhone = e.target.value;
+                          const cleanDigits = newPhone.replace(/\D/g, "");
+                          let nextName = customer.name;
+                          if (cleanDigits.length >= 10 && (!nextName || nextName === "Walk-in Guest")) {
+                            const last10 = cleanDigits.slice(-10);
+                            const found = customerDirectory.find(c => c.phone.replace(/\D/g, "").endsWith(last10));
+                            if (found && found.name && found.name !== "Walk-in Guest") {
+                              nextName = found.name;
+                            }
+                          }
+                          setCustomer({ ...customer, phone: newPhone, name: nextName });
+                        }}
+                        className="w-full pl-8 pr-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                      />
+                    </div>
                   </div>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-emerald-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="tel"
-                      placeholder="WhatsApp Mobile No"
-                      value={customer.phone}
-                      onChange={e => setCustomer({ ...customer, phone: e.target.value })}
-                      className="w-full pl-8 pr-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                    />
-                  </div>
+
+                  {/* Returning Customer Matched Alert */}
+                  {matchedCustomer && (
+                    <div className="p-2 bg-amber-50/90 border border-amber-300 rounded-xl text-xs flex items-center justify-between text-amber-950 shadow-xs animate-in fade-in">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="truncate">
+                          <strong>{matchedCustomer.name}</strong> · {matchedCustomer.visitCount} visits · Total Spent: <strong className="font-mono text-emerald-800">₹{matchedCustomer.totalSpend.toLocaleString("en-IN")}</strong> · Past Bargain: <span className="font-mono text-rose-700">₹{matchedCustomer.totalDiscount.toLocaleString("en-IN")}</span>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCustomerForModal(matchedCustomer)}
+                        className="text-[11px] font-bold text-amber-900 underline hover:text-amber-950 cursor-pointer shrink-0 ml-2"
+                      >
+                        Past Bills
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -3550,6 +3810,540 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </div>
           </div>
         )}
+
+        {/* =========================================================
+            TAB 5: CUSTOMER DIRECTORY & VIP RELATIONSHIPS (CRM)
+            ========================================================= */}
+        {activeTab === "customers" && (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Executive Header */}
+              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-stone-900">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
+                    Customer Relationship &amp; VIP Intelligence (Grahak Directory)
+                  </span>
+                  <h2 className="text-2xl font-black text-stone-900 font-serif">Customer Directory &amp; Spend Profiles</h2>
+                  <p className="text-xs text-stone-500 mt-1">
+                    Showroom client spend profiles, negotiated bargain history, visit records, and 1-click WhatsApp reconnect.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleExportCustomersCSV}
+                    className="px-3.5 py-2.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Export Customers to Excel/CSV"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Download CSV</span>
+                  </button>
+                  <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
+                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Total Customer Spend</span>
+                    <span className="text-lg font-black text-stone-900 font-mono">
+                      ₹{customerAnalytics.totalSpend.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Executive Metric Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Total Registered Customers</span>
+                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                    {customerAnalytics.totalCustomers}
+                  </p>
+                  <span className="text-[10.5px] text-stone-500 font-semibold">Unique Clients in Records</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                    <Crown className="w-3.5 h-3.5 text-amber-600" /> Repeat VIP Visitors
+                  </span>
+                  <p className="text-2xl font-black text-emerald-700 font-mono mt-1">
+                    {customerAnalytics.repeatCustomers}
+                  </p>
+                  <span className="text-[10.5px] text-emerald-700 font-semibold">Visited 2+ times</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
+                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Total Bargain Discounts
+                  </span>
+                  <p className="text-2xl font-black text-rose-700 font-mono mt-1">
+                    ₹{customerAnalytics.totalDiscounts.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10.5px] text-rose-600 font-semibold">Savings given to clients</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
+                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                    <UserCheck className="w-3.5 h-3.5 text-purple-600" /> Avg Customer LTV
+                  </span>
+                  <p className="text-2xl font-black text-purple-700 font-mono mt-1">
+                    ₹{customerAnalytics.avgSpendPerCust.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10.5px] text-purple-700 font-semibold">Average Spend per Client</span>
+                </div>
+              </div>
+
+              {/* Search, Filter & Sort Controls */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search by WhatsApp Phone Number (e.g. 7464987898) or Customer Name..."
+                    value={customerSearch}
+                    onChange={e => {
+                      setCustomerSearch(e.target.value);
+                      setCustomerPage(1);
+                    }}
+                    className="w-full pl-10 pr-8 py-2 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                  />
+                  {customerSearch && (
+                    <button
+                      onClick={() => {
+                        setCustomerSearch("");
+                        setCustomerPage(1);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  <select
+                    value={customerFilter}
+                    onChange={e => {
+                      setCustomerFilter(e.target.value as any);
+                      setCustomerPage(1);
+                    }}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="all">All Clients ({customerDirectory.length})</option>
+                    <option value="repeat">Repeat Only (2+ Bills)</option>
+                    <option value="vip">VIP Only (Spend &gt; ₹3,000)</option>
+                  </select>
+
+                  <select
+                    value={customerSortBy}
+                    onChange={e => {
+                      setCustomerSortBy(e.target.value as any);
+                      setCustomerPage(1);
+                    }}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="spend_desc">Sort: Highest Spend (VIP First)</option>
+                    <option value="visits_desc">Sort: Most Visits</option>
+                    <option value="discount_desc">Sort: Most Bargain Discounts</option>
+                    <option value="recent">Sort: Recently Visited</option>
+                    <option value="name_asc">Sort: Name (A - Z)</option>
+                  </select>
+
+                  <select
+                    value={customerPageSize}
+                    onChange={e => {
+                      setCustomerPageSize(Number(e.target.value));
+                      setCustomerPage(1);
+                    }}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value={15}>15 per page</option>
+                    <option value={25}>25 per page</option>
+                    <option value={50}>50 per page</option>
+                    <option value={9999}>Show All</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Customers Table */}
+              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
+                      Showroom Customer Records ({filteredCustomers.length})
+                    </h3>
+                    <span className="text-[11px] text-stone-500">
+                      (Page {customerPage} of {totalCustomerPages})
+                    </span>
+                  </div>
+                  {(customerSearch || customerFilter !== "all") && (
+                    <button
+                      onClick={() => {
+                        setCustomerSearch("");
+                        setCustomerFilter("all");
+                        setCustomerSortBy("spend_desc");
+                        setCustomerPage(1);
+                      }}
+                      className="text-xs text-amber-700 hover:underline font-bold cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-12 text-center text-stone-400">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-30 text-stone-500" />
+                    <p className="text-sm font-bold text-stone-700">No matching customers found</p>
+                    <p className="text-xs text-stone-400 mt-1">Try clearing search or filters to see all customers.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
+                        <tr>
+                          <th className="px-4 py-3">Customer Details</th>
+                          <th className="px-4 py-3">WhatsApp / Mobile</th>
+                          <th className="px-3 py-3 text-center">Visits</th>
+                          <th className="px-4 py-3 text-right">Total Spend</th>
+                          <th className="px-4 py-3 text-right">Total Bargain Taken</th>
+                          <th className="px-4 py-3 text-right">Avg Bill Value</th>
+                          <th className="px-4 py-3">Last Visit</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {paginatedCustomers.map(c => {
+                          const isVip = c.totalSpend >= 3000 || c.visitCount >= 2;
+                          return (
+                            <tr key={c.id} className="hover:bg-amber-50/40 transition">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">
+                                    {c.name.charAt(0).toUpperCase() || "G"}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="font-bold text-stone-900">{c.name}</p>
+                                      {isVip && (
+                                        <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[9.5px] font-black rounded-md border border-amber-300 flex items-center gap-0.5">
+                                          <Crown className="w-2.5 h-2.5" /> VIP
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-stone-500 font-medium">
+                                      {c.purchasedItemsCount} items purchased
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 font-mono">
+                                {c.phone && c.phone !== "NA" ? (
+                                  <span className="font-bold text-stone-900">{c.phone}</span>
+                                ) : (
+                                  <span className="text-stone-400 italic">No Phone</span>
+                                )}
+                              </td>
+
+                              <td className="px-3 py-3 text-center font-mono">
+                                <span className={`inline-block px-2 py-0.5 rounded-full font-bold text-xs ${
+                                  c.visitCount > 1 ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-700"
+                                }`}>
+                                  {c.visitCount}
+                                </span>
+                              </td>
+
+                              <td className="px-4 py-3 text-right font-mono">
+                                <span className="font-black text-stone-950 text-sm block">
+                                  ₹{c.totalSpend.toLocaleString("en-IN")}
+                                </span>
+                              </td>
+
+                              <td className="px-4 py-3 text-right font-mono">
+                                {c.totalDiscount > 0 ? (
+                                  <span className="font-bold text-rose-600 block">
+                                    ₹{c.totalDiscount.toLocaleString("en-IN")}
+                                  </span>
+                                ) : (
+                                  <span className="text-stone-400">₹0</span>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-3 text-right font-mono text-stone-700 font-medium">
+                                ₹{c.avgBillValue.toLocaleString("en-IN")}
+                              </td>
+
+                              <td className="px-4 py-3 text-stone-600 text-[11px]">
+                                {c.lastVisit}
+                              </td>
+
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => setSelectedCustomerForModal(c)}
+                                    className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
+                                    title="View full purchase history and bills"
+                                  >
+                                    <Receipt className="w-3.5 h-3.5 text-amber-800" />
+                                    <span>{c.visitCount} Bills</span>
+                                  </button>
+
+                                  {c.phone && c.phone !== "NA" && (
+                                    <button
+                                      onClick={() => handleOpenWhatsAppCustomer(c)}
+                                      className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                      title="Send WhatsApp Message"
+                                    >
+                                      <Share2 className="w-3.5 h-3.5" />
+                                      <span>Chat</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleStartBillForCustomer(c)}
+                                    className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                    title="Start new bill for this customer"
+                                  >
+                                    <ShoppingBag className="w-3.5 h-3.5 text-stone-600" />
+                                    <span>New Bill</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {filteredCustomers.length > 0 && (
+                  <div className="p-4 border-t border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-stone-600 font-medium">
+                      Showing <span className="font-bold text-stone-900">{customerPageSize >= 9999 ? 1 : Math.min((customerPage - 1) * customerPageSize + 1, filteredCustomers.length)}</span> to <span className="font-bold text-stone-900">{customerPageSize >= 9999 ? filteredCustomers.length : Math.min(customerPage * customerPageSize, filteredCustomers.length)}</span> of <span className="font-bold text-stone-900">{filteredCustomers.length}</span> clients · <span className="text-stone-500">Page {customerPage} of {totalCustomerPages}</span>
+                    </div>
+
+                    {totalCustomerPages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setCustomerPage(1)}
+                          disabled={customerPage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          « First
+                        </button>
+                        <button
+                          onClick={() => setCustomerPage(p => Math.max(1, p - 1))}
+                          disabled={customerPage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          ‹ Prev
+                        </button>
+                        {Array.from({ length: totalCustomerPages }, (_, i) => i + 1)
+                          .filter(p => p === 1 || p === totalCustomerPages || Math.abs(p - customerPage) <= 2)
+                          .reduce<(number | string)[]>((acc, curr, idx, arr) => {
+                            if (idx > 0 && (curr as number) - (arr[idx - 1] as number) > 1) {
+                              acc.push("...");
+                            }
+                            acc.push(curr);
+                            return acc;
+                          }, [])
+                          .map((p, idx) => {
+                            if (p === "...") {
+                              return <span key={`c-ellipsis-${idx}`} className="px-1 text-stone-400 font-bold text-xs">...</span>;
+                            }
+                            const isCurrent = p === customerPage;
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => setCustomerPage(Number(p))}
+                                className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                  isCurrent
+                                    ? "bg-amber-900 text-amber-50 border border-amber-900 shadow-xs"
+                                    : "bg-white hover:bg-stone-100 text-stone-700 border border-stone-300"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        <button
+                          onClick={() => setCustomerPage(p => Math.min(totalCustomerPages, p + 1))}
+                          disabled={customerPage === totalCustomerPages}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          Next ›
+                        </button>
+                        <button
+                          onClick={() => setCustomerPage(totalCustomerPages)}
+                          disabled={customerPage === totalCustomerPages}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          Last »
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* =========================================================
+          MODAL: CUSTOMER PROFILE & PURCHASE HISTORY
+          ========================================================= */}
+      {selectedCustomerForModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#181310] via-[#241c17] to-[#181310] text-white p-5 border-b border-amber-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-black flex items-center justify-center text-lg">
+                  {selectedCustomerForModal.name.charAt(0).toUpperCase() || "G"}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold font-serif">{selectedCustomerForModal.name}</h3>
+                    {(selectedCustomerForModal.totalSpend >= 3000 || selectedCustomerForModal.visitCount >= 2) && (
+                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-black rounded-md flex items-center gap-1">
+                        <Crown className="w-3 h-3 text-amber-300" /> VIP
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-300 font-mono mt-0.5">
+                    📱 {selectedCustomerForModal.phone || "No Mobile Number"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedCustomerForModal.phone && selectedCustomerForModal.phone !== "NA" && (
+                  <button
+                    onClick={() => handleOpenWhatsAppCustomer(selectedCustomerForModal)}
+                    className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer transition shadow-xs"
+                    title="Send WhatsApp Message"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedCustomerForModal(null)}
+                  className="p-2 text-stone-400 hover:text-white rounded-xl cursor-pointer transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="bg-stone-50 p-4 border-b border-stone-200 grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] text-stone-500 uppercase font-bold block">Total Spend</span>
+                <span className="font-mono font-black text-sm text-stone-900 block mt-0.5">
+                  ₹{selectedCustomerForModal.totalSpend.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] text-rose-600 uppercase font-bold block">Bargain Taken</span>
+                <span className="font-mono font-black text-sm text-rose-700 block mt-0.5">
+                  ₹{selectedCustomerForModal.totalDiscount.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] text-stone-500 uppercase font-bold block">Visits / Bills</span>
+                <span className="font-mono font-black text-sm text-stone-900 block mt-0.5">
+                  {selectedCustomerForModal.visitCount}
+                </span>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] text-stone-500 uppercase font-bold block">Avg Bill</span>
+                <span className="font-mono font-black text-sm text-stone-900 block mt-0.5">
+                  ₹{selectedCustomerForModal.avgBillValue.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            {/* Purchase History Bills List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-serif">
+                All Showroom Bills ({selectedCustomerForModal.bills.length})
+              </h4>
+              <div className="space-y-2.5">
+                {selectedCustomerForModal.bills.map(b => (
+                  <div key={b.id} className="bg-white border border-stone-200 rounded-2xl p-3.5 space-y-2 shadow-2xs">
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-mono font-bold text-stone-900 text-sm">{b.billNo}</span>
+                        <p className="text-[10px] text-stone-500">{b.createdAt}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono font-black text-stone-900 text-sm">
+                          ₹{b.grandTotal.toLocaleString("en-IN")}
+                        </span>
+                        {(b.totalSavings || b.discount) > 0 && (
+                          <span className="text-[10.5px] text-rose-600 font-bold block">
+                            Discount: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Items Purchased */}
+                    <div className="bg-stone-50 rounded-xl p-2.5 space-y-1 text-xs text-stone-700">
+                      {b.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {it.quantity}x {it.product.name} ({it.selectedSize || "Standard"})
+                          </span>
+                          <span className="font-mono font-bold">
+                            ₹{(it.price * it.quantity).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-stone-100">
+                      <button
+                        onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
+                        className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-amber-700" />
+                        <span>View PDF</span>
+                      </button>
+                      <button
+                        onClick={() => handleSendWhatsAppBill(b)}
+                        className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share Slip</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  handleStartBillForCustomer(selectedCustomerForModal);
+                  setSelectedCustomerForModal(null);
+                }}
+                className="px-4 py-2 bg-stone-900 hover:bg-black text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                <span>Create New Bill for this Customer</span>
+              </button>
+              <button
+                onClick={() => setSelectedCustomerForModal(null)}
+                className="px-3.5 py-2 bg-white hover:bg-stone-100 border border-stone-300 rounded-xl text-xs font-bold text-stone-700 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================
           MODAL: CHECKOUT SUCCESS & THERMAL RECEIPT PREVIEW

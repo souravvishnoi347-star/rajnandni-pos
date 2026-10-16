@@ -76,3 +76,19 @@ export interface CompletedBill {
   rawDate?: string;
   alteration?: AlterationDetail;
 }
+
+export interface CustomerProfile {
+  id: string;
+  phone: string;
+  name: string;
+  totalSpend: number;
+  totalDiscount: number;
+  visitCount: number;
+  firstVisit: string;
+  lastVisit: string;
+  lastVisitRaw?: string;
+  avgBillValue: number;
+  bills: CompletedBill[];
+  purchasedItemsCount: number;
+  topCategories: string[];
+}
