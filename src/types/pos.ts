@@ -73,5 +73,6 @@ export interface CompletedBill {
   totalSavings?: number;
   paymentMode: "cash" | "upi" | "card" | "khata";
   createdAt: string;
+  rawDate?: string;
   alteration?: AlterationDetail;
 }

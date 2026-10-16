@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import QRCode from "qrcode";
 import {
   Sparkles,
@@ -101,12 +101,17 @@ export default function RajnandiniPosPage() {
   const [completedBills, setCompletedBills] = useState<CompletedBill[]>([]);
   const [alterationsList, setAlterationsList] = useState<AlterationDetail[]>([]);
 
-  // Sales Report Advanced Filters
+  // Sales Report Advanced Filters & Pagination
   const [reportSearch, setReportSearch] = useState<string>("");
   const [reportPaymentFilter, setReportPaymentFilter] = useState<string>("all");
-  const [reportDateFilter, setReportDateFilter] = useState<string>("all"); // "all" | "today" | "yesterday"
-  const [reportSortBy, setReportSortBy] = useState<"latest" | "highest" | "lowest">("latest");
+  const [reportDateFilter, setReportDateFilter] = useState<"all" | "today" | "yesterday" | "day_before" | "this_month" | "this_year" | "custom">("all");
+  const [reportCustomDate, setReportCustomDate] = useState<string>(() => {
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  });
+  const [reportSortBy, setReportSortBy] = useState<"latest" | "oldest" | "highest" | "lowest">("latest");
   const [reportExpandedBillId, setReportExpandedBillId] = useState<string | null>(null);
+  const [reportPage, setReportPage] = useState<number>(1);
+  const [reportPageSize, setReportPageSize] = useState<number>(15);
 
   // Modals & Popups
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState<boolean>(false);
@@ -272,6 +277,22 @@ export default function RajnandiniPosPage() {
         // Sync recent bills from Supabase to guarantee accurate invoice sequences across devices
         SupabaseService.fetchRecentBills().then((remoteBills) => {
           if (remoteBills && remoteBills.length > 0) {
+            const initialCostMap = new Map<string, number>();
+            INITIAL_PRODUCTS.forEach(p => {
+              if (p.purchaseCost > 0) {
+                if (p.id) initialCostMap.set(p.id.toLowerCase(), p.purchaseCost);
+                if (p.sku) initialCostMap.set(p.sku.toLowerCase(), p.purchaseCost);
+                if (p.name) initialCostMap.set(p.name.trim().toLowerCase(), p.purchaseCost);
+              }
+            });
+            localMerged.forEach(p => {
+              if (p.purchaseCost > 0) {
+                if (p.id) initialCostMap.set(p.id.toLowerCase(), p.purchaseCost);
+                if (p.sku) initialCostMap.set(p.sku.toLowerCase(), p.purchaseCost);
+                if (p.name) initialCostMap.set(p.name.trim().toLowerCase(), p.purchaseCost);
+              }
+            });
+
             const mappedRemote: CompletedBill[] = remoteBills
               .filter((b: any) => !allDeletedBillNos.has(b.invoice_number))
               .map((b: any) => ({
@@ -282,31 +303,42 @@ export default function RajnandiniPosPage() {
                   phone: b.customer_phone || "NA",
                   notes: ""
                 },
-                items: (b.items || []).map((it: any) => ({
-                  product: {
-                    id: it.id || "",
-                    name: it.name || "Ethnic Item",
-                    sku: it.sku || "",
-                    barcode: it.barcode || "8901001",
-                    category: "sarees",
+                items: (b.items || []).map((it: any) => {
+                  const itSku = (it.sku || it.product?.sku || "").toLowerCase();
+                  const itId = (it.id || it.product?.id || "").toLowerCase();
+                  const itName = (it.name || it.product?.name || "").trim().toLowerCase();
+                  const pCost = Number(it.purchase_cost || it.purchaseCost || it.product?.purchaseCost) ||
+                                (itSku && initialCostMap.get(itSku)) ||
+                                (itId && initialCostMap.get(itId)) ||
+                                (itName && initialCostMap.get(itName)) ||
+                                0;
+                  return {
+                    product: {
+                      id: it.id || "",
+                      name: it.name || "Ethnic Item",
+                      sku: it.sku || "",
+                      barcode: it.barcode || "8901001",
+                      category: it.category || "sarees",
+                      price: Number(it.price) || 0,
+                      mrp: Number(it.mrp || it.price) || 0,
+                      purchaseCost: pCost,
+                      stock: 1
+                    },
+                    quantity: it.quantity || 1,
                     price: Number(it.price) || 0,
-                    mrp: Number(it.mrp || it.price) || 0,
-                    purchaseCost: 0,
-                    stock: 1
-                  },
-                  quantity: it.quantity || 1,
-                  price: Number(it.price) || 0,
-                  originalPrice: Number(it.mrp || it.price) || 0,
-                  selectedSize: it.size || "Standard",
-                  customDiscount: 0
-                })),
+                    originalPrice: Number(it.mrp || it.price) || 0,
+                    selectedSize: it.size || "Standard",
+                    customDiscount: 0
+                  };
+                }),
                 subtotal: Number(b.subtotal) || 0,
                 discount: Number(b.discount) || 0,
                 taxGst: Number(b.tax) || 0,
                 grandTotal: Number(b.total) || 0,
                 paidAmount: Number(b.total) || 0,
                 paymentMode: b.payment_mode || "UPI",
-                createdAt: new Date(b.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+                createdAt: new Date(b.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+                rawDate: b.created_at
               }));
 
             setCompletedBills(prev => {
@@ -336,7 +368,18 @@ export default function RajnandiniPosPage() {
                   }).catch(() => {});
                 }
               });
-              const merged = Array.from(billMap.values()).sort((a, b) => b.billNo.localeCompare(a.billNo));
+
+              const parseSeq = (no: string) => {
+                const m = (no || "").match(/(\d+)$/);
+                return m ? parseInt(m[1], 10) : 0;
+              };
+
+              const merged = Array.from(billMap.values()).sort((a, b) => {
+                const sA = parseSeq(a.billNo);
+                const sB = parseSeq(b.billNo);
+                if (sA !== sB) return sB - sA;
+                return (b.rawDate || b.createdAt).localeCompare(a.rawDate || a.createdAt);
+              });
               localStorage.setItem("rajnandni_bills", JSON.stringify(merged));
               return merged;
             });
@@ -775,6 +818,7 @@ export default function RajnandiniPosPage() {
         originalTotal: catalogTotal,
         totalSavings: totalSavings,
         paymentMode,
+        rawDate: editingBill.rawDate || new Date().toISOString(),
         alteration: alterationEnabled ? { ...alterationData, required: true } : undefined
       };
 
@@ -865,6 +909,7 @@ export default function RajnandiniPosPage() {
       totalSavings: totalSavings,
       paymentMode,
       createdAt: new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+      rawDate: new Date().toISOString(),
       alteration: alterationEnabled ? { ...alterationData, required: true } : undefined
     };
 
@@ -930,6 +975,26 @@ export default function RajnandiniPosPage() {
     setAlterationEnabled(false);
   };
 
+  // Catalog Purchase Cost Map for profit & wholesale analytics
+  const productCostMap = useMemo(() => {
+    const map = new Map<string, number>();
+    INITIAL_PRODUCTS.forEach(p => {
+      if (p.purchaseCost > 0) {
+        if (p.id) map.set(p.id.toLowerCase(), p.purchaseCost);
+        if (p.sku) map.set(p.sku.toLowerCase(), p.purchaseCost);
+        if (p.name) map.set(p.name.trim().toLowerCase(), p.purchaseCost);
+      }
+    });
+    products.forEach(p => {
+      if (p.purchaseCost > 0) {
+        if (p.id) map.set(p.id.toLowerCase(), p.purchaseCost);
+        if (p.sku) map.set(p.sku.toLowerCase(), p.purchaseCost);
+        if (p.name) map.set(p.name.trim().toLowerCase(), p.purchaseCost);
+      }
+    });
+    return map;
+  }, [products]);
+
   // Start Editing an existing bill (re-loads into cart for bargaining or adding more items)
   const handleStartEditBill = (billToEdit: CompletedBill) => {
     if (cart.length > 0) {
@@ -938,25 +1003,38 @@ export default function RajnandiniPosPage() {
       }
     }
     setEditingBill(billToEdit);
-    const loadedCart: CartItem[] = (billToEdit.items || []).map(it => ({
-      product: it.product || {
-        id: (it as any).id || `prod-${Date.now()}`,
-        name: it.product?.name || (it as any).name || "Item",
-        sku: it.product?.sku || (it as any).sku || "",
-        barcode: it.product?.barcode || "8901001",
-        category: it.product?.category || "sarees",
+    const loadedCart: CartItem[] = (billToEdit.items || []).map(it => {
+      const pSku = (it.product?.sku || (it as any).sku || "").toLowerCase();
+      const pId = (it.product?.id || (it as any).id || "").toLowerCase();
+      const pName = (it.product?.name || (it as any).name || "").trim().toLowerCase();
+      const cost = Number(it.product?.purchaseCost || (it as any).purchaseCost || (it as any).purchase_cost) ||
+                   (pSku && productCostMap.get(pSku)) ||
+                   (pId && productCostMap.get(pId)) ||
+                   (pName && productCostMap.get(pName)) ||
+                   0;
+      return {
+        product: it.product ? {
+          ...it.product,
+          purchaseCost: (it.product.purchaseCost && it.product.purchaseCost > 0) ? it.product.purchaseCost : cost
+        } : {
+          id: (it as any).id || `prod-${Date.now()}`,
+          name: (it as any).name || "Item",
+          sku: (it as any).sku || "",
+          barcode: (it as any).barcode || "8901001",
+          category: (it as any).category || "sarees",
+          price: it.price || 0,
+          mrp: it.originalPrice || it.price || 0,
+          purchaseCost: cost,
+          stock: 10,
+          isService: (it as any).isService || false
+        },
+        quantity: it.quantity || 1,
         price: it.price || 0,
-        mrp: it.originalPrice || it.price || 0,
-        purchaseCost: 0,
-        stock: 10,
-        isService: (it as any).isService || false
-      },
-      quantity: it.quantity || 1,
-      price: it.price || 0,
-      originalPrice: it.originalPrice || it.price || 0,
-      selectedSize: it.selectedSize || "Standard",
-      customDiscount: 0
-    }));
+        originalPrice: it.originalPrice || it.price || 0,
+        selectedSize: it.selectedSize || "Standard",
+        customDiscount: 0
+      };
+    });
     setCart(loadedCart);
     setCustomer({
       name: billToEdit.customer.name === "Walk-in Guest" ? "" : billToEdit.customer.name,
@@ -1237,25 +1315,100 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   const totalCostStockValue = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.purchaseCost) || 0) * (Number(p.stock) || 0), 0), [products]);
   const totalTodayRevenue = useMemo(() => completedBills.reduce((s, b) => s + b.grandTotal, 0), [completedBills]);
 
+  // Helper: Extract accurate YYYY-MM-DD in Indian Standard Time (Asia/Kolkata)
+  const getBillDateString = useCallback((bill: CompletedBill): string => {
+    if (bill.rawDate) {
+      try {
+        const d = new Date(bill.rawDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        }
+      } catch {}
+    }
+    if (bill.createdAt) {
+      const d = new Date(bill.createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      }
+      const dmyMatch = bill.createdAt.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (dmyMatch) {
+        return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, "0")}-${dmyMatch[1].padStart(2, "0")}`;
+      }
+      const monthNames: Record<string, string> = {
+        jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+        jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12"
+      };
+      const namedMatch = bill.createdAt.match(/(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})/);
+      if (namedMatch) {
+        const month = monthNames[namedMatch[2].slice(0, 3).toLowerCase()] || "01";
+        return `${namedMatch[3]}-${month}-${namedMatch[1].padStart(2, "0")}`;
+      }
+    }
+    return "";
+  }, []);
+
+  // Helper: Calculate total wholesale procurement cost for all items in a completed bill
+  const getBillPurchaseCost = useCallback((bill: CompletedBill): number => {
+    return (bill.items || []).reduce((sum, it) => {
+      const qty = it.quantity || 1;
+      let cost = it.product?.purchaseCost || 0;
+      if (cost <= 0) {
+        const itAny = it as any;
+        if (itAny.purchaseCost) cost = Number(itAny.purchaseCost);
+        else if (itAny.purchase_cost) cost = Number(itAny.purchase_cost);
+      }
+      if (cost <= 0) {
+        const pSku = (it.product?.sku || (it as any).sku || "").toLowerCase();
+        const pId = (it.product?.id || (it as any).id || "").toLowerCase();
+        const pName = (it.product?.name || (it as any).name || "").trim().toLowerCase();
+        cost = (pSku && productCostMap.get(pSku)) ||
+               (pId && productCostMap.get(pId)) ||
+               (pName && productCostMap.get(pName)) ||
+               0;
+      }
+      return sum + (cost * qty);
+    }, 0);
+  }, [productCostMap]);
+
   // Advanced Filtered Completed Bills for Sales Report Tab
   const filteredReportBills = useMemo(() => {
     const q = reportSearch.trim().toLowerCase();
-    const todayStr = new Date().toLocaleDateString("en-IN");
+    const now = new Date();
+    const todayStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const yest = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yest.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const parso = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const parsoStr = parso.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const currentYearMonth = todayStr.slice(0, 7);
+    const currentYear = todayStr.slice(0, 4);
+
+    const parseSeq = (no: string) => {
+      const m = (no || "").match(/(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    };
 
     return completedBills.filter(bill => {
       // Payment filter
       if (reportPaymentFilter !== "all" && bill.paymentMode !== reportPaymentFilter) {
         return false;
       }
+
       // Date filter
+      const bDate = getBillDateString(bill);
       if (reportDateFilter === "today") {
-        if (!bill.createdAt.includes(todayStr) && !bill.createdAt.toLowerCase().includes("today")) {
-          // Fallback if locale format varies
-          const billDate = new Date(bill.createdAt);
-          const now = new Date();
-          if (billDate.toDateString() !== now.toDateString()) return false;
-        }
+        if (bDate !== todayStr) return false;
+      } else if (reportDateFilter === "yesterday") {
+        if (bDate !== yesterdayStr) return false;
+      } else if (reportDateFilter === "day_before") {
+        if (bDate !== parsoStr) return false;
+      } else if (reportDateFilter === "this_month") {
+        if (!bDate.startsWith(currentYearMonth)) return false;
+      } else if (reportDateFilter === "this_year") {
+        if (!bDate.startsWith(currentYear)) return false;
+      } else if (reportDateFilter === "custom") {
+        if (reportCustomDate && bDate !== reportCustomDate) return false;
       }
+
       // Search query
       if (q) {
         const matchesBillNo = bill.billNo.toLowerCase().includes(q);
@@ -1267,12 +1420,21 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     }).sort((a, b) => {
       if (reportSortBy === "highest") return b.grandTotal - a.grandTotal;
       if (reportSortBy === "lowest") return a.grandTotal - b.grandTotal;
-      // Default: latest (b vs a by bill id or timestamp)
-      return b.id.localeCompare(a.id);
+      if (reportSortBy === "oldest") {
+        const sA = parseSeq(a.billNo);
+        const sB = parseSeq(b.billNo);
+        if (sA !== sB) return sA - sB;
+        return (a.rawDate || a.createdAt).localeCompare(b.rawDate || b.createdAt);
+      }
+      // Default: "latest" (Highest bill number first: e.g. RJN-2026-0162, 0161, 0160...)
+      const sA = parseSeq(a.billNo);
+      const sB = parseSeq(b.billNo);
+      if (sA !== sB) return sB - sA;
+      return (b.rawDate || b.createdAt).localeCompare(a.rawDate || a.createdAt);
     });
-  }, [completedBills, reportSearch, reportPaymentFilter, reportDateFilter, reportSortBy]);
+  }, [completedBills, reportSearch, reportPaymentFilter, reportDateFilter, reportCustomDate, reportSortBy, getBillDateString]);
 
-  // Advanced Sales Report Analytics
+  // Advanced Sales Report Analytics with Cost & Net Profit
   const reportAnalytics = useMemo(() => {
     const list = filteredReportBills;
     const totalRev = list.reduce((s, b) => s + b.grandTotal, 0);
@@ -1284,19 +1446,43 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const totalItemsSold = list.reduce((s, b) => s + b.items.reduce((is, it) => is + it.quantity, 0), 0);
     const avgBillValue = list.length > 0 ? Math.round(totalRev / list.length) : 0;
 
+    // Wholesale Cost & Profit
+    const totalCost = list.reduce((s, b) => s + getBillPurchaseCost(b), 0);
+    const totalProfit = totalRev - totalCost;
+    const profitMarginPct = totalRev > 0 ? Math.round((totalProfit / totalRev) * 100) : 0;
+
     // Category Sales Breakdown
-    const catBreakdown: Record<string, { count: number; revenue: number }> = {};
+    const catBreakdown: Record<string, { count: number; revenue: number; cost: number; profit: number }> = {};
     for (const bill of list) {
       for (const item of bill.items) {
         const cat = item.product.category || "other";
-        if (!catBreakdown[cat]) catBreakdown[cat] = { count: 0, revenue: 0 };
-        catBreakdown[cat].count += item.quantity;
-        catBreakdown[cat].revenue += item.price * item.quantity;
+        if (!catBreakdown[cat]) catBreakdown[cat] = { count: 0, revenue: 0, cost: 0, profit: 0 };
+        const qty = item.quantity || 1;
+        const rev = item.price * qty;
+        
+        let itemCost = item.product?.purchaseCost || 0;
+        if (itemCost <= 0) {
+          const skuKey = item.product?.sku ? item.product.sku.toLowerCase() : "";
+          const idKey = item.product?.id ? item.product.id.toLowerCase() : "";
+          const nameKey = item.product?.name ? item.product.name.trim().toLowerCase() : "";
+          itemCost = (skuKey && productCostMap.get(skuKey)) ||
+                     (idKey && productCostMap.get(idKey)) ||
+                     (nameKey && productCostMap.get(nameKey)) ||
+                     0;
+        }
+        const totalItemCost = itemCost * qty;
+        catBreakdown[cat].count += qty;
+        catBreakdown[cat].revenue += rev;
+        catBreakdown[cat].cost += totalItemCost;
+        catBreakdown[cat].profit += (rev - totalItemCost);
       }
     }
 
     return {
       totalRev,
+      totalCost,
+      totalProfit,
+      profitMarginPct,
       totalCash,
       totalUpi,
       totalCard,
@@ -1307,26 +1493,61 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       catBreakdown,
       billCount: list.length
     };
-  }, [filteredReportBills]);
+  }, [filteredReportBills, getBillPurchaseCost, productCostMap]);
 
-  // Export Sales Report to CSV
+  // Multipage Pagination calculation
+  const totalReportPages = useMemo(() => {
+    if (reportPageSize >= 9999) return 1;
+    return Math.max(1, Math.ceil(filteredReportBills.length / reportPageSize));
+  }, [filteredReportBills.length, reportPageSize]);
+
+  const paginatedReportBills = useMemo(() => {
+    if (reportPageSize >= 9999) return filteredReportBills;
+    const start = (reportPage - 1) * reportPageSize;
+    return filteredReportBills.slice(start, start + reportPageSize);
+  }, [filteredReportBills, reportPage, reportPageSize]);
+
+  // Friendly date label for UI
+  const reportDateFilterLabel = useMemo(() => {
+    switch (reportDateFilter) {
+      case "today": return "Aaj (Today)";
+      case "yesterday": return "Kal (Yesterday)";
+      case "day_before": return "Parso (2 Days Ago)";
+      case "this_month": return "Iss Mahine (This Month)";
+      case "this_year": return "Iss Saal (This Year)";
+      case "custom": return reportCustomDate ? `Tareekh: ${reportCustomDate}` : "Custom Tareekh";
+      default: return "All Time (Opening Se Ab Tak)";
+    }
+  }, [reportDateFilter, reportCustomDate]);
+
+  // Export Sales Report to CSV (with Wholesale Cost & Net Profit)
   const handleExportReportCSV = () => {
     if (filteredReportBills.length === 0) {
       alert("No bills available to export!");
       return;
     }
-    const headers = ["Bill No", "Date", "Customer Name", "Phone", "Items Sold", "Payment Mode", "Subtotal", "Discount", "Grand Total"];
-    const rows = filteredReportBills.map(b => [
-      `"${b.billNo}"`,
-      `"${b.createdAt}"`,
-      `"${b.customer.name.replace(/"/g, '""')}"`,
-      `"${b.customer.phone}"`,
-      `"${b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ").replace(/"/g, '""')}"`,
-      `"${b.paymentMode.toUpperCase()}"`,
-      b.subtotal,
-      b.totalSavings || b.discount || 0,
-      b.grandTotal
-    ]);
+    const headers = [
+      "Bill No", "Date", "Customer Name", "Phone", "Items Sold",
+      "Payment Mode", "Subtotal", "Bargain Discount", "Wholesale Cost",
+      "Net Profit", "Grand Total"
+    ];
+    const rows = filteredReportBills.map(b => {
+      const bCost = getBillPurchaseCost(b);
+      const bProfit = b.grandTotal - bCost;
+      return [
+        `"${b.billNo}"`,
+        `"${b.createdAt}"`,
+        `"${b.customer.name.replace(/"/g, '""')}"`,
+        `"${b.customer.phone}"`,
+        `"${b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ").replace(/"/g, '""')}"`,
+        `"${b.paymentMode.toUpperCase()}"`,
+        b.subtotal,
+        b.totalSavings || b.discount || 0,
+        bCost,
+        bProfit,
+        b.grandTotal
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -1337,6 +1558,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     link.click();
     document.body.removeChild(link);
   };
+
 
   // Show Royal Flagship Login Screen if not authenticated
   if (!isAuthenticated) {
@@ -2732,19 +2954,24 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               {/* Executive Header & Quick Actions */}
               <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-stone-900">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
-                    Executive Accounting &amp; Revenue Intelligence
-                  </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500">
+                      Executive Accounting &amp; Revenue Intelligence
+                    </span>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded-full text-[10px] border border-amber-300">
+                      {reportDateFilterLabel}
+                    </span>
+                  </div>
                   <h2 className="text-2xl font-black text-stone-900 font-serif">Daily Sales &amp; Settlement Suite</h2>
                   <p className="text-xs text-stone-500 mt-1">
-                    Live breakdown of showroom revenue, UPI vs Cash collections, customer discounts, and digital invoices.
+                    Live breakdown of showroom revenue, wholesale product costs, net profit, UPI vs Cash collections, and customer discounts.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={handleExportReportCSV}
                     className="px-3.5 py-2.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                    title="Export Sales Data to Excel/CSV"
+                    title="Export Sales Data with Wholesale Cost & Net Profit to Excel/CSV"
                   >
                     <Download className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Download CSV</span>
@@ -2764,7 +2991,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </button>
                   )}
                   <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
-                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Filtered Revenue</span>
+                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Filtered Net Revenue</span>
                     <span className="text-lg font-black text-stone-900 font-mono">
                       ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
                     </span>
@@ -2772,54 +2999,84 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
               </div>
 
-              {/* 5 Executive Metric Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Total Net Revenue</span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+              {/* 7 Executive Metric Cards: Revenue, Wholesale Cost, Net Profit & Collections */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                {/* 1. Total Net Revenue */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Total Net Revenue</span>
+                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
                     ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10.5px] text-stone-500 font-semibold">{reportAnalytics.billCount} Invoices</span>
+                  <span className="text-[10px] text-stone-500 font-semibold">{reportAnalytics.billCount} Invoices</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                    <Banknote className="w-3.5 h-3.5" /> Cash Collected
+                {/* 2. Wholesale Purchase Cost */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Wholesale Cost</span>
+                  <p className="text-xl font-black text-slate-800 font-mono mt-1">
+                    ₹{reportAnalytics.totalCost.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-slate-500 font-medium">Procurement / Kharid</span>
+                </div>
+
+                {/* 3. Net Gross Profit */}
+                <div className="bg-white p-3.5 rounded-2xl border-2 border-emerald-300 shadow-xs bg-gradient-to-br from-emerald-50/60 to-white">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Net Profit
+                    </span>
+                    <span className="text-[9.5px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-md">
+                      {reportAnalytics.profitMarginPct}% Margin
+                    </span>
+                  </div>
+                  <p className="text-xl font-black text-emerald-700 font-mono mt-1">
+                    ₹{reportAnalytics.totalProfit.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-emerald-600 font-semibold">Gross Profit Earned</span>
+                </div>
+
+                {/* 4. Cash Drawer */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
+                  <span className="text-[10px] font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1">
+                    <Banknote className="w-3.5 h-3.5 text-emerald-600" /> Cash Drawer
                   </span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
                     ₹{reportAnalytics.totalCash.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10.5px] text-emerald-700 font-semibold">Physical Cash in Drawer</span>
+                  <span className="text-[10px] text-stone-500 font-semibold">In Counter Drawer</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                {/* 5. UPI Online */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
                   <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
                     <QrCode className="w-3.5 h-3.5" /> UPI / PhonePe
                   </span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
                     ₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10.5px] text-purple-700 font-semibold">Instant Bank Credits</span>
+                  <span className="text-[10px] text-purple-700 font-semibold">Direct Bank Credit</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs">
+                {/* 6. Card & Khata */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
                   <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
-                    <CreditCard className="w-3.5 h-3.5" /> Card &amp; Khata
+                    <CreditCard className="w-3.5 h-3.5" /> Card / Khata
                   </span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
                     ₹{(reportAnalytics.totalCard + reportAnalytics.totalKhata).toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10.5px] text-amber-800 font-semibold">POS Machine &amp; Ledger</span>
+                  <span className="text-[10px] text-amber-800 font-semibold">POS Machine &amp; Khata</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs col-span-2 md:col-span-1">
+                {/* 7. Bargain Savings */}
+                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
                   <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" /> Total Bargain Savings
+                    <Sparkles className="w-3.5 h-3.5" /> Bargain Dis.
                   </span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
+                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
                     ₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")}
                   </p>
-                  <span className="text-[10.5px] text-stone-500 font-semibold">{reportAnalytics.totalItemsSold} Items Sold</span>
+                  <span className="text-[10px] text-stone-500 font-semibold">{reportAnalytics.totalItemsSold} Items Sold</span>
                 </div>
               </div>
 
@@ -2828,7 +3085,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
                   <div className="flex items-center justify-between mb-2.5">
                     <span className="text-xs font-bold text-stone-800 uppercase tracking-wider font-serif">
-                      Sales by Category
+                      Sales &amp; Margin by Category
                     </span>
                     <span className="text-[11px] text-stone-500 font-medium font-mono">
                       Avg Bill Value: ₹{reportAnalytics.avgBillValue.toLocaleString("en-IN")}
@@ -2837,16 +3094,25 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                     {Object.entries(reportAnalytics.catBreakdown).map(([catKey, data]) => {
                       const theme = getCategoryTheme(catKey);
+                      const marginPct = data.revenue > 0 ? Math.round((data.profit / data.revenue) * 100) : 0;
                       return (
                         <div key={catKey} className="bg-stone-50 border border-stone-200/80 p-2.5 rounded-xl">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 capitalize">
-                            <span>{theme.icon}</span>
-                            <span className="truncate">{catKey}</span>
+                          <div className="flex items-center justify-between text-xs font-bold text-stone-700 capitalize">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span>{theme.icon}</span>
+                              <span className="truncate">{catKey}</span>
+                            </div>
+                            <span className="text-[9.5px] px-1 bg-emerald-50 text-emerald-700 font-mono rounded">
+                              {marginPct}%
+                            </span>
                           </div>
                           <p className="text-sm font-black text-stone-900 font-mono mt-1">
                             ₹{data.revenue.toLocaleString("en-IN")}
                           </p>
-                          <span className="text-[10px] text-stone-500 font-medium">{data.count} pcs sold</span>
+                          <div className="flex items-center justify-between text-[10px] text-stone-500 mt-0.5">
+                            <span>{data.count} pcs sold</span>
+                            <span className="text-emerald-700 font-semibold font-mono">+₹{data.profit.toLocaleString("en-IN")}</span>
+                          </div>
                         </div>
                       );
                     })}
@@ -2854,21 +3120,80 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
               )}
 
-              {/* Advanced Filter & Search Controls */}
+              {/* Date Presets Filter Bar & Custom Calendar Picker */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-stone-400 mr-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-stone-600" /> Filter Tareekh:
+                  </span>
+                  
+                  {[
+                    { id: "all", label: "All Time (Saare Bill)" },
+                    { id: "today", label: "Aaj (Today)" },
+                    { id: "yesterday", label: "Kal (Yesterday)" },
+                    { id: "day_before", label: "Parso (2 Days Ago)" },
+                    { id: "this_month", label: "Iss Mahine (Month)" },
+                    { id: "this_year", label: "Iss Saal (Year)" },
+                    { id: "custom", label: "📅 Custom Tareekh" },
+                  ].map(tab => {
+                    const isActive = reportDateFilter === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setReportDateFilter(tab.id as any);
+                          setReportPage(1);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                          isActive
+                            ? "bg-amber-900 text-amber-50 shadow-xs border border-amber-900"
+                            : "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200/80"
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Date Input (shown when custom is selected) */}
+                {reportDateFilter === "custom" && (
+                  <div className="flex items-center gap-2 bg-amber-50/70 border border-amber-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-xs font-bold text-amber-900">Select Date:</span>
+                    <input
+                      type="date"
+                      value={reportCustomDate}
+                      onChange={e => {
+                        setReportCustomDate(e.target.value);
+                        setReportPage(1);
+                      }}
+                      className="bg-white border border-amber-300 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Filter, Search, Sort & Rows Per Page Controls */}
               <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
                 {/* Search in Bills */}
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search by Bill No (e.g. RJN-2026-0101), Customer Name, Mobile, or Product..."
+                    placeholder="Search by Bill No (e.g. RJN-2026-0155), Customer Name, Mobile, or Product..."
                     value={reportSearch}
-                    onChange={e => setReportSearch(e.target.value)}
+                    onChange={e => {
+                      setReportSearch(e.target.value);
+                      setReportPage(1);
+                    }}
                     className="w-full pl-10 pr-8 py-2 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
                   />
                   {reportSearch && (
                     <button
-                      onClick={() => setReportSearch("")}
+                      onClick={() => {
+                        setReportSearch("");
+                        setReportPage(1);
+                      }}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -2881,10 +3206,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   {/* Payment Filter */}
                   <select
                     value={reportPaymentFilter}
-                    onChange={e => setReportPaymentFilter(e.target.value)}
+                    onChange={e => {
+                      setReportPaymentFilter(e.target.value);
+                      setReportPage(1);
+                    }}
                     className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    <option value="all">All Modes</option>
+                    <option value="all">All Modes (Sabhi)</option>
                     <option value="cash">💵 Cash Only</option>
                     <option value="upi">📱 UPI QR Only</option>
                     <option value="card">💳 Card Only</option>
@@ -2894,12 +3222,31 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   {/* Sort Order */}
                   <select
                     value={reportSortBy}
-                    onChange={e => setReportSortBy(e.target.value as any)}
+                    onChange={e => {
+                      setReportSortBy(e.target.value as any);
+                      setReportPage(1);
+                    }}
                     className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    <option value="latest">Sort: Latest First</option>
+                    <option value="latest">Sort: Newest Bill No (0162 → 0111)</option>
+                    <option value="oldest">Sort: Oldest Bill No (0111 → 0162)</option>
                     <option value="highest">Sort: Highest Amount</option>
                     <option value="lowest">Sort: Lowest Amount</option>
+                  </select>
+
+                  {/* Rows Per Page */}
+                  <select
+                    value={reportPageSize}
+                    onChange={e => {
+                      setReportPageSize(Number(e.target.value));
+                      setReportPage(1);
+                    }}
+                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value={15}>15 per page</option>
+                    <option value={25}>25 per page</option>
+                    <option value={50}>50 per page</option>
+                    <option value={9999}>Show All</option>
                   </select>
                 </div>
               </div>
@@ -2907,19 +3254,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               {/* Bills History Table */}
               <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
-                  <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
-                    Completed Showroom Invoices ({filteredReportBills.length})
-                  </h3>
-                  {reportSearch || reportPaymentFilter !== "all" ? (
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
+                      Completed Showroom Invoices ({filteredReportBills.length})
+                    </h3>
+                    <span className="text-[11px] text-stone-500">
+                      (Page {reportPage} of {totalReportPages})
+                    </span>
+                  </div>
+                  {reportSearch || reportPaymentFilter !== "all" || reportDateFilter !== "all" ? (
                     <button
                       onClick={() => {
                         setReportSearch("");
                         setReportPaymentFilter("all");
+                        setReportDateFilter("all");
                         setReportSortBy("latest");
+                        setReportPage(1);
                       }}
                       className="text-xs text-amber-700 hover:underline font-bold cursor-pointer"
                     >
-                      Reset Filters
+                      Reset All Filters
                     </button>
                   ) : null}
                 </div>
@@ -2928,7 +3282,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <div className="p-12 text-center text-stone-400">
                     <Receipt className="w-12 h-12 mx-auto mb-2 opacity-30 text-stone-500" />
                     <p className="text-sm font-bold text-stone-700">No matching bills found</p>
-                    <p className="text-xs text-stone-400 mt-1">Try clearing search or filters to see all completed bills.</p>
+                    <p className="text-xs text-stone-400 mt-1">Try selecting a different date preset (e.g. All Time or Kal) or clearing search filters.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -2939,126 +3293,253 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           <th className="px-4 py-3">Customer Details</th>
                           <th className="px-4 py-3">Items Purchased</th>
                           <th className="px-4 py-3">Payment</th>
+                          <th className="px-3 py-3 text-right">Wholesale Cost</th>
+                          <th className="px-3 py-3 text-right">Net Profit</th>
                           <th className="px-4 py-3 text-right">Grand Total</th>
                           <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                        {filteredReportBills.map(b => (
-                          <React.Fragment key={b.id}>
-                            <tr className="hover:bg-amber-50/40 transition">
-                              <td className="px-4 py-3">
-                                <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
-                                <p className="text-[10px] text-stone-500">{b.createdAt}</p>
-                              </td>
-                              <td className="px-4 py-3">
-                                <p className="font-bold text-stone-900">{b.customer.name}</p>
-                                <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
-                              </td>
-                              <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
-                                <button
-                                  onClick={() => setReportExpandedBillId(reportExpandedBillId === b.id ? null : b.id)}
-                                  className="text-left hover:text-stone-900 hover:underline cursor-pointer group"
-                                  title="Click to view full item breakdown"
-                                >
-                                  <span className="font-semibold text-stone-800">
-                                    {b.items.reduce((s, it) => s + it.quantity, 0)} Pcs:{" "}
+                        {paginatedReportBills.map(b => {
+                          const billCost = getBillPurchaseCost(b);
+                          const billProfit = b.grandTotal - billCost;
+                          const billMargin = b.grandTotal > 0 ? Math.round((billProfit / b.grandTotal) * 100) : 0;
+                          return (
+                            <React.Fragment key={b.id}>
+                              <tr className="hover:bg-amber-50/40 transition">
+                                <td className="px-4 py-3">
+                                  <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
+                                  <p className="text-[10px] text-stone-500">{b.createdAt}</p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-bold text-stone-900">{b.customer.name}</p>
+                                  <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
+                                </td>
+                                <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
+                                  <button
+                                    onClick={() => setReportExpandedBillId(reportExpandedBillId === b.id ? null : b.id)}
+                                    className="text-left hover:text-stone-900 hover:underline cursor-pointer group"
+                                    title="Click to view full item breakdown"
+                                  >
+                                    <span className="font-semibold text-stone-800">
+                                      {b.items.reduce((s, it) => s + it.quantity, 0)} Pcs:{" "}
+                                    </span>
+                                    {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
+                                    b.paymentMode === "cash" 
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                      : b.paymentMode === "upi"
+                                      ? "bg-purple-50 text-purple-800 border-purple-200"
+                                      : "bg-amber-50 text-amber-800 border-amber-200"
+                                  }`}>
+                                    {b.paymentMode}
                                   </span>
-                                  {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
-                                </button>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
-                                  b.paymentMode === "cash" 
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                    : b.paymentMode === "upi"
-                                    ? "bg-purple-50 text-purple-800 border-purple-200"
-                                    : "bg-amber-50 text-amber-800 border-amber-200"
-                                }`}>
-                                  {b.paymentMode}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right font-mono">
-                                <span className="font-black text-stone-950 text-sm block">
-                                  ₹{b.grandTotal.toLocaleString("en-IN")}
-                                </span>
-                                {(b.totalSavings || b.discount) > 0 && (
-                                  <span className="text-[10px] text-emerald-700 font-bold block">
-                                    Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                                </td>
+                                <td className="px-3 py-3 text-right font-mono">
+                                  <span className="text-slate-700 font-bold block">
+                                    ₹{billCost.toLocaleString("en-IN")}
                                   </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    onClick={() => handleStartEditBill(b)}
-                                    className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
-                                    title="Edit this bill (Bargain, add more items)"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 text-amber-800" />
-                                    <span>Edit</span>
-                                  </button>
-                                  <button
-                                    onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
-                                    className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                    title="View / Download PDF Invoice"
-                                  >
-                                    <FileText className="w-3.5 h-3.5 text-amber-700" />
-                                    <span>PDF</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleSendWhatsAppBill(b)}
-                                    className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                    title="Send WhatsApp Bill"
-                                  >
-                                    <Share2 className="w-3.5 h-3.5" />
-                                    <span>WhatsApp</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteSingleBill(b)}
-                                    className="p-1.5 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer font-bold transition"
-                                    title="Delete single bill entry"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {/* Expandable item details row */}
-                            {reportExpandedBillId === b.id && (
-                              <tr className="bg-stone-50/70 border-b border-stone-200">
-                                <td colSpan={6} className="px-6 py-3">
-                                  <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
-                                    <div className="flex items-center justify-between text-xs font-bold text-stone-700 border-b pb-1.5">
-                                      <span>Itemized Receipt Details</span>
-                                      <span>Bill Subtotal: ₹{b.subtotal.toLocaleString("en-IN")}</span>
-                                    </div>
-                                    <div className="space-y-1">
-                                      {b.items.map((it, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-xs">
-                                          <span className="text-stone-800 font-medium">
-                                            {it.quantity}x {it.product.name} ({it.selectedSize || "Standard"}) · SKU: {it.product.sku}
-                                          </span>
-                                          <span className="font-mono font-bold text-stone-900">
-                                            ₹{(it.price * it.quantity).toLocaleString("en-IN")}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    {b.alteration && (
-                                      <div className="pt-2 border-t border-dashed border-stone-200 text-xs text-amber-800 flex items-center gap-1.5 font-medium">
-                                        <Scissors className="w-3.5 h-3.5" />
-                                        <span>Alteration: {b.alteration.garmentName} (Ready Date: {b.alteration.readyDate})</span>
-                                      </div>
-                                    )}
+                                </td>
+                                <td className="px-3 py-3 text-right font-mono">
+                                  <span className={`font-black text-xs block ${billProfit >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                                    ₹{billProfit.toLocaleString("en-IN")}
+                                  </span>
+                                  <span className={`text-[9.5px] font-bold inline-block px-1 rounded ${billProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                                    {billMargin}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono">
+                                  <span className="font-black text-stone-950 text-sm block">
+                                    ₹{b.grandTotal.toLocaleString("en-IN")}
+                                  </span>
+                                  {(b.totalSavings || b.discount) > 0 && (
+                                    <span className="text-[10px] text-emerald-700 font-bold block">
+                                      Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleStartEditBill(b)}
+                                      className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
+                                      title="Edit this bill (Bargain, add more items)"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-amber-800" />
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
+                                      className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                      title="View / Download PDF Invoice"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-amber-700" />
+                                      <span>PDF</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleSendWhatsAppBill(b)}
+                                      className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                      title="Send WhatsApp Bill"
+                                    >
+                                      <Share2 className="w-3.5 h-3.5" />
+                                      <span>WhatsApp</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSingleBill(b)}
+                                      className="p-1.5 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer font-bold transition"
+                                      title="Delete single bill entry"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
-                            )}
-                          </React.Fragment>
-                        ))}
+                              {/* Expandable item details row */}
+                              {reportExpandedBillId === b.id && (
+                                <tr className="bg-stone-50/70 border-b border-stone-200">
+                                  <td colSpan={8} className="px-6 py-3">
+                                    <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
+                                      <div className="flex items-center justify-between text-xs font-bold text-stone-700 border-b pb-1.5">
+                                        <span>Itemized Receipt Details with Wholesale Profit</span>
+                                        <span>Bill Subtotal: ₹{b.subtotal.toLocaleString("en-IN")}</span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        {b.items.map((it, idx) => {
+                                          const itQty = it.quantity || 1;
+                                          const itRev = it.price * itQty;
+                                          let itCost = it.product?.purchaseCost || 0;
+                                          if (itCost <= 0) {
+                                            const sKey = (it.product?.sku || (it as any).sku || "").toLowerCase();
+                                            const iKey = (it.product?.id || (it as any).id || "").toLowerCase();
+                                            const nKey = (it.product?.name || (it as any).name || "").trim().toLowerCase();
+                                            itCost = (sKey && productCostMap.get(sKey)) ||
+                                                     (iKey && productCostMap.get(iKey)) ||
+                                                     (nKey && productCostMap.get(nKey)) ||
+                                                     0;
+                                          }
+                                          const totalItemCost = itCost * itQty;
+                                          const itProfit = itRev - totalItemCost;
+                                          return (
+                                            <div key={idx} className="flex justify-between items-center text-xs">
+                                              <span className="text-stone-800 font-medium">
+                                                {itQty}x {it.product.name} ({it.selectedSize || "Standard"}) · SKU: {it.product.sku}
+                                              </span>
+                                              <div className="flex items-center gap-3 font-mono">
+                                                <span className="text-stone-500 text-[11px]">
+                                                  Cost: ₹{totalItemCost.toLocaleString("en-IN")}
+                                                </span>
+                                                <span className="text-emerald-700 font-bold text-[11px]">
+                                                  Profit: ₹{itProfit.toLocaleString("en-IN")}
+                                                </span>
+                                                <span className="font-bold text-stone-900">
+                                                  ₹{itRev.toLocaleString("en-IN")}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                      {b.alteration && (
+                                        <div className="pt-2 border-t border-dashed border-stone-200 text-xs text-amber-800 flex items-center gap-1.5 font-medium">
+                                          <Scissors className="w-3.5 h-3.5" />
+                                          <span>Alteration: {b.alteration.garmentName} (Ready Date: {b.alteration.readyDate})</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {/* Multipage Pagination Controls */}
+                {filteredReportBills.length > 0 && (
+                  <div className="p-4 border-t border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-stone-600 font-medium">
+                      Showing <span className="font-bold text-stone-900">{reportPageSize >= 9999 ? 1 : Math.min((reportPage - 1) * reportPageSize + 1, filteredReportBills.length)}</span> to <span className="font-bold text-stone-900">{reportPageSize >= 9999 ? filteredReportBills.length : Math.min(reportPage * reportPageSize, filteredReportBills.length)}</span> of <span className="font-bold text-stone-900">{filteredReportBills.length}</span> bills · <span className="text-stone-500">Page {reportPage} of {totalReportPages}</span>
+                    </div>
+
+                    {totalReportPages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        {/* First Page */}
+                        <button
+                          onClick={() => setReportPage(1)}
+                          disabled={reportPage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          title="First Page"
+                        >
+                          « First
+                        </button>
+
+                        {/* Prev Page */}
+                        <button
+                          onClick={() => setReportPage(p => Math.max(1, p - 1))}
+                          disabled={reportPage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          title="Previous Page"
+                        >
+                          ‹ Prev
+                        </button>
+
+                        {/* Numbered Page Buttons */}
+                        {Array.from({ length: totalReportPages }, (_, i) => i + 1)
+                          .filter(p => p === 1 || p === totalReportPages || Math.abs(p - reportPage) <= 2)
+                          .reduce<(number | string)[]>((acc, curr, idx, arr) => {
+                            if (idx > 0 && (curr as number) - (arr[idx - 1] as number) > 1) {
+                              acc.push("...");
+                            }
+                            acc.push(curr);
+                            return acc;
+                          }, [])
+                          .map((p, idx) => {
+                            if (p === "...") {
+                              return <span key={`ellipsis-${idx}`} className="px-1 text-stone-400 font-bold text-xs">...</span>;
+                            }
+                            const isCurrent = p === reportPage;
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => setReportPage(Number(p))}
+                                className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                  isCurrent
+                                    ? "bg-amber-900 text-amber-50 border border-amber-900 shadow-xs"
+                                    : "bg-white hover:bg-stone-100 text-stone-700 border border-stone-300"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+
+                        {/* Next Page */}
+                        <button
+                          onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))}
+                          disabled={reportPage === totalReportPages}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          title="Next Page"
+                        >
+                          Next ›
+                        </button>
+
+                        {/* Last Page */}
+                        <button
+                          onClick={() => setReportPage(totalReportPages)}
+                          disabled={reportPage === totalReportPages}
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          title="Last Page"
+                        >
+                          Last »
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
