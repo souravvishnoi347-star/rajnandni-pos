@@ -2313,16 +2313,6 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-500" : "bg-stone-400"} animate-pulse`} />
             </button>
 
-            <Link
-              href="/owner"
-              target="_blank"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition cursor-pointer"
-              title="Open Owner Security & OTP Desk"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden xl:inline">Owner Desk (OTP)</span>
-            </Link>
-
             <div className="hidden lg:flex items-center gap-3.5 bg-stone-100 border border-stone-200 px-3.5 py-1.5 rounded-xl">
               <div className="text-right">
                 <span className="text-[9.5px] text-stone-500 uppercase font-bold tracking-wider block">Today's Collection</span>
@@ -5937,17 +5927,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                     👉 Phone screen par dikh raha 6-digit OTP ya Master PIN (<strong className="text-amber-300">7898</strong>) daal kar Unlock karein.
                   </p>
                 </div>
-              </div>
-
-              {/* Link to Owner Desk */}
-              <div className="pt-2 text-center border-t border-stone-800">
-                <Link
-                  href="/owner"
-                  target="_blank"
-                  className="text-[11px] text-amber-400 hover:text-amber-300 underline font-semibold"
-                >
-                  Are you the Store Owner? Open Owner Desk on this device &rarr;
-                </Link>
               </div>
             </div>
           </div>
