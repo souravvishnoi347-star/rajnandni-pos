@@ -5903,38 +5903,38 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                   </button>
                 )}
 
-                {/* Counter Master PIN / Backup Unlock */}
-                <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
+                {/* Counter OTP / Master PIN Unlock */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-stone-950 to-stone-900 border border-amber-500/30 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-stone-300 font-bold flex items-center gap-1.5 text-xs">
-                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Owner Desk PIN (Counter Unlock)</span>
+                    <span className="text-amber-400 font-bold flex items-center gap-1.5 text-xs">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Enter 6-Digit Code from Phone OR Master PIN</span>
                     </span>
-                    <span className="text-[10px] text-stone-500 font-mono">Master Key</span>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">Instant Unlock</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <input
-                      type="password"
+                      type="text"
                       maxLength={10}
                       value={ownerOtpInput}
                       onChange={(e) => {
                         setOwnerOtpInput(e.target.value);
                         setOwnerAuthError("");
                       }}
-                      placeholder="Enter Master PIN (e.g. 7898 or Indu@123)"
-                      className="flex-1 px-4 py-2 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono font-bold text-center text-sm tracking-wider focus:outline-hidden focus:border-amber-500"
+                      placeholder="e.g. 884655 or 7898"
+                      className="flex-1 px-4 py-2.5 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono font-black text-center text-base tracking-widest focus:outline-hidden focus:border-amber-500"
                     />
                     <button
                       type="button"
                       onClick={handleVerifyOwnerOtp}
-                      className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap"
+                      className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-amber-500/20 whitespace-nowrap"
                     >
-                      Verify PIN
+                      Verify &amp; Unlock
                     </button>
                   </div>
-                  <p className="text-[10px] text-stone-500 text-center">
-                    Agar Indu ji counter par hain, to Master PIN enter karke bhi instantly unlock kar sakte hain.
+                  <p className="text-[11px] text-stone-400 text-center">
+                    👉 Phone screen par dikh raha 6-digit OTP ya Master PIN (<strong className="text-amber-300">7898</strong>) daal kar Unlock karein.
                   </p>
                 </div>
               </div>
