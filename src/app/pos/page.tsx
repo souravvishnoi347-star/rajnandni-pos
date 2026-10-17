@@ -615,17 +615,17 @@ export default function RajnandiniPosPage() {
   const handleVerifyOwnerOtp = async () => {
     if (!ownerAuthDetails) return;
     if (!ownerAuthReason.trim()) {
-      setOwnerAuthError("कृपया बदलाव करने का कारण (Reason) अवश्य लिखें!");
+      setOwnerAuthError("Reason for modification is required!");
       return;
     }
     if (!ownerOtpInput.trim()) {
-      setOwnerAuthError("कृपया मालिक के फोन पर आ रहा 6 अंकों का OTP दर्ज करें!");
+      setOwnerAuthError("Please enter the 6-digit OTP from the Owner's phone!");
       return;
     }
 
     const isValid = verifyOwnerOtp(ownerOtpInput);
     if (!isValid) {
-      setOwnerAuthError("गलत OTP कोड! कृपया मालिक के फोन पर आ रहा नया 6-digit OTP देखें।");
+      setOwnerAuthError("Invalid OTP code! Please check the live 6-digit OTP on the Owner's phone.");
       return;
     }
 
@@ -658,7 +658,7 @@ export default function RajnandiniPosPage() {
   const handleSendRemoteRequest = async () => {
     if (!ownerAuthDetails) return;
     if (!ownerAuthReason.trim()) {
-      setOwnerAuthError("कृपया बदलाव करने का कारण (Reason) अवश्य लिखें!");
+      setOwnerAuthError("Reason for modification is required!");
       return;
     }
     setOwnerAuthError("");
@@ -679,7 +679,7 @@ export default function RajnandiniPosPage() {
     } catch (e) {
       console.error("Failed to create remote request:", e);
       setIsWaitingRemoteApproval(false);
-      setOwnerAuthError("अनुरोध भेजने में समस्या आई, कृपया OTP दर्ज करें।");
+      setOwnerAuthError("Failed to send request. Please enter the live OTP instead.");
     }
   };
 
@@ -713,7 +713,7 @@ export default function RajnandiniPosPage() {
       } else if (status === "rejected") {
         clearInterval(checkInterval);
         setIsWaitingRemoteApproval(false);
-        setOwnerAuthError("❌ Owner ने यह बदलाव अस्वीकार (Reject) कर दिया है!");
+        setOwnerAuthError("❌ Request was rejected by the Owner on their phone.");
       }
     }, 2000);
 
@@ -741,7 +741,7 @@ export default function RajnandiniPosPage() {
           setOwnerAuthError("");
         } else {
           setIsWaitingRemoteApproval(false);
-          setOwnerAuthError("❌ Owner ने यह बदलाव अस्वीकार (Reject) कर दिया है!");
+          setOwnerAuthError("❌ Request was rejected by the Owner on their phone.");
         }
       }
     });
@@ -5738,7 +5738,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                     </span>
                   </div>
                   <h3 className="font-bold text-white text-base font-serif">
-                    मालिक सुरक्षा सत्यापन (Owner Authorization)
+                    Owner Authorization Required
                   </h3>
                 </div>
               </div>
@@ -5764,11 +5764,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                   <span className="text-stone-400 font-medium">Action:</span>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     {ownerAuthDetails.actionType === "stock_change"
-                      ? "Stock Adjustment (स्टॉक बदलाव)"
+                      ? "Stock Adjustment"
                       : ownerAuthDetails.actionType === "price_change"
-                      ? "Price Revision (रेट बदलाव)"
+                      ? "Price Revision"
                       : ownerAuthDetails.actionType === "product_delete"
-                      ? "Delete Product (सामान हटाना)"
+                      ? "Delete Product"
                       : "Product Edit"}
                   </span>
                 </div>
@@ -5798,7 +5798,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
               <div className="space-y-2">
                 <div>
                   <label className="block text-[11px] font-bold text-stone-300 uppercase tracking-wider mb-1">
-                    बदलाव करने का कारण (Staff Reason) *
+                    Reason for Modification (Staff Reason) *
                   </label>
                   <input
                     type="text"
@@ -5807,14 +5807,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                       setOwnerAuthReason(e.target.value);
                       setOwnerAuthError("");
                     }}
-                    placeholder="e.g. Physical stock count check, damaged fabric return, owner discount"
+                    placeholder="e.g. Physical stock count check, damaged piece return, discount approved"
                     className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 placeholder:text-stone-600 focus:outline-hidden focus:border-amber-500 text-xs"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1">
-                    स्टाफ कर्मचारी का नाम (Your Name)
+                    Staff Name / Counter Person
                   </label>
                   <input
                     type="text"
@@ -5841,7 +5841,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                   <div className="flex items-center justify-between">
                     <span className="text-amber-400 font-bold flex items-center gap-1.5 text-xs">
                       <KeyRound className="w-3.5 h-3.5" />
-                      <span>विकल्प 1: मालिक के फोन का लाइव 6-Digit OTP दर्ज करें</span>
+                      <span>Option 1: Enter Live 6-Digit OTP from Owner Phone</span>
                     </span>
                     <span className="text-[10px] text-stone-500 font-mono">5-min rolling</span>
                   </div>
@@ -5863,17 +5863,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                       onClick={handleVerifyOwnerOtp}
                       className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-amber-500/20 whitespace-nowrap"
                     >
-                      सत्यापित करें (Apply)
+                      Verify &amp; Apply
                     </button>
                   </div>
                   <p className="text-[10px] text-stone-500">
-                    मालिक के फोन पर <strong>/owner</strong> स्क्रीन पर चल रहा 6 अंकों का कोड पूछकर यहां दर्ज करें।
+                    Ask the owner for the 6-digit rolling OTP visible on their phone (<strong>/owner</strong>).
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 text-stone-500 text-[11px] my-1">
                   <div className="flex-1 h-px bg-stone-800" />
-                  <span>या (OR)</span>
+                  <span>OR</span>
                   <div className="flex-1 h-px bg-stone-800" />
                 </div>
 
@@ -5882,7 +5882,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                   <div className="flex items-center justify-between">
                     <span className="text-stone-300 font-bold flex items-center gap-1.5 text-xs">
                       <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>विकल्प 2: मालिक के फोन पर सीधा अनुरोध भेजें</span>
+                      <span>Option 2: Send 1-Click Request to Owner Phone</span>
                     </span>
                   </div>
 
@@ -5891,10 +5891,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                       <RefreshCw className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-amber-300">
-                          मालिक के फोन पर अनुरोध भेजा गया है...
+                          Approval Request sent to Owner's phone...
                         </p>
                         <p className="text-[10px] text-stone-400">
-                          Indu ji (+91 7464987898) अपने फोन पर जैसे ही [Approve] दबाएंगी, यह स्क्रीन अपने आप अनलॉक हो जाएगी।
+                          Waiting for Indu ji (+91 7464987898) to tap [Approve] on phone. Screen will unlock automatically.
                         </p>
                       </div>
                     </div>

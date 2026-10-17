@@ -79,8 +79,8 @@ export default function OwnerSecurityPortal() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
-      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.15); // A6 note
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.15);
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
       osc.connect(gain);
@@ -123,7 +123,6 @@ export default function OwnerSecurityPortal() {
       if (prods && prods.length > 0) {
         setProducts(prods);
       } else {
-        // Fall back to local
         try {
           const raw = localStorage.getItem("rajnandni_inventory");
           if (raw) setProducts(JSON.parse(raw));
@@ -180,7 +179,7 @@ export default function OwnerSecurityPortal() {
       setPinError("");
       playAlertSound();
     } else {
-      setPinError("गलत PIN दर्ज किया गया! कृपया सही मालिक PIN दर्ज करें।");
+      setPinError("Invalid PIN! Please enter the correct Master Owner PIN.");
     }
   };
 
@@ -190,7 +189,6 @@ export default function OwnerSecurityPortal() {
     try {
       await OwnerSecurityService.resolveRequest(req.id, status, "remote_click");
 
-      // Log the completed decision
       if (status === "approved") {
         await OwnerSecurityService.logAuditEntry({
           actionType: req.actionType,
@@ -231,7 +229,6 @@ export default function OwnerSecurityPortal() {
     (otpData.secondsRemaining / otpData.totalSeconds) * 100
   );
 
-  // Minutes and seconds for display
   const mins = Math.floor(otpData.secondsRemaining / 60);
   const secs = otpData.secondsRemaining % 60;
   const timeFormatted = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
@@ -255,7 +252,7 @@ export default function OwnerSecurityPortal() {
                 </span>
               </div>
               <h1 className="text-sm font-bold text-stone-200">
-                मालिक सुरक्षा व स्टॉक मंज़ूरी पोर्टल
+                Owner Security &amp; Stock Approval Desk
               </h1>
             </div>
           </div>
@@ -301,7 +298,7 @@ export default function OwnerSecurityPortal() {
                 Owner Authentication Required
               </h2>
               <p className="text-xs text-stone-400 leading-relaxed">
-                यह स्क्रीन केवल स्टोर ओनर (<strong className="text-amber-300">Indu ji</strong>) के लिए सुरक्षित है। स्टॉक व रेट में बदलाव के अधिकार देखने हेतु अपना मास्टर PIN दर्ज करें।
+                This desk is strictly protected for Store Owner (<strong className="text-amber-300">Indu ji</strong>). Enter Master PIN to access live OTP and stock approval controls.
               </p>
             </div>
 
@@ -337,7 +334,7 @@ export default function OwnerSecurityPortal() {
                 className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-500 text-stone-950 font-black rounded-xl shadow-lg shadow-amber-500/25 transition cursor-pointer text-sm flex items-center justify-center gap-2"
               >
                 <Unlock className="w-4 h-4" />
-                <span>सुरक्षा पोर्टल खोलें (Unlock Desk)</span>
+                <span>Unlock Owner Desk</span>
               </button>
 
               <div className="bg-stone-900/60 border border-stone-800/80 rounded-xl p-3 text-center">
@@ -363,7 +360,7 @@ export default function OwnerSecurityPortal() {
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>लाइव OTP व तुरंत मंज़ूरी</span>
+                <span>Live OTP &amp; Approvals</span>
                 {pendingRequests.length > 0 && (
                   <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
                     {pendingRequests.length}
@@ -380,7 +377,7 @@ export default function OwnerSecurityPortal() {
                 }`}
               >
                 <History className="w-3.5 h-3.5" />
-                <span>स्टॉक ऑडिट हिस्ट्री (Audit Trail)</span>
+                <span>Stock Audit Trail</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-800 text-stone-400 border border-stone-700">
                   {auditLogs.length}
                 </span>
@@ -395,7 +392,7 @@ export default function OwnerSecurityPortal() {
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
-                <span>शोरूम स्टॉक स्थिति (Stock Status)</span>
+                <span>Showroom Stock Status</span>
               </button>
             </div>
 
@@ -413,20 +410,20 @@ export default function OwnerSecurityPortal() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                          Live Active OTP (लाइव सुरक्षा कोड)
+                          Live Active OTP
                         </span>
                       </div>
                       <h2 className="text-lg font-bold text-white">
-                        स्टाफ इन्वेंट्री सुरक्षा कोड
+                        Showroom Inventory Security Code
                       </h2>
                       <p className="text-xs text-stone-400 mt-0.5">
-                        जब स्टाफ स्टॉक या रेट एडिट करे, तो यह 6 अंकों का कोड बताएं:
+                        When showroom staff requests to edit stock or prices, share this 6-digit rolling code:
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 self-start sm:self-center">
                       <div className="text-right">
-                        <span className="text-[10px] text-stone-400 block">बदलने में समय</span>
+                        <span className="text-[10px] text-stone-400 block">Refreshes in</span>
                         <span className="text-xs font-mono font-bold text-amber-400">
                           {timeFormatted} min
                         </span>
@@ -446,7 +443,7 @@ export default function OwnerSecurityPortal() {
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-400 mt-2 font-medium">
-                        🛡️ यह कोड हर 5 मिनट में अपने आप बदल जाता है (No staff theft/tampering possible)
+                        🛡️ Auto-rotates every 5 minutes. No staff stock tampering or theft possible.
                       </p>
                     </div>
 
@@ -501,7 +498,7 @@ export default function OwnerSecurityPortal() {
                     <div className="flex items-center gap-2">
                       <Bell className="w-4 h-4 text-amber-400" />
                       <h3 className="text-sm font-bold text-stone-200 uppercase tracking-wider">
-                        Pending Showroom Modification Requests (तुरंत मंज़ूरी अनुरोध)
+                        Pending Showroom Modification Requests
                       </h3>
                     </div>
                     <button
@@ -519,10 +516,10 @@ export default function OwnerSecurityPortal() {
                         <CheckCircle2 className="w-6 h-6" />
                       </div>
                       <h4 className="text-sm font-bold text-stone-300">
-                        कोई लंबित अनुरोध नहीं (All Clear)
+                        No Pending Requests (All Clear)
                       </h4>
                       <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                        शोरूम में जब भी कोई कर्मचारी किसी कपड़े का स्टॉक घटाएगा या रेट बदलेगा, वह तुरंत यहां 1-Click Approval के लिए दिखेगा।
+                        Whenever showroom staff attempts to adjust stock, edit rates, or delete items, requests will appear here for instant 1-Click Approval.
                       </p>
                     </div>
                   ) : (
@@ -597,13 +594,13 @@ export default function OwnerSecurityPortal() {
                           {/* Reason Given by Staff */}
                           <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-xs">
                             <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-0.5">
-                              स्टाफ द्वारा दिया गया कारण (Staff Reason):
+                              Staff Reason for Modification:
                             </span>
                             <p className="text-stone-300 font-medium italic">
                               "{req.reason || "No explicit reason specified"}"
                             </p>
                             <span className="text-[10px] text-stone-500 mt-1 block">
-                              Staff Name: {req.staffName || "Showroom Counter Staff"}
+                              Staff: {req.staffName || "Showroom Counter Staff"}
                             </span>
                           </div>
 
@@ -615,7 +612,7 @@ export default function OwnerSecurityPortal() {
                               className="px-4 py-2 bg-stone-800 hover:bg-rose-950/40 text-stone-300 hover:text-rose-300 border border-stone-700 hover:border-rose-800/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             >
                               <XCircle className="w-4 h-4 text-rose-400" />
-                              <span>Reject (अस्वीकार)</span>
+                              <span>Reject</span>
                             </button>
 
                             <button
@@ -624,7 +621,7 @@ export default function OwnerSecurityPortal() {
                               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-stone-950 font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
                             >
                               <CheckCircle2 className="w-4 h-4" />
-                              <span>Approve (मंज़ूर करें)</span>
+                              <span>Approve (1-Click)</span>
                             </button>
                           </div>
                         </div>
@@ -636,7 +633,7 @@ export default function OwnerSecurityPortal() {
             )}
 
             {/* =====================================================================
-                TAB 2: INVENTORY AUDIT TRAIL (ऑडिट हिस्ट्री)
+                TAB 2: INVENTORY AUDIT TRAIL
                 ===================================================================== */}
             {activeTab === "audit" && (
               <div className="space-y-4">
@@ -644,10 +641,10 @@ export default function OwnerSecurityPortal() {
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <History className="w-4 h-4 text-amber-400" />
-                      <span>संपूर्ण स्टॉक व रेट बदलाव रिकॉर्ड (Permanent Audit Log)</span>
+                      <span>Permanent Inventory Audit Log</span>
                     </h3>
                     <p className="text-xs text-stone-400 mt-0.5">
-                      शोरूम में कब किस कर्मचारी ने क्या बदलाव किया, सब यहां दर्ज है:
+                      Complete chronological record of all showroom stock adjustments, price revisions, and deletions:
                     </p>
                   </div>
 
@@ -665,7 +662,7 @@ export default function OwnerSecurityPortal() {
 
                 {filteredAuditLogs.length === 0 ? (
                   <div className="bg-stone-900/60 border border-stone-800 rounded-2xl p-8 text-center text-xs text-stone-500">
-                    कोई ऑडिट रिकॉर्ड नहीं मिला।
+                    No audit records found.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -777,9 +774,9 @@ export default function OwnerSecurityPortal() {
                 </div>
 
                 <div className="bg-stone-900/60 border border-stone-800 p-4 rounded-2xl text-xs text-stone-400 space-y-1">
-                  <p className="font-bold text-stone-300">💡 Owner Note:</p>
+                  <p className="font-bold text-stone-300">💡 Owner Security Note:</p>
                   <p>
-                    Showroom me koi bhi staff member bina aapke 6-digit OTP ya live 1-click approval ke stock ko modify nahi kar sakta. Har adjustment ka timestamp aur reason permanent audit log me store hota hai.
+                    Showroom staff cannot modify inventory stock, change rates, or delete items without your dynamic 6-digit rolling OTP or live 1-Click Approval. Every change is permanently tracked with staff reason in the audit log.
                   </p>
                 </div>
               </div>
