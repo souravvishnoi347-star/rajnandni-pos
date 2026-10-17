@@ -50,12 +50,22 @@ import {
   Wallet,
   Users,
   UserCheck,
-  MessageSquare
+  MessageSquare,
+  KeyRound,
+  Send
 } from "lucide-react";
+import Link from "next/link";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory, CustomerProfile } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
 import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
 import BarcodeSheetModal from "@/components/BarcodeSheetModal";
+import {
+  verifyOwnerOtp,
+  OwnerSecurityService,
+  subscribeBroadcast,
+  OWNER_PHONE_NUMBER,
+  OWNER_NAME,
+} from "@/lib/ownerSecurity";
 
 const INVENTORY_DATA_VERSION = "rajnandni_inventory_v3_wholesale_bills";
 const POS_ACCESS_PASSWORD = "Indu@123";
@@ -181,6 +191,24 @@ export default function RajnandiniPosPage() {
 
   // Barcode quick scan input
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  // Owner Security Modal for Inventory Edits / Deletions
+  const [showOwnerAuthModal, setShowOwnerAuthModal] = useState<boolean>(false);
+  const [ownerAuthDetails, setOwnerAuthDetails] = useState<{
+    actionType: "stock_change" | "price_change" | "product_edit" | "product_delete";
+    productId: string;
+    productName: string;
+    sku: string;
+    oldValue: string;
+    newValue: string;
+    onApprove: (reason: string, approvedVia: "otp" | "remote_click" | "master_pin") => Promise<void> | void;
+  } | null>(null);
+  const [ownerOtpInput, setOwnerOtpInput] = useState<string>("");
+  const [ownerAuthReason, setOwnerAuthReason] = useState<string>("");
+  const [ownerAuthStaffName, setOwnerAuthStaffName] = useState<string>("");
+  const [ownerAuthError, setOwnerAuthError] = useState<string>("");
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [isWaitingRemoteApproval, setIsWaitingRemoteApproval] = useState<boolean>(false);
 
   // Helper to merge product lists without ever losing custom user-added items
   const mergeProductLists = (primary: ProductItem[], secondary: ProductItem[]): ProductItem[] => {
@@ -501,14 +529,68 @@ export default function RajnandiniPosPage() {
       return;
     }
 
+    const stockChanged = updatedStock !== editingPriceProduct.stock;
+    const priceChanged = updatedPrice !== editingPriceProduct.price;
+
+    // If stock or price changed, require Owner Authorization
+    if (stockChanged || priceChanged) {
+      const prod = editingPriceProduct;
+      setOwnerOtpInput("");
+      setOwnerAuthReason("");
+      setOwnerAuthError("");
+      setActiveRequestId(null);
+      setIsWaitingRemoteApproval(false);
+
+      setOwnerAuthDetails({
+        actionType: stockChanged ? "stock_change" : "price_change",
+        productId: prod.id,
+        productName: prod.name,
+        sku: prod.sku,
+        oldValue: stockChanged
+          ? `Stock: ${prod.stock} pcs`
+          : `Selling Rate: ₹${prod.price.toLocaleString("en-IN")}`,
+        newValue: stockChanged
+          ? `Stock: ${updatedStock} pcs`
+          : `Selling Rate: ₹${updatedPrice.toLocaleString("en-IN")}`,
+        onApprove: async (reason, approvedVia) => {
+          const updatedList = products.map(p => {
+            if (p.id === prod.id) {
+              return {
+                ...p,
+                price: updatedPrice,
+                mrp: updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
+                badge: newOfferBadge.trim() || undefined,
+                stock: updatedStock >= 0 ? updatedStock : p.stock,
+              };
+            }
+            return p;
+          });
+
+          saveProductsLocally(updatedList);
+
+          if (isSupabaseConfigured()) {
+            SupabaseService.updateProductPrice(
+              prod.sku,
+              updatedPrice,
+              updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
+              newOfferBadge.trim() || undefined
+            ).catch(e => console.warn("Supabase update price warning:", e));
+          }
+
+          alert(`✅ Price & Stock updated with Owner Approval! Barcode (${prod.barcode}) will now automatically scan at ₹${updatedPrice.toLocaleString("en-IN")}.`);
+          setEditingPriceProduct(null);
+        }
+      });
+      setShowOwnerAuthModal(true);
+      return;
+    }
+
+    // Only badge changed (no stock, no price change)
     const updatedList = products.map(p => {
       if (p.id === editingPriceProduct.id) {
         return {
           ...p,
-          price: updatedPrice,
-          mrp: updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
           badge: newOfferBadge.trim() || undefined,
-          stock: updatedStock >= 0 ? updatedStock : p.stock,
         };
       }
       return p;
@@ -516,19 +598,159 @@ export default function RajnandiniPosPage() {
 
     saveProductsLocally(updatedList);
 
-    // Sync to Supabase cloud in background
     if (isSupabaseConfigured()) {
       SupabaseService.updateProductPrice(
         editingPriceProduct.sku,
-        updatedPrice,
-        updatedMrp > 0 ? updatedMrp : Math.round(updatedPrice * 1.25),
+        editingPriceProduct.price,
+        editingPriceProduct.mrp,
         newOfferBadge.trim() || undefined
       ).catch(e => console.warn("Supabase update price warning:", e));
     }
 
-    alert(`✅ Price updated! Barcode (${editingPriceProduct.barcode}) will now automatically scan at ₹${updatedPrice.toLocaleString("en-IN")}. Physical tag reprint NOT needed!`);
+    alert(`✅ Offer badge updated!`);
     setEditingPriceProduct(null);
   };
+
+  // Owner Verification Handlers
+  const handleVerifyOwnerOtp = async () => {
+    if (!ownerAuthDetails) return;
+    if (!ownerAuthReason.trim()) {
+      setOwnerAuthError("कृपया बदलाव करने का कारण (Reason) अवश्य लिखें!");
+      return;
+    }
+    if (!ownerOtpInput.trim()) {
+      setOwnerAuthError("कृपया मालिक के फोन पर आ रहा 6 अंकों का OTP दर्ज करें!");
+      return;
+    }
+
+    const isValid = verifyOwnerOtp(ownerOtpInput);
+    if (!isValid) {
+      setOwnerAuthError("गलत OTP कोड! कृपया मालिक के फोन पर आ रहा नया 6-digit OTP देखें।");
+      return;
+    }
+
+    try {
+      await ownerAuthDetails.onApprove(ownerAuthReason.trim(), "otp");
+      await OwnerSecurityService.logAuditEntry({
+        actionType: ownerAuthDetails.actionType,
+        productId: ownerAuthDetails.productId,
+        productName: ownerAuthDetails.productName,
+        sku: ownerAuthDetails.sku,
+        oldValue: ownerAuthDetails.oldValue,
+        newValue: ownerAuthDetails.newValue,
+        reason: ownerAuthReason.trim(),
+        staffName: ownerAuthStaffName.trim() || "Showroom Staff",
+        approvedVia: "otp",
+      });
+      setShowOwnerAuthModal(false);
+      setOwnerAuthDetails(null);
+      setOwnerOtpInput("");
+      setOwnerAuthReason("");
+      setOwnerAuthError("");
+      setActiveRequestId(null);
+      setIsWaitingRemoteApproval(false);
+    } catch (e) {
+      console.error("Failed to approve action:", e);
+      setOwnerAuthError("Error saving changes");
+    }
+  };
+
+  const handleSendRemoteRequest = async () => {
+    if (!ownerAuthDetails) return;
+    if (!ownerAuthReason.trim()) {
+      setOwnerAuthError("कृपया बदलाव करने का कारण (Reason) अवश्य लिखें!");
+      return;
+    }
+    setOwnerAuthError("");
+    setIsWaitingRemoteApproval(true);
+
+    try {
+      const req = await OwnerSecurityService.createRequest({
+        actionType: ownerAuthDetails.actionType,
+        productId: ownerAuthDetails.productId,
+        productName: ownerAuthDetails.productName,
+        sku: ownerAuthDetails.sku,
+        oldValue: ownerAuthDetails.oldValue,
+        newValue: ownerAuthDetails.newValue,
+        reason: ownerAuthReason.trim(),
+        staffName: ownerAuthStaffName.trim() || "Showroom Staff",
+      });
+      setActiveRequestId(req.id);
+    } catch (e) {
+      console.error("Failed to create remote request:", e);
+      setIsWaitingRemoteApproval(false);
+      setOwnerAuthError("अनुरोध भेजने में समस्या आई, कृपया OTP दर्ज करें।");
+    }
+  };
+
+  // Poll and listen for Remote 1-Click Approval from Owner's phone
+  useEffect(() => {
+    if (!showOwnerAuthModal || !activeRequestId || !isWaitingRemoteApproval) return;
+
+    const checkInterval = setInterval(async () => {
+      const status = await OwnerSecurityService.getRequestStatus(activeRequestId);
+      if (status === "approved") {
+        clearInterval(checkInterval);
+        setIsWaitingRemoteApproval(false);
+        if (ownerAuthDetails) {
+          await ownerAuthDetails.onApprove(ownerAuthReason.trim(), "remote_click");
+          await OwnerSecurityService.logAuditEntry({
+            actionType: ownerAuthDetails.actionType,
+            productId: ownerAuthDetails.productId,
+            productName: ownerAuthDetails.productName,
+            sku: ownerAuthDetails.sku,
+            oldValue: ownerAuthDetails.oldValue,
+            newValue: ownerAuthDetails.newValue,
+            reason: ownerAuthReason.trim() || "Remote 1-Click Approved by Owner",
+            staffName: ownerAuthStaffName.trim() || "Showroom Staff",
+            approvedVia: "remote_click",
+          });
+        }
+        setShowOwnerAuthModal(false);
+        setOwnerAuthDetails(null);
+        setActiveRequestId(null);
+        setOwnerAuthError("");
+      } else if (status === "rejected") {
+        clearInterval(checkInterval);
+        setIsWaitingRemoteApproval(false);
+        setOwnerAuthError("❌ Owner ने यह बदलाव अस्वीकार (Reject) कर दिया है!");
+      }
+    }, 2000);
+
+    const unsubscribe = subscribeBroadcast(async (event) => {
+      if (event.type === "REQUEST_RESOLVED" && event.payload.id === activeRequestId) {
+        if (event.payload.status === "approved") {
+          setIsWaitingRemoteApproval(false);
+          if (ownerAuthDetails) {
+            await ownerAuthDetails.onApprove(ownerAuthReason.trim(), "remote_click");
+            await OwnerSecurityService.logAuditEntry({
+              actionType: ownerAuthDetails.actionType,
+              productId: ownerAuthDetails.productId,
+              productName: ownerAuthDetails.productName,
+              sku: ownerAuthDetails.sku,
+              oldValue: ownerAuthDetails.oldValue,
+              newValue: ownerAuthDetails.newValue,
+              reason: ownerAuthReason.trim() || "Remote 1-Click Approved by Owner",
+              staffName: ownerAuthStaffName.trim() || "Showroom Staff",
+              approvedVia: "remote_click",
+            });
+          }
+          setShowOwnerAuthModal(false);
+          setOwnerAuthDetails(null);
+          setActiveRequestId(null);
+          setOwnerAuthError("");
+        } else {
+          setIsWaitingRemoteApproval(false);
+          setOwnerAuthError("❌ Owner ने यह बदलाव अस्वीकार (Reject) कर दिया है!");
+        }
+      }
+    });
+
+    return () => {
+      clearInterval(checkInterval);
+      unsubscribe();
+    };
+  }, [showOwnerAuthModal, activeRequestId, isWaitingRemoteApproval, ownerAuthDetails, ownerAuthReason, ownerAuthStaffName]);
 
   // Global Barcode Scanner Gun Listener
   // Works from anywhere on screen when gun scans and sends Enter key
@@ -1258,7 +1480,45 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     let nextList: ProductItem[];
     if (newProductForm.id) {
-      nextList = products.map(p => p.id === newProductForm.id ? prod : p);
+      const existing = products.find(p => p.id === newProductForm.id);
+      const stockChanged = existing && existing.stock !== prod.stock;
+      const priceChanged = existing && existing.price !== prod.price;
+
+      if (existing && (stockChanged || priceChanged)) {
+        setOwnerOtpInput("");
+        setOwnerAuthReason("");
+        setOwnerAuthError("");
+        setActiveRequestId(null);
+        setIsWaitingRemoteApproval(false);
+
+        setOwnerAuthDetails({
+          actionType: stockChanged ? "stock_change" : "price_change",
+          productId: existing.id,
+          productName: existing.name,
+          sku: existing.sku,
+          oldValue: stockChanged
+            ? `Stock: ${existing.stock} pcs`
+            : `Price: ₹${existing.price.toLocaleString("en-IN")}`,
+          newValue: stockChanged
+            ? `Stock: ${prod.stock} pcs`
+            : `Price: ₹${prod.price.toLocaleString("en-IN")}`,
+          onApprove: async (reason, approvedVia) => {
+            const updated = products.map(p => (p.id === newProductForm.id ? prod : p));
+            saveProductsLocally(updated);
+            if (isSupabaseConfigured()) {
+              SupabaseService.syncInitialProducts([prod]).catch(err => {
+                console.warn("Supabase new item sync notice:", err);
+              });
+            }
+            setShowNewProductModal(false);
+            alert(`✅ Product details updated with Owner Approval!`);
+          },
+        });
+        setShowOwnerAuthModal(true);
+        return;
+      }
+
+      nextList = products.map(p => (p.id === newProductForm.id ? prod : p));
     } else {
       nextList = [prod, ...products];
     }
@@ -2023,6 +2283,16 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               </span>
               <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-500" : "bg-stone-400"} animate-pulse`} />
             </button>
+
+            <Link
+              href="/owner"
+              target="_blank"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition cursor-pointer"
+              title="Open Owner Security & OTP Desk"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden xl:inline">Owner Desk (OTP)</span>
+            </Link>
 
             <div className="hidden lg:flex items-center gap-3.5 bg-stone-100 border border-stone-200 px-3.5 py-1.5 rounded-xl">
               <div className="text-right">
@@ -3068,18 +3338,34 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm(`Are you sure you want to delete "${p.name}"?`)) {
-                                      const nextProducts = products.filter(prod => prod.id !== p.id);
-                                      saveProductsLocally(nextProducts);
-                                      if (isSupabaseConfigured()) {
-                                        SupabaseService.deleteProduct(p.id).catch(err => {
-                                          console.warn("Supabase delete warning:", err);
-                                        });
+                                    setOwnerOtpInput("");
+                                    setOwnerAuthReason("");
+                                    setOwnerAuthError("");
+                                    setActiveRequestId(null);
+                                    setIsWaitingRemoteApproval(false);
+
+                                    setOwnerAuthDetails({
+                                      actionType: "product_delete",
+                                      productId: p.id,
+                                      productName: p.name,
+                                      sku: p.sku,
+                                      oldValue: `Active Product (Stock: ${p.stock} pcs, Price: ₹${p.price.toLocaleString("en-IN")})`,
+                                      newValue: "Permanently Delete Product",
+                                      onApprove: async (reason, approvedVia) => {
+                                        const nextProducts = products.filter(prod => prod.id !== p.id);
+                                        saveProductsLocally(nextProducts);
+                                        if (isSupabaseConfigured()) {
+                                          SupabaseService.deleteProduct(p.id).catch(err => {
+                                            console.warn("Supabase delete warning:", err);
+                                          });
+                                        }
+                                        alert(`🗑️ "${p.name}" has been permanently deleted with Owner authorization.`);
                                       }
-                                    }
+                                    });
+                                    setShowOwnerAuthModal(true);
                                   }}
                                   className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-900 rounded-lg border border-rose-200 cursor-pointer transition flex items-center justify-center"
-                                  title="Delete Product"
+                                  title="Delete Product (Owner OTP Required)"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -5423,6 +5709,218 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
               >
                 Save &amp; Update Barcode Rate
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          OWNER SECURITY & DYNAMIC OTP VERIFICATION MODAL
+          ========================================================= */}
+      {showOwnerAuthModal && ownerAuthDetails && (
+        <div className="no-print fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-stone-900 border-2 border-amber-500/50 rounded-3xl max-w-lg w-full p-6 shadow-2xl text-stone-100 animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-stone-800 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      Rajnandini Security Desk
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                      Protected Action
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-white text-base font-serif">
+                    मालिक सुरक्षा सत्यापन (Owner Authorization)
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowOwnerAuthModal(false);
+                  setOwnerAuthDetails(null);
+                  setActiveRequestId(null);
+                  setIsWaitingRemoteApproval(false);
+                  setOwnerAuthError("");
+                }}
+                className="p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="py-4 space-y-4 text-xs relative z-10">
+              {/* Context Summary Box */}
+              <div className="bg-stone-950/90 border border-stone-800 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-400 font-medium">Action:</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    {ownerAuthDetails.actionType === "stock_change"
+                      ? "Stock Adjustment (स्टॉक बदलाव)"
+                      : ownerAuthDetails.actionType === "price_change"
+                      ? "Price Revision (रेट बदलाव)"
+                      : ownerAuthDetails.actionType === "product_delete"
+                      ? "Delete Product (सामान हटाना)"
+                      : "Product Edit"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-stone-500 block uppercase font-bold">Product</span>
+                  <p className="text-white font-bold text-sm">
+                    {ownerAuthDetails.productName}
+                  </p>
+                  <p className="text-[11px] font-mono text-stone-400">
+                    SKU: {ownerAuthDetails.sku}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-stone-800/80">
+                  <div className="text-stone-400 text-[11px]">
+                    Current: <strong className="text-stone-200 line-through">{ownerAuthDetails.oldValue}</strong>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+                  <div className="text-emerald-400 font-bold text-[11px]">
+                    New: {ownerAuthDetails.newValue}
+                  </div>
+                </div>
+              </div>
+
+              {/* Staff Reason & Staff Name Inputs */}
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-300 uppercase tracking-wider mb-1">
+                    बदलाव करने का कारण (Staff Reason) *
+                  </label>
+                  <input
+                    type="text"
+                    value={ownerAuthReason}
+                    onChange={(e) => {
+                      setOwnerAuthReason(e.target.value);
+                      setOwnerAuthError("");
+                    }}
+                    placeholder="e.g. Physical stock count check, damaged fabric return, owner discount"
+                    className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 placeholder:text-stone-600 focus:outline-hidden focus:border-amber-500 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                    स्टाफ कर्मचारी का नाम (Your Name)
+                  </label>
+                  <input
+                    type="text"
+                    value={ownerAuthStaffName}
+                    onChange={(e) => setOwnerAuthStaffName(e.target.value)}
+                    placeholder="e.g. Pooja / Riya / Counter Staff"
+                    className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 placeholder:text-stone-600 focus:outline-hidden focus:border-amber-500 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {ownerAuthError && (
+                <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{ownerAuthError}</span>
+                </div>
+              )}
+
+              {/* TWO APPROVAL METHODS */}
+              <div className="space-y-3 pt-2">
+                {/* Method A: Live Owner OTP */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-stone-950 to-stone-900 border border-amber-500/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-400 font-bold flex items-center gap-1.5 text-xs">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>विकल्प 1: मालिक के फोन का लाइव 6-Digit OTP दर्ज करें</span>
+                    </span>
+                    <span className="text-[10px] text-stone-500 font-mono">5-min rolling</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={8}
+                      value={ownerOtpInput}
+                      onChange={(e) => {
+                        setOwnerOtpInput(e.target.value);
+                        setOwnerAuthError("");
+                      }}
+                      placeholder="6-Digit OTP (e.g. 849 201)"
+                      className="flex-1 px-4 py-2 bg-stone-950 border border-stone-800 rounded-xl text-white font-mono font-black text-center text-base tracking-widest focus:outline-hidden focus:border-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOwnerOtp}
+                      className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-amber-500/20 whitespace-nowrap"
+                    >
+                      सत्यापित करें (Apply)
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-stone-500">
+                    मालिक के फोन पर <strong>/owner</strong> स्क्रीन पर चल रहा 6 अंकों का कोड पूछकर यहां दर्ज करें।
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 text-stone-500 text-[11px] my-1">
+                  <div className="flex-1 h-px bg-stone-800" />
+                  <span>या (OR)</span>
+                  <div className="flex-1 h-px bg-stone-800" />
+                </div>
+
+                {/* Method B: Remote 1-Click Request */}
+                <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-300 font-bold flex items-center gap-1.5 text-xs">
+                      <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>विकल्प 2: मालिक के फोन पर सीधा अनुरोध भेजें</span>
+                    </span>
+                  </div>
+
+                  {isWaitingRemoteApproval ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3">
+                      <RefreshCw className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-amber-300">
+                          मालिक के फोन पर अनुरोध भेजा गया है...
+                        </p>
+                        <p className="text-[10px] text-stone-400">
+                          Indu ji (+91 7464987898) अपने फोन पर जैसे ही [Approve] दबाएंगी, यह स्क्रीन अपने आप अनलॉक हो जाएगी।
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendRemoteRequest}
+                      className="w-full py-2.5 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 hover:border-amber-500/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5 text-amber-400" />
+                      <span>📲 Send 1-Click Request to Owner Phone</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Link to Owner Desk */}
+              <div className="pt-2 text-center border-t border-stone-800">
+                <Link
+                  href="/owner"
+                  target="_blank"
+                  className="text-[11px] text-amber-400 hover:text-amber-300 underline font-semibold"
+                >
+                  Are you the Store Owner? Open Owner Desk on this device &rarr;
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -97,3 +97,48 @@ CREATE POLICY "Allow public read-write for products" ON public.products FOR ALL 
 CREATE POLICY "Allow public read-write for bills" ON public.bills FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read-write for customers" ON public.customers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read-write for alterations" ON public.alterations FOR ALL USING (true) WITH CHECK (true);
+
+-- 7. INVENTORY OWNER AUTHORIZATION REQUESTS TABLE
+CREATE TABLE IF NOT EXISTS public.inventory_auth_requests (
+    id TEXT PRIMARY KEY,
+    action_type TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    sku TEXT NOT NULL,
+    old_value TEXT NOT NULL,
+    new_value TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    staff_name TEXT DEFAULT 'Showroom Staff',
+    status TEXT DEFAULT 'pending',
+    approved_via TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_auth_status ON public.inventory_auth_requests(status);
+CREATE INDEX IF NOT EXISTS idx_inventory_auth_created_at ON public.inventory_auth_requests(created_at DESC);
+
+-- 8. PERMANENT INVENTORY AUDIT LOG TABLE
+CREATE TABLE IF NOT EXISTS public.inventory_audit_log (
+    id TEXT PRIMARY KEY,
+    action_type TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    sku TEXT NOT NULL,
+    old_value TEXT NOT NULL,
+    new_value TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    staff_name TEXT NOT NULL,
+    approved_via TEXT NOT NULL,
+    timestamp TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_audit_sku ON public.inventory_audit_log(sku);
+CREATE INDEX IF NOT EXISTS idx_inventory_audit_timestamp ON public.inventory_audit_log(timestamp DESC);
+
+-- RLS for auth requests & audit logs
+ALTER TABLE public.inventory_auth_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_audit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read-write for inventory_auth_requests" ON public.inventory_auth_requests FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public read-write for inventory_audit_log" ON public.inventory_audit_log FOR ALL USING (true) WITH CHECK (true);
