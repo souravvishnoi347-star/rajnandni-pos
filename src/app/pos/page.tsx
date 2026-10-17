@@ -682,10 +682,7 @@ export default function RajnandiniPosPage() {
 
   const handleSendRemoteRequest = async () => {
     if (!ownerAuthDetails) return;
-    if (!ownerAuthReason.trim()) {
-      setOwnerAuthError("Reason for modification is required!");
-      return;
-    }
+    const effectiveReason = ownerAuthReason.trim() || "Inventory Adjustment / Verification";
     setOwnerAuthError("");
     setIsWaitingRemoteApproval(true);
 
@@ -697,14 +694,14 @@ export default function RajnandiniPosPage() {
         sku: ownerAuthDetails.sku,
         oldValue: ownerAuthDetails.oldValue,
         newValue: ownerAuthDetails.newValue,
-        reason: ownerAuthReason.trim(),
+        reason: effectiveReason,
         staffName: ownerAuthStaffName.trim() || "Showroom Staff",
       });
       setActiveRequestId(req.id);
     } catch (e) {
       console.error("Failed to create remote request:", e);
       setIsWaitingRemoteApproval(false);
-      setOwnerAuthError("Failed to send request. Please enter the live OTP instead.");
+      setOwnerAuthError("Failed to send request. Please enter the Master PIN instead.");
     }
   };
 
@@ -5872,64 +5869,72 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                 </div>
               )}
 
-              {/* Option B: WhatsApp OTP Verification */}
+              {/* SOLUTION 1: REAL-TIME REMOTE OWNER APPROVAL */}
               <div className="space-y-3 pt-2">
-                {/* Step 1: Trigger WhatsApp Button */}
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleSendWhatsAppOtp}
-                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-[0.98]"
-                  >
-                    <MessageSquare className="w-4 h-4 text-emerald-200" />
-                    <span>📲 Send OTP to Owner's WhatsApp (+91 7464987898)</span>
-                  </button>
-
-                  {whatsappOtpSent && (
-                    <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl flex items-start gap-2.5 text-emerald-300 text-xs animate-in fade-in">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold text-white">WhatsApp Alert Sent to Indu ji (+91 7464987898)!</p>
-                        <p className="text-[11px] text-emerald-300/90 mt-0.5">
-                          Owner ke WhatsApp par 6-digit OTP send ho gaya hai. Unse OTP puch kar neeche enter karein:
-                        </p>
+                {isWaitingRemoteApproval ? (
+                  <div className="p-5 rounded-2xl bg-amber-950/40 border-2 border-amber-500/50 text-center space-y-3 animate-in fade-in">
+                    <div className="relative w-14 h-14 mx-auto flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping" />
+                      <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-lg">
+                        <RefreshCw className="w-6 h-6 animate-spin" />
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center justify-center gap-1.5">
+                        <span>Approval Request Sent to Indu ji!</span>
+                      </h4>
+                      <p className="text-xs text-amber-300/90 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Indu ji ke phone (<span className="text-amber-200 font-mono font-bold">+91 7464987898</span>) par notification chala gaya hai. Phone par <strong>[Approve]</strong> karte hi screen apne aap unlock ho kar save ho jayegi.
+                      </p>
+                    </div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-900 border border-stone-800 text-[11px] text-stone-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Live Cloud Sync Waiting for Owner...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendRemoteRequest}
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black rounded-2xl text-xs transition cursor-pointer shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transform active:scale-[0.98]"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>📲 Send Approval Request to Owner's Phone (+91 7464987898)</span>
+                  </button>
+                )}
 
-                {/* Step 2: Enter 6-digit OTP */}
-                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-stone-950 to-stone-900 border border-amber-500/30 space-y-2.5">
+                {/* Counter Master PIN / Backup Unlock */}
+                <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-amber-400 font-bold flex items-center gap-1.5 text-xs">
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Enter 6-Digit WhatsApp Approval OTP</span>
+                    <span className="text-stone-300 font-bold flex items-center gap-1.5 text-xs">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Owner Desk PIN (Counter Unlock)</span>
                     </span>
-                    <span className="text-[10px] text-stone-500 font-mono">10-min valid</span>
+                    <span className="text-[10px] text-stone-500 font-mono">Master Key</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <input
-                      type="text"
+                      type="password"
                       maxLength={10}
                       value={ownerOtpInput}
                       onChange={(e) => {
                         setOwnerOtpInput(e.target.value);
                         setOwnerAuthError("");
                       }}
-                      placeholder="e.g. 583 912"
-                      className="flex-1 px-4 py-2 bg-stone-950 border border-stone-800 rounded-xl text-white font-mono font-black text-center text-base tracking-widest focus:outline-hidden focus:border-amber-500"
+                      placeholder="Enter Master PIN (e.g. 7898 or Indu@123)"
+                      className="flex-1 px-4 py-2 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono font-bold text-center text-sm tracking-wider focus:outline-hidden focus:border-amber-500"
                     />
                     <button
                       type="button"
                       onClick={handleVerifyOwnerOtp}
-                      className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-amber-500/20 whitespace-nowrap"
+                      className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap"
                     >
-                      Verify &amp; Unlock
+                      Verify PIN
                     </button>
                   </div>
                   <p className="text-[10px] text-stone-500 text-center">
-                    Owner Master PIN: Agar Indu ji counter par hain, to Master PIN enter karke bhi unlock kar sakte hain.
+                    Agar Indu ji counter par hain, to Master PIN enter karke bhi instantly unlock kar sakte hain.
                   </p>
                 </div>
               </div>

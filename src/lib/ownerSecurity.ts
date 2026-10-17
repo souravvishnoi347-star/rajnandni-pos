@@ -173,7 +173,7 @@ export function verifyWhatsAppOtp(enteredCode: string): boolean {
 }
 
 /**
- * Broadcast channel for local real-time cross-tab synchronization
+ * Broadcast channel for local & cloud real-time cross-device synchronization
  */
 let broadcastChannel: BroadcastChannel | null = null;
 if (typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -181,6 +181,17 @@ if (typeof window !== "undefined" && "BroadcastChannel" in window) {
     broadcastChannel = new BroadcastChannel("rajnandni_owner_auth_channel");
   } catch (e) {
     console.warn("BroadcastChannel not supported:", e);
+  }
+}
+
+// Global Supabase Realtime broadcast channel
+let cloudBroadcastChannel: any = null;
+if (supabase) {
+  try {
+    cloudBroadcastChannel = supabase.channel("rajnandni_owner_security_realtime");
+    cloudBroadcastChannel.subscribe();
+  } catch (e) {
+    console.warn("Supabase realtime channel error:", e);
   }
 }
 
@@ -192,18 +203,54 @@ export function notifyBroadcast(event: { type: string; payload: any }) {
       console.warn("BroadcastChannel post error:", e);
     }
   }
+
+  // Broadcast to phone & other devices via Supabase WebSockets
+  if (cloudBroadcastChannel) {
+    try {
+      cloudBroadcastChannel.send({
+        type: "broadcast",
+        event: "SECURITY_EVENT",
+        payload: event,
+      });
+    } catch (e) {
+      console.warn("Cloud broadcast error:", e);
+    }
+  }
 }
 
 export function subscribeBroadcast(callback: (event: { type: string; payload: any }) => void) {
-  if (!broadcastChannel) return () => {};
-  const handler = (e: MessageEvent) => {
+  const localHandler = (e: MessageEvent) => {
     if (e.data && e.data.type) {
       callback(e.data);
     }
   };
-  broadcastChannel.addEventListener("message", handler);
+
+  if (broadcastChannel) {
+    broadcastChannel.addEventListener("message", localHandler);
+  }
+
+  let cloudListener: any = null;
+  if (supabase) {
+    try {
+      cloudListener = supabase.channel(`rajnandni_owner_sub_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
+      cloudListener.on("broadcast", { event: "SECURITY_EVENT" }, ({ payload }: any) => {
+        if (payload && payload.type) {
+          callback(payload);
+        }
+      });
+      cloudListener.subscribe();
+    } catch (err) {
+      console.warn("Supabase subscribe cloud error:", err);
+    }
+  }
+
   return () => {
-    broadcastChannel?.removeEventListener("message", handler);
+    if (broadcastChannel) {
+      broadcastChannel.removeEventListener("message", localHandler);
+    }
+    if (cloudListener) {
+      cloudListener.unsubscribe();
+    }
   };
 }
 
@@ -267,13 +314,13 @@ export const OwnerSecurityService = {
     const current = getLocalAuthRequests();
     saveLocalAuthRequests([newReq, ...current]);
 
-    // Broadcast locally
+    // Broadcast locally & to Cloud WebSockets
     notifyBroadcast({ type: "NEW_REQUEST", payload: newReq });
 
-    // Try Supabase if table exists
+    // Sync to Supabase Cloud
     if (supabase) {
       try {
-        await supabase.from("inventory_auth_requests").insert({
+        const { error } = await supabase.from("inventory_auth_requests").insert({
           id: newReq.id,
           action_type: newReq.actionType,
           product_id: newReq.productId,
@@ -286,8 +333,21 @@ export const OwnerSecurityService = {
           status: "pending",
           created_at: newReq.createdAt,
         });
+
+        // If inventory_auth_requests table not created yet, store safely in alterations table
+        if (error) {
+          await supabase.from("alterations").insert({
+            token_number: newReq.id,
+            customer_name: "INVENTORY_SECURITY_AUTH",
+            customer_phone: "7464987898",
+            item_name: newReq.productName,
+            instructions: JSON.stringify(newReq),
+            tailor_name: newReq.staffName,
+            status: "pending",
+          });
+        }
       } catch (err) {
-        console.warn("Supabase auth request insert warning:", err);
+        console.warn("Supabase auth request insert notice:", err);
       }
     }
 
@@ -296,7 +356,7 @@ export const OwnerSecurityService = {
 
   // Check request status (used by POS while waiting)
   async getRequestStatus(requestId: string): Promise<"pending" | "approved" | "rejected"> {
-    // Check Supabase first
+    // Check Supabase Cloud first
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -306,6 +366,16 @@ export const OwnerSecurityService = {
           .single();
         if (!error && data) {
           return data.status as "pending" | "approved" | "rejected";
+        }
+
+        // Check fallback alterations storage
+        const alt = await supabase
+          .from("alterations")
+          .select("status")
+          .eq("token_number", requestId)
+          .single();
+        if (!alt.error && alt.data) {
+          return alt.data.status as "pending" | "approved" | "rejected";
         }
       } catch {
         // Fall back to local
@@ -318,7 +388,7 @@ export const OwnerSecurityService = {
     return found ? found.status : "pending";
   },
 
-  // Fetch pending requests (for Owner page)
+  // Fetch pending requests (for Owner page on mobile)
   async fetchPendingRequests(): Promise<InventoryAuthRequest[]> {
     if (supabase) {
       try {
@@ -342,6 +412,49 @@ export const OwnerSecurityService = {
             status: d.status,
             createdAt: d.created_at,
           }));
+        }
+
+        // Query fallback alterations table
+        const alt = await supabase
+          .from("alterations")
+          .select("*")
+          .eq("customer_name", "INVENTORY_SECURITY_AUTH")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false });
+
+        if (!alt.error && alt.data && alt.data.length > 0) {
+          return alt.data.map((row: any) => {
+            try {
+              const parsed = JSON.parse(row.instructions || "{}");
+              return {
+                id: row.token_number,
+                actionType: parsed.actionType || "stock_change",
+                productId: parsed.productId || "",
+                productName: row.item_name || parsed.productName,
+                sku: parsed.sku || "",
+                oldValue: parsed.oldValue || "",
+                newValue: parsed.newValue || "",
+                reason: parsed.reason || "Showroom inventory adjustment",
+                staffName: row.tailor_name || parsed.staffName || "Showroom Staff",
+                status: "pending" as const,
+                createdAt: row.created_at,
+              };
+            } catch {
+              return {
+                id: row.token_number,
+                actionType: "stock_change" as const,
+                productId: "",
+                productName: row.item_name,
+                sku: "",
+                oldValue: "",
+                newValue: "",
+                reason: "",
+                staffName: row.tailor_name || "Showroom Staff",
+                status: "pending" as const,
+                createdAt: row.created_at,
+              };
+            }
+          });
         }
       } catch {
         // Fall back
@@ -367,13 +480,13 @@ export const OwnerSecurityService = {
     );
     saveLocalAuthRequests(updated);
 
-    // Broadcast event
+    // Broadcast event locally & to Cloud WebSockets
     notifyBroadcast({
       type: "REQUEST_RESOLVED",
       payload: { id: requestId, status, approvedVia },
     });
 
-    // Update Supabase
+    // Update Supabase Cloud
     if (supabase) {
       try {
         await supabase
@@ -384,6 +497,14 @@ export const OwnerSecurityService = {
             approved_via: approvedVia,
           })
           .eq("id", requestId);
+
+        // Also update fallback alterations table
+        await supabase
+          .from("alterations")
+          .update({
+            status,
+          })
+          .eq("token_number", requestId);
       } catch (err) {
         console.warn("Supabase resolve request warning:", err);
       }
