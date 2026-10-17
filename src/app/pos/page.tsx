@@ -61,6 +61,8 @@ import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
 import BarcodeSheetModal from "@/components/BarcodeSheetModal";
 import {
   verifyOwnerOtp,
+  createWhatsAppOtpRequest,
+  verifyWhatsAppOtp,
   OwnerSecurityService,
   subscribeBroadcast,
   OWNER_PHONE_NUMBER,
@@ -209,6 +211,7 @@ export default function RajnandiniPosPage() {
   const [ownerAuthError, setOwnerAuthError] = useState<string>("");
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [isWaitingRemoteApproval, setIsWaitingRemoteApproval] = useState<boolean>(false);
+  const [whatsappOtpSent, setWhatsappOtpSent] = useState<boolean>(false);
 
   // Helper to merge product lists without ever losing custom user-added items
   const mergeProductLists = (primary: ProductItem[], secondary: ProductItem[]): ProductItem[] => {
@@ -612,25 +615,46 @@ export default function RajnandiniPosPage() {
   };
 
   // Owner Verification Handlers
+  const handleSendWhatsAppOtp = () => {
+    if (!ownerAuthDetails) return;
+    const req = createWhatsAppOtpRequest({
+      action: ownerAuthDetails.actionType === "stock_change"
+        ? "Stock Adjustment"
+        : ownerAuthDetails.actionType === "price_change"
+        ? "Price / Rate Revision"
+        : ownerAuthDetails.actionType === "product_delete"
+        ? "Delete Product"
+        : "Product Edit",
+      productName: ownerAuthDetails.productName,
+      oldValue: ownerAuthDetails.oldValue,
+      newValue: ownerAuthDetails.newValue,
+      staffName: ownerAuthStaffName.trim() || "Showroom Staff",
+      reason: ownerAuthReason.trim() || "Showroom Modification",
+    });
+
+    setWhatsappOtpSent(true);
+    setOwnerAuthError("");
+
+    if (typeof window !== "undefined") {
+      window.open(req.whatsappUrl, "_blank");
+    }
+  };
+
   const handleVerifyOwnerOtp = async () => {
     if (!ownerAuthDetails) return;
-    if (!ownerAuthReason.trim()) {
-      setOwnerAuthError("Reason for modification is required!");
-      return;
-    }
     if (!ownerOtpInput.trim()) {
-      setOwnerAuthError("Please enter the 6-digit OTP from the Owner's phone!");
+      setOwnerAuthError("Please enter the 6-digit OTP received on Owner's WhatsApp (+91 7464987898)!");
       return;
     }
 
-    const isValid = verifyOwnerOtp(ownerOtpInput);
+    const isValid = verifyWhatsAppOtp(ownerOtpInput);
     if (!isValid) {
-      setOwnerAuthError("Invalid OTP code! Please check the live 6-digit OTP on the Owner's phone.");
+      setOwnerAuthError("Invalid OTP code! Please check the OTP sent to Owner's WhatsApp (+91 7464987898).");
       return;
     }
 
     try {
-      await ownerAuthDetails.onApprove(ownerAuthReason.trim(), "otp");
+      await ownerAuthDetails.onApprove(ownerAuthReason.trim() || "WhatsApp OTP Approved", "otp");
       await OwnerSecurityService.logAuditEntry({
         actionType: ownerAuthDetails.actionType,
         productId: ownerAuthDetails.productId,
@@ -638,7 +662,7 @@ export default function RajnandiniPosPage() {
         sku: ownerAuthDetails.sku,
         oldValue: ownerAuthDetails.oldValue,
         newValue: ownerAuthDetails.newValue,
-        reason: ownerAuthReason.trim(),
+        reason: ownerAuthReason.trim() || "WhatsApp OTP Verified by Owner",
         staffName: ownerAuthStaffName.trim() || "Showroom Staff",
         approvedVia: "otp",
       });
@@ -649,6 +673,7 @@ export default function RajnandiniPosPage() {
       setOwnerAuthError("");
       setActiveRequestId(null);
       setIsWaitingRemoteApproval(false);
+      setWhatsappOtpSent(false);
     } catch (e) {
       console.error("Failed to approve action:", e);
       setOwnerAuthError("Error saving changes");
@@ -1451,7 +1476,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   };
 
   // Add Product Form Handler
-  const handleCreateProduct = async () => {
+  const handleCreateProduct = async (options?: { printBarcode?: boolean }) => {
     if (!newProductForm.name?.trim()) {
       alert("Please enter Product Name (e.g. Bridal Golden Clutch or Designer Sling Bag)");
       return;
@@ -1490,6 +1515,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         setOwnerAuthError("");
         setActiveRequestId(null);
         setIsWaitingRemoteApproval(false);
+        setWhatsappOtpSent(false);
 
         setOwnerAuthDetails({
           actionType: stockChanged ? "stock_change" : "price_change",
@@ -1511,6 +1537,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               });
             }
             setShowNewProductModal(false);
+            if (options?.printBarcode) {
+              setSelectedProductForBarcode(prod);
+            }
             alert(`✅ Product details updated with Owner Approval!`);
           },
         });
@@ -1532,6 +1561,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     }
 
     setShowNewProductModal(false);
+    if (options?.printBarcode) {
+      setSelectedProductForBarcode(prod);
+    }
   };
 
   // Helper for category visual theme (luxury accent colors & icons)
@@ -3326,13 +3358,31 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => {
-                                    setNewProductForm({
-                                      ...p
+                                    setOwnerOtpInput("");
+                                    setOwnerAuthReason("");
+                                    setOwnerAuthError("");
+                                    setActiveRequestId(null);
+                                    setIsWaitingRemoteApproval(false);
+                                    setWhatsappOtpSent(false);
+
+                                    setOwnerAuthDetails({
+                                      actionType: "product_edit",
+                                      productId: p.id,
+                                      productName: p.name,
+                                      sku: p.sku,
+                                      oldValue: `Stock: ${p.stock} pcs, Price: ₹${p.price.toLocaleString("en-IN")}`,
+                                      newValue: "Edit Product Details & Stock",
+                                      onApprove: async () => {
+                                        setNewProductForm({
+                                          ...p
+                                        });
+                                        setShowNewProductModal(true);
+                                      }
                                     });
-                                    setShowNewProductModal(true);
+                                    setShowOwnerAuthModal(true);
                                   }}
                                   className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-900 rounded-lg border border-amber-200 cursor-pointer transition flex items-center justify-center"
-                                  title="Edit Product Details"
+                                  title="Edit Product Details (Owner WhatsApp OTP Required)"
                                 >
                                   <Edit3 className="w-4 h-4" />
                                 </button>
@@ -3343,6 +3393,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                     setOwnerAuthError("");
                                     setActiveRequestId(null);
                                     setIsWaitingRemoteApproval(false);
+                                    setWhatsappOtpSent(false);
 
                                     setOwnerAuthDetails({
                                       actionType: "product_delete",
@@ -3370,9 +3421,29 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => openEditProductPrice(p)}
+                                  onClick={() => {
+                                    setOwnerOtpInput("");
+                                    setOwnerAuthReason("");
+                                    setOwnerAuthError("");
+                                    setActiveRequestId(null);
+                                    setIsWaitingRemoteApproval(false);
+                                    setWhatsappOtpSent(false);
+
+                                    setOwnerAuthDetails({
+                                      actionType: "price_change",
+                                      productId: p.id,
+                                      productName: p.name,
+                                      sku: p.sku,
+                                      oldValue: `Current Rate: ₹${p.price.toLocaleString("en-IN")}, Stock: ${p.stock} pcs`,
+                                      newValue: "Update Rate & Stock",
+                                      onApprove: async () => {
+                                        openEditProductPrice(p);
+                                      }
+                                    });
+                                    setShowOwnerAuthModal(true);
+                                  }}
                                   className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1 border border-stone-200/80"
-                                  title="Update price or add festival discount"
+                                  title="Update price or stock (Owner WhatsApp OTP Required)"
                                 >
                                   <Tag className="w-3 h-3 text-stone-600" />
                                   <span>Edit Rate</span>
@@ -5162,46 +5233,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 Cancel
               </button>
               <button
-                onClick={handleCreateProduct}
+                onClick={() => handleCreateProduct({ printBarcode: false })}
                 className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-900 rounded-xl text-xs font-bold cursor-pointer transition"
               >
                 Save Only
               </button>
               <button
-                onClick={async () => {
-                  if (!newProductForm.name?.trim()) {
-                    alert("Please enter Product Name first!");
-                    return;
-                  }
-                  const cat = (newProductForm.category as ProductItem["category"]) || "handbags";
-                  const autoCodes = getNextCodesForCategory(cat, products);
-                  const prod: ProductItem = {
-                    id: newProductForm.id || `prod-${Date.now()}`,
-                    name: newProductForm.name.trim(),
-                    category: cat,
-                    price: Number(newProductForm.price) || 0,
-                    mrp: Number(newProductForm.mrp) || Number(newProductForm.price) || 0,
-                    purchaseCost: Number(newProductForm.purchaseCost) || 0,
-                    stock: Number(newProductForm.stock) || 1,
-                    sku: newProductForm.sku?.trim() || autoCodes.sku,
-                    barcode: newProductForm.barcode?.trim() || autoCodes.barcode,
-                    sizes: newProductForm.sizes && newProductForm.sizes.length > 0 ? newProductForm.sizes : autoCodes.defaultSizes,
-                    isService: cat === "parlour",
-                    imageUrl: newProductForm.imageUrl?.trim(),
-                  };
-                  let nextList: ProductItem[];
-                  if (newProductForm.id) {
-                    nextList = products.map(p => p.id === newProductForm.id ? prod : p);
-                  } else {
-                    nextList = [prod, ...products];
-                  }
-                  saveProductsLocally(nextList);
-                  if (isSupabaseConfigured()) {
-                    SupabaseService.syncInitialProducts([prod]).catch(() => {});
-                  }
-                  setShowNewProductModal(false);
-                  setSelectedProductForBarcode(prod);
-                }}
+                onClick={() => handleCreateProduct({ printBarcode: true })}
                 className="px-4 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5"
               >
                 <Tag className="w-3.5 h-3.5 text-amber-400" />
@@ -5834,28 +5872,52 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                 </div>
               )}
 
-              {/* TWO APPROVAL METHODS */}
+              {/* Option B: WhatsApp OTP Verification */}
               <div className="space-y-3 pt-2">
-                {/* Method A: Live Owner OTP */}
+                {/* Step 1: Trigger WhatsApp Button */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSendWhatsAppOtp}
+                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-[0.98]"
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-200" />
+                    <span>📲 Send OTP to Owner's WhatsApp (+91 7464987898)</span>
+                  </button>
+
+                  {whatsappOtpSent && (
+                    <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl flex items-start gap-2.5 text-emerald-300 text-xs animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-white">WhatsApp Alert Sent to Indu ji (+91 7464987898)!</p>
+                        <p className="text-[11px] text-emerald-300/90 mt-0.5">
+                          Owner ke WhatsApp par 6-digit OTP send ho gaya hai. Unse OTP puch kar neeche enter karein:
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 2: Enter 6-digit OTP */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-stone-950 to-stone-900 border border-amber-500/30 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-amber-400 font-bold flex items-center gap-1.5 text-xs">
                       <KeyRound className="w-3.5 h-3.5" />
-                      <span>Option 1: Enter Live 6-Digit OTP from Owner Phone</span>
+                      <span>Enter 6-Digit WhatsApp Approval OTP</span>
                     </span>
-                    <span className="text-[10px] text-stone-500 font-mono">5-min rolling</span>
+                    <span className="text-[10px] text-stone-500 font-mono">10-min valid</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
-                      maxLength={8}
+                      maxLength={10}
                       value={ownerOtpInput}
                       onChange={(e) => {
                         setOwnerOtpInput(e.target.value);
                         setOwnerAuthError("");
                       }}
-                      placeholder="6-Digit OTP (e.g. 849 201)"
+                      placeholder="e.g. 583 912"
                       className="flex-1 px-4 py-2 bg-stone-950 border border-stone-800 rounded-xl text-white font-mono font-black text-center text-base tracking-widest focus:outline-hidden focus:border-amber-500"
                     />
                     <button
@@ -5863,51 +5925,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                       onClick={handleVerifyOwnerOtp}
                       className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-amber-500/20 whitespace-nowrap"
                     >
-                      Verify &amp; Apply
+                      Verify &amp; Unlock
                     </button>
                   </div>
-                  <p className="text-[10px] text-stone-500">
-                    Ask the owner for the 6-digit rolling OTP visible on their phone (<strong>/owner</strong>).
+                  <p className="text-[10px] text-stone-500 text-center">
+                    Owner Master PIN: Agar Indu ji counter par hain, to Master PIN enter karke bhi unlock kar sakte hain.
                   </p>
-                </div>
-
-                <div className="flex items-center gap-2 text-stone-500 text-[11px] my-1">
-                  <div className="flex-1 h-px bg-stone-800" />
-                  <span>OR</span>
-                  <div className="flex-1 h-px bg-stone-800" />
-                </div>
-
-                {/* Method B: Remote 1-Click Request */}
-                <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-stone-300 font-bold flex items-center gap-1.5 text-xs">
-                      <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Option 2: Send 1-Click Request to Owner Phone</span>
-                    </span>
-                  </div>
-
-                  {isWaitingRemoteApproval ? (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3">
-                      <RefreshCw className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-amber-300">
-                          Approval Request sent to Owner's phone...
-                        </p>
-                        <p className="text-[10px] text-stone-400">
-                          Waiting for Indu ji (+91 7464987898) to tap [Approve] on phone. Screen will unlock automatically.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSendRemoteRequest}
-                      className="w-full py-2.5 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 hover:border-amber-500/50 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5 text-amber-400" />
-                      <span>📲 Send 1-Click Request to Owner Phone</span>
-                    </button>
-                  )}
                 </div>
               </div>
 

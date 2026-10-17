@@ -103,6 +103,76 @@ export function verifyOwnerOtp(inputCode: string): boolean {
 }
 
 /**
+ * Direct WhatsApp Owner OTP System (Option B)
+ */
+export function createWhatsAppOtpRequest(details: {
+  action: string;
+  productName: string;
+  oldValue: string;
+  newValue?: string;
+  staffName?: string;
+  reason?: string;
+}): { otp: string; whatsappUrl: string; expiryMs: number } {
+  // Generate a random 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiryMs = Date.now() + 10 * 60 * 1000; // 10 minutes valid
+
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("rajnandni_active_whatsapp_otp", otp);
+    sessionStorage.setItem("rajnandni_active_whatsapp_otp_expiry", expiryMs.toString());
+  }
+
+  const staff = details.staffName?.trim() || "Showroom Staff";
+  const reason = details.reason?.trim() || "Inventory Adjustment";
+  const changeLine = details.newValue
+    ? `\n📊 *Details*: ${details.oldValue} ➔ ${details.newValue}`
+    : `\n📊 *Details*: ${details.oldValue}`;
+
+  const message =
+`🔐 *RAJNANDINI BOUTIQUE - OWNER SECURITY ALERT*
+
+🏪 *Store*: Rajnandini Haridwar
+👤 *Staff*: ${staff}
+📦 *Product*: ${details.productName}
+🔄 *Action*: ${details.action}${changeLine}
+📝 *Reason*: ${reason}
+
+👉 *YOUR 6-DIGIT APPROVAL OTP: ${otp}*
+
+⚠️ *Warning*: Staff ko ye OTP tabhi batayein agar aapne stock/rate change allow kiya ho. Agar aapne permission nahi di hai, to ye OTP kisi ko na dein.`;
+
+  const phone = "917464987898";
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+  return { otp, whatsappUrl, expiryMs };
+}
+
+export function verifyWhatsAppOtp(enteredCode: string): boolean {
+  if (!enteredCode) return false;
+  const clean = enteredCode.trim().replace(/\s+/g, "");
+
+  // Master PIN or Quick PIN emergency override
+  if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN) {
+    return true;
+  }
+
+  if (typeof window !== "undefined") {
+    const savedOtp = sessionStorage.getItem("rajnandni_active_whatsapp_otp");
+    const expiryStr = sessionStorage.getItem("rajnandni_active_whatsapp_otp_expiry");
+    const expiry = expiryStr ? Number(expiryStr) : 0;
+
+    if (savedOtp && clean === savedOtp && Date.now() <= expiry) {
+      sessionStorage.removeItem("rajnandni_active_whatsapp_otp");
+      sessionStorage.removeItem("rajnandni_active_whatsapp_otp_expiry");
+      return true;
+    }
+  }
+
+  // Also accept rolling OTP as alternative
+  return verifyOwnerOtp(clean);
+}
+
+/**
  * Broadcast channel for local real-time cross-tab synchronization
  */
 let broadcastChannel: BroadcastChannel | null = null;
