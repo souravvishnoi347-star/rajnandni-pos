@@ -1307,7 +1307,7 @@ export default function RajnandiniPosPage() {
       setAlterationEnabled(false);
     }
     setShowCheckoutSuccess(false);
-    setActiveTab("billing");
+    setActiveTab("pos");
   };
 
   // Cancel Editing bill
@@ -1436,6 +1436,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       footwear: { skuPrefix: "RJ-FTW", barcodeBase: 8905000, defaultSizes: ["37", "38", "39", "40"] },
       cosmetics: { skuPrefix: "RJ-COS", barcodeBase: 8910000, defaultSizes: ["Standard", "Pack"] },
       handloom: { skuPrefix: "RJ-HDL", barcodeBase: 8911000, defaultSizes: ["Standard", "Double Bed", "Single Bed"] },
+      undergarments: { skuPrefix: "RJ-UND", barcodeBase: 8913000, defaultSizes: ["28", "30", "32", "34", "36", "38", "40", "Free Size"] },
       parlour: { skuPrefix: "RJ-SRV", barcodeBase: 8909000, defaultSizes: ["Standard"] },
     };
 
@@ -1588,6 +1589,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         return { icon: "💄", label: "Cosmetics & Beauty", strip: "from-pink-500 via-rose-400 to-red-400", badge: "bg-pink-50 text-pink-900 border-pink-200" };
       case "handloom":
         return { icon: "🧵", label: "Handloom & Bedsheets", strip: "from-blue-600 via-indigo-500 to-cyan-600", badge: "bg-blue-50 text-blue-900 border-blue-200" };
+      case "undergarments":
+        return { icon: "👙", label: "Lingerie & Undergarments", strip: "from-rose-500 via-pink-500 to-fuchsia-500", badge: "bg-rose-50 text-rose-900 border-rose-200" };
       default:
         return { icon: "✂️", label: "Tailoring & Fitting", strip: "from-stone-700 via-stone-600 to-amber-700", badge: "bg-stone-100 text-stone-800 border-stone-300" };
     }
@@ -2414,6 +2417,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   { id: "jewellery", label: "Jewellery & Sets", icon: "💍", count: products.filter(p => p.category === "jewellery").length },
                   { id: "footwear", label: "Footwear", icon: "👠", count: products.filter(p => p.category === "footwear").length },
                   { id: "cosmetics", label: "Cosmetics", icon: "💄", count: products.filter(p => p.category === "cosmetics").length },
+                  { id: "undergarments", label: "Undergarments", icon: "👙", count: products.filter(p => p.category === "undergarments").length },
                   { id: "handloom", label: "Handloom", icon: "🧵", count: products.filter(p => p.category === "handloom").length },
                   { id: "parlour", label: "Tailoring & Fitting", icon: "✂️", count: products.filter(p => p.category === "parlour").length }
                 ].map(cat => {
@@ -3262,6 +3266,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     { id: "jewellery", label: "💍 Jewellery" },
                     { id: "footwear", label: "👠 Footwear" },
                     { id: "cosmetics", label: "💄 Cosmetics" },
+                    { id: "undergarments", label: "👙 Undergarments" },
                     { id: "handloom", label: "🧵 Handloom" }
                   ].map(c => (
                     <button
@@ -5075,6 +5080,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <option value="jewellery">💍 Jewellery &amp; Sets (RJ-JWL)</option>
                     <option value="footwear">👠 Footwear &amp; Heels (RJ-FTW)</option>
                     <option value="cosmetics">💄 Cosmetics &amp; Beauty (RJ-COS)</option>
+                    <option value="undergarments">👙 Undergarments &amp; Lingerie (RJ-UND)</option>
                     <option value="handloom">🧵 Handloom &amp; Bedsheets (RJ-HDL)</option>
                     <option value="parlour">✂️ Tailoring &amp; Services (RJ-SRV)</option>
                   </select>
@@ -5374,6 +5380,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <option value="handbags">👜 Handbags &amp; Purses</option>
                     <option value="jewellery">💍 Jewellery &amp; Bangles</option>
                     <option value="cosmetics">💄 Cosmetics &amp; Pins</option>
+                    <option value="undergarments">👙 Undergarments &amp; Lingerie</option>
                     <option value="parlour">💅 Parlour &amp; Stitching</option>
                     <option value="handloom">🧵 Handloom &amp; Fabrics</option>
                   </select>

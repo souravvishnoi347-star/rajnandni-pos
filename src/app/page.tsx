@@ -35,6 +35,7 @@ export default function StorefrontPage() {
     { id: "lehengas", label: "LEHENGAS" },
     { id: "kurtis", label: "KURTIS & SUITS" },
     { id: "kidswear", label: "KIDS WEAR" },
+    { id: "undergarments", label: "UNDERGARMENTS" },
     { id: "handbags", label: "HANDBAGS" },
     { id: "jewellery", label: "JEWELLERY" },
     { id: "cosmetics", label: "COSMETICS" }
