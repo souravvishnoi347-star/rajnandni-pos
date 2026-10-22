@@ -492,6 +492,119 @@ export default function RajnandiniPosPage() {
     }
   };
 
+  // Force-sync all local bills with Cloud Supabase (bidirectional)
+  const handleForceSyncBills = async () => {
+    if (!isSupabaseConfigured()) {
+      alert("Supabase is not configured.");
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      let localList: CompletedBill[] = [...completedBills];
+      try {
+        const raw = localStorage.getItem("rajnandni_bills");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const map = new Map<string, CompletedBill>();
+          localList.forEach(b => map.set(b.billNo, b));
+          parsed.forEach((b: CompletedBill) => map.set(b.billNo, b));
+          localList = Array.from(map.values());
+        }
+      } catch {}
+
+      const remoteBills = await SupabaseService.fetchRecentBills();
+      const remoteMap = new Map<string, any>();
+      if (remoteBills) {
+        remoteBills.forEach(b => remoteMap.set(b.invoice_number, b));
+      }
+
+      let uploadedCount = 0;
+      for (const b of localList) {
+        if (!remoteMap.has(b.billNo)) {
+          const ok = await SupabaseService.recordSale({
+            invoiceNumber: b.billNo,
+            customerName: b.customer?.name || "Walk-in Guest",
+            customerPhone: b.customer?.phone || "NA",
+            subtotal: b.subtotal || 0,
+            discount: b.discount || 0,
+            tax: b.taxGst || 0,
+            total: b.grandTotal || 0,
+            paymentMode: b.paymentMode || "UPI",
+            items: (b.items || []).map(it => ({
+              id: it.product?.id || "",
+              name: it.product?.name || "Item",
+              sku: it.product?.sku || "",
+              price: it.price || 0,
+              quantity: it.quantity || 1,
+              isService: it.product?.isService || false
+            }))
+          });
+          if (ok) uploadedCount++;
+        }
+      }
+
+      const freshRemote = await SupabaseService.fetchRecentBills();
+      if (freshRemote && freshRemote.length > 0) {
+        const mappedRemote: CompletedBill[] = freshRemote.map((b: any) => ({
+          id: b.id,
+          billNo: b.invoice_number,
+          customer: {
+            name: b.customer_name || "Walk-in Guest",
+            phone: b.customer_phone || "NA",
+            notes: ""
+          },
+          items: (b.items || []).map((it: any) => ({
+            product: {
+              id: it.id || "",
+              name: it.name || "Ethnic Item",
+              sku: it.sku || "",
+              barcode: it.barcode || "8901001",
+              category: it.category || "sarees",
+              price: Number(it.price) || 0,
+              mrp: Number(it.mrp || it.price) || 0,
+              purchaseCost: Number(it.purchase_cost || 0),
+              stock: 1
+            },
+            quantity: it.quantity || 1,
+            price: Number(it.price) || 0,
+            originalPrice: Number(it.price) || 0,
+            selectedSize: "Standard",
+            customDiscount: 0
+          })),
+          subtotal: Number(b.subtotal) || 0,
+          discount: Number(b.discount) || 0,
+          taxGst: Number(b.tax) || 0,
+          grandTotal: Number(b.total) || 0,
+          paidAmount: Number(b.total) || 0,
+          paymentMode: b.payment_mode || "UPI",
+          createdAt: new Date(b.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+          rawDate: b.created_at
+        }));
+        setCompletedBills(mappedRemote);
+        localStorage.setItem("rajnandni_bills", JSON.stringify(mappedRemote));
+      }
+      alert(`✅ Cloud Sync Successful!\n\nUploaded ${uploadedCount} bills from this device to Cloud.\nTotal bills now active: ${freshRemote ? freshRemote.length : localList.length}`);
+    } catch (e: any) {
+      alert("Sync error: " + (e?.message || String(e)));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDownloadBackup = () => {
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(completedBills, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `rajnandini_bills_backup_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (e) {
+      alert("Could not export bills.");
+    }
+  };
+
   // Save changes (saves both full catalog AND dedicated custom items backup so nothing is ever lost)
   const saveProductsLocally = (items: ProductItem[]) => {
     setProducts(items);
@@ -3589,6 +3702,25 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <Download className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Download CSV</span>
                   </button>
+                  <button
+                    onClick={handleForceSyncBills}
+                    disabled={isSyncing}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                    title="Upload local bills to Supabase Cloud & sync with other devices"
+                  >
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>{isSyncing ? "Syncing..." : "Sync All Bills to Cloud"}</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadBackup}
+                    className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                    title="Download offline JSON backup of all bills"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Export Backup</span>
+                  </button>
+
                   {completedBills.length > 0 && (
                     <button 
                       onClick={() => {
