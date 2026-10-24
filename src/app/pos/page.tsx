@@ -256,7 +256,7 @@ export default function RajnandiniPosPage() {
       localStorage.setItem("rajnandni_products", JSON.stringify(localMerged));
       localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
 
-      // Deleted fake/test bills to permanently purge from cache
+      // Deleted fake/test bills to permanently purge from cache (only dummy test numbers 0101-0110)
       const KNOWN_PURGED_BILLS = [
         "RJN-2026-0101", "RJN-2026-0102", "RJN-2026-0103", "RJN-2026-0104", "RJN-2026-0105",
         "RJN-2026-0106", "RJN-2026-0107", "RJN-2026-0108", "RJN-2026-0109", "RJN-2026-0110"
@@ -266,20 +266,43 @@ export default function RajnandiniPosPage() {
         const userDeletedRaw = localStorage.getItem("rajnandni_deleted_bills");
         if (userDeletedRaw) {
           const list: string[] = JSON.parse(userDeletedRaw);
-          list.forEach(item => allDeletedBillNos.add(item));
+          list.forEach(item => {
+            // CRITICAL SAFEGUARD: Never treat active legitimate bills (RJN-2026-0250, RJN-2026-0251, etc.) as deleted!
+            if (item && !KNOWN_PURGED_BILLS.includes(item)) {
+              const m = item.match(/RJN-\d{4}-(\d+)/);
+              const num = m ? parseInt(m[1], 10) : 0;
+              if (num < 250) {
+                allDeletedBillNos.add(item);
+              }
+            }
+          });
         }
       } catch {}
+      // Update clean list in localStorage so valid bills (250+) are NEVER trapped in deleted list
       localStorage.setItem("rajnandni_deleted_bills", JSON.stringify(Array.from(allDeletedBillNos)));
 
       const savedBills = localStorage.getItem("rajnandni_bills");
+      let initialBills: CompletedBill[] = [];
       if (savedBills) {
         try {
           const parsedBills: CompletedBill[] = JSON.parse(savedBills);
-          const cleanBills = parsedBills.filter(b => !allDeletedBillNos.has(b.billNo));
-          setCompletedBills(cleanBills);
-          localStorage.setItem("rajnandni_bills", JSON.stringify(cleanBills));
+          initialBills = parsedBills.filter(b => !allDeletedBillNos.has(b.billNo));
         } catch {}
       }
+      // Recover any un-synced bills from indestructible vault
+      try {
+        const vaultRaw = localStorage.getItem("rajnandni_raw_bills_vault");
+        if (vaultRaw) {
+          const vaultList: CompletedBill[] = JSON.parse(vaultRaw);
+          vaultList.forEach(vb => {
+            if (vb && vb.billNo && !initialBills.some(ib => ib.billNo === vb.billNo) && !allDeletedBillNos.has(vb.billNo)) {
+              initialBills.push(vb);
+            }
+          });
+        }
+      } catch {}
+      setCompletedBills(initialBills);
+      localStorage.setItem("rajnandni_bills", JSON.stringify(initialBills));
 
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
@@ -386,9 +409,38 @@ export default function RajnandiniPosPage() {
             setCompletedBills(prev => {
               const billMap = new Map<string, CompletedBill>();
               mappedRemote.forEach(b => billMap.set(b.billNo, b));
+
+              // Compute highest known sequence across remote bills
+              let currentMaxSeq = 251;
+              billMap.forEach((_, bNo) => {
+                const m = (bNo || "").match(/RJN-\d{4}-(\d+)/);
+                if (m) {
+                  const s = parseInt(m[1], 10);
+                  if (s > currentMaxSeq) currentMaxSeq = s;
+                }
+              });
+
+              // Also gather all bills from vault so no local sale is ever lost
+              const localCandidates: CompletedBill[] = [...prev];
+              try {
+                const vaultRaw = localStorage.getItem("rajnandni_raw_bills_vault");
+                if (vaultRaw) {
+                  const vaultBills: CompletedBill[] = JSON.parse(vaultRaw);
+                  vaultBills.forEach(vb => {
+                    if (vb && vb.billNo && !localCandidates.some(c => c.id === vb.id || c.billNo === vb.billNo)) {
+                      localCandidates.push(vb);
+                    }
+                  });
+                }
+              } catch {}
+
               // Merge any valid local bills not yet in remote, and sync them to cloud
-              prev.forEach(b => {
-                if (!allDeletedBillNos.has(b.billNo) && !billMap.has(b.billNo)) {
+              localCandidates.forEach(b => {
+                if (!b || !b.billNo) return;
+                if (allDeletedBillNos.has(b.billNo) && KNOWN_PURGED_BILLS.includes(b.billNo)) return;
+
+                if (!billMap.has(b.billNo)) {
+                  // Truly new bill: add to map and push to Supabase
                   billMap.set(b.billNo, b);
                   SupabaseService.recordSale({
                     invoiceNumber: b.billNo,
@@ -408,6 +460,42 @@ export default function RajnandiniPosPage() {
                       isService: it.product.isService
                     }))
                   }).catch(() => {});
+                } else {
+                  // Bill number exists in remote: Check if it's the exact same bill or a collided different sale
+                  const remoteBill = billMap.get(b.billNo)!;
+                  const isSameBill =
+                    (b.customer.phone && b.customer.phone !== "NA" && b.customer.phone === remoteBill.customer.phone) ||
+                    (b.customer.name.trim().toLowerCase() === remoteBill.customer.name.trim().toLowerCase() && Math.abs(b.grandTotal - remoteBill.grandTotal) < 1);
+
+                  if (!isSameBill && (b.customer.name !== "Walk-in Guest" || b.grandTotal !== remoteBill.grandTotal)) {
+                    // Different customer or total! This was a collided bill!
+                    // NEVER DELETE IT! Reassign it a new sequence number and upload to cloud!
+                    currentMaxSeq++;
+                    const reassignedNo = `RJN-${new Date().getFullYear()}-${String(currentMaxSeq).padStart(4, "0")}`;
+                    const recovered: CompletedBill = {
+                      ...b,
+                      billNo: reassignedNo
+                    };
+                    billMap.set(reassignedNo, recovered);
+                    SupabaseService.recordSale({
+                      invoiceNumber: reassignedNo,
+                      customerName: recovered.customer.name,
+                      customerPhone: recovered.customer.phone,
+                      subtotal: recovered.subtotal,
+                      discount: recovered.discount,
+                      tax: recovered.taxGst || 0,
+                      total: recovered.grandTotal,
+                      paymentMode: recovered.paymentMode,
+                      items: recovered.items.map(it => ({
+                        id: it.product.id,
+                        name: it.product.name,
+                        sku: it.product.sku,
+                        price: it.price,
+                        quantity: it.quantity,
+                        isService: it.product.isService
+                      }))
+                    }).catch(() => {});
+                  }
                 }
               });
 
@@ -423,6 +511,19 @@ export default function RajnandiniPosPage() {
                 return (b.rawDate || b.createdAt).localeCompare(a.rawDate || a.createdAt);
               });
               localStorage.setItem("rajnandni_bills", JSON.stringify(merged));
+
+              // Also persist all merged bills to permanent vault
+              try {
+                const rawVault = localStorage.getItem("rajnandni_raw_bills_vault");
+                const vault: CompletedBill[] = rawVault ? JSON.parse(rawVault) : [];
+                merged.forEach(b => {
+                  if (!vault.some(v => v.billNo === b.billNo)) {
+                    vault.push(b);
+                  }
+                });
+                localStorage.setItem("rajnandni_raw_bills_vault", JSON.stringify(vault));
+              } catch {}
+
               return merged;
             });
           }
@@ -614,9 +715,38 @@ export default function RajnandiniPosPage() {
     localStorage.setItem("rajnandni_custom_items", JSON.stringify(customOnly));
   };
 
+  const VAULT_STORAGE_KEY = "rajnandni_raw_bills_vault";
+
+  const appendBillToVault = (bill: CompletedBill) => {
+    try {
+      const raw = localStorage.getItem(VAULT_STORAGE_KEY);
+      const vault: CompletedBill[] = raw ? JSON.parse(raw) : [];
+      const idx = vault.findIndex(v => v.id === bill.id || (v.billNo === bill.billNo && v.customer?.phone === bill.customer?.phone));
+      if (idx >= 0) {
+        vault[idx] = bill;
+      } else {
+        vault.push(bill);
+      }
+      localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault));
+    } catch (err) {
+      console.error("Vault save notice:", err);
+    }
+  };
+
   const saveBillsLocally = (bills: CompletedBill[]) => {
     setCompletedBills(bills);
     localStorage.setItem("rajnandni_bills", JSON.stringify(bills));
+    bills.forEach(b => appendBillToVault(b));
+  };
+
+  const handleClearCart = () => {
+    setCart([]);
+    setEditingBill(null);
+    setCustomer({ name: "", phone: "", notes: "" });
+    setDiscountAmount(0);
+    setAgreedDealPrice("");
+    setEditingPriceIdx(null);
+    setAlterationEnabled(false);
   };
 
   const saveAlterationsLocally = (alts: AlterationDetail[]) => {
@@ -1228,27 +1358,31 @@ export default function RajnandiniPosPage() {
       return;
     }
 
-    // Generate guaranteed unique sequential Bill Number (e.g. RJN-2026-0125)
+    // Generate guaranteed unique sequential Bill Number (e.g. RJN-2026-0252)
     const existingBills: CompletedBill[] = [];
     try {
       const raw = localStorage.getItem("rajnandni_bills");
       if (raw) existingBills.push(...JSON.parse(raw));
     } catch {}
+    try {
+      const rawVault = localStorage.getItem("rajnandni_raw_bills_vault");
+      if (rawVault) existingBills.push(...JSON.parse(rawVault));
+    } catch {}
     existingBills.push(...completedBills);
 
-    let deletedSet = new Set<string>();
+    let deletedList: string[] = [];
     try {
       const deletedRaw = localStorage.getItem("rajnandni_deleted_bills");
       if (deletedRaw) {
-        const list: string[] = JSON.parse(deletedRaw);
-        list.forEach(item => deletedSet.add(item));
+        deletedList = JSON.parse(deletedRaw);
       }
     } catch {}
 
-    let maxSeq = 110; // Sequence base after purging old test bills
+    // Floor sequence is at least 251 (as cloud already safely has RJN-2026-0250 and RJN-2026-0251)
+    let maxSeq = 251;
     for (const b of existingBills) {
-      if (deletedSet.has(b.billNo)) continue;
-      const match = (b.billNo || "").match(/RJN-\d{4}-(\d+)/);
+      if (!b || !b.billNo) continue;
+      const match = b.billNo.match(/RJN-\d{4}-(\d+)/);
       if (match) {
         const seq = parseInt(match[1], 10);
         if (!isNaN(seq) && seq > maxSeq) {
@@ -1256,8 +1390,30 @@ export default function RajnandiniPosPage() {
         }
       }
     }
-    const nextSeq = maxSeq + 1;
-    const billNumber = `RJN-${new Date().getFullYear()}-${String(nextSeq).padStart(4, "0")}`;
+    // Also include deleted bills in maxSeq so we NEVER reuse an invoice number
+    for (const delNo of deletedList) {
+      if (!delNo) continue;
+      const match = delNo.match(/RJN-\d{4}-(\d+)/);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
+      }
+    }
+
+    const currentYear = new Date().getFullYear();
+    const allUsedNumbers = new Set<string>([
+      ...existingBills.map(b => b?.billNo).filter(Boolean),
+      ...deletedList.filter(Boolean)
+    ]);
+
+    let nextSeq = maxSeq + 1;
+    let billNumber = `RJN-${currentYear}-${String(nextSeq).padStart(4, "0")}`;
+    while (allUsedNumbers.has(billNumber)) {
+      nextSeq++;
+      billNumber = `RJN-${currentYear}-${String(nextSeq).padStart(4, "0")}`;
+    }
     const newBill: CompletedBill = {
       id: `bill-${Date.now()}`,
       billNo: billNumber,
@@ -1292,8 +1448,9 @@ export default function RajnandiniPosPage() {
     saveProductsLocally(updatedProducts);
 
     // Save Bill locally
-    const nextBills = [newBill, ...completedBills];
+    const nextBills = [newBill, ...completedBills.filter(b => b.billNo !== billNumber)];
     saveBillsLocally(nextBills);
+    appendBillToVault(newBill);
 
     // Push sale to Supabase cloud to guarantee GST and sales records
     if (isSupabaseConfigured()) {
@@ -1333,6 +1490,7 @@ export default function RajnandiniPosPage() {
 
     setLastBill(newBill);
     setShowCheckoutSuccess(true);
+    setEditingBill(null);
 
     // Reset Cart
     setCart([]);
@@ -2727,7 +2885,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </button>
                     {cart.length > 0 && (
                       <button
-                        onClick={() => setCart([])}
+                        onClick={handleClearCart}
                         className="text-[11px] text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
                       >
                         <Trash2 className="w-3 h-3" /> Clear Bill
