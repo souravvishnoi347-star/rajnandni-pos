@@ -41,6 +41,12 @@ import {
   BadgePercent,
   ArrowUpRight,
   Info,
+  Users,
+  Coffee,
+  Trash2,
+  Plus,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import {
   getCurrentOwnerOtp,
@@ -56,6 +62,13 @@ import {
 } from "@/lib/ownerSecurity";
 import { ProductItem, CompletedBill, ProductCategory } from "@/types/pos";
 import { SupabaseService } from "@/lib/supabaseClient";
+import {
+  StaffExpenseService,
+  StoreExpense,
+  StaffAdvance,
+  StaffAttendanceRecord,
+  StaffMember,
+} from "@/lib/staffExpenseService";
 
 // Helper for Indian currency compact representation (e.g. ₹44.57 Lakh, ₹28.04 Lakh)
 function formatIndianCompact(val: number): string {
@@ -84,7 +97,6 @@ function isServiceItem(p: { sku?: string; category?: string; stock?: number; pur
   if (sku.startsWith("SRV-") || category === "services") {
     return true;
   }
-  // Dummy high stock services with no purchase cost
   if (stock >= 900 && cost === 0) {
     return true;
   }
@@ -98,8 +110,8 @@ export default function MobileOwnerApp() {
   const [pinError, setPinError] = useState<string>("");
   const [rememberDevice, setRememberDevice] = useState<boolean>(true);
 
-  // Active Bottom Nav Tab: 'sales' | 'stock' | 'bills' | 'security'
-  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "bills" | "security">("sales");
+  // Active Bottom Nav Tab: 'sales' | 'stock' | 'bills' | 'staff' | 'security'
+  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "bills" | "staff" | "security">("sales");
 
   // Time Filter for Sales: 'today' | 'yesterday' | 'week' | 'month' | 'all'
   const [timeFilter, setTimeFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
@@ -109,6 +121,11 @@ export default function MobileOwnerApp() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<InventoryAuthRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<InventoryAuditLog[]>([]);
+  const [expenses, setExpenses] = useState<StoreExpense[]>([]);
+  const [advances, setAdvances] = useState<StaffAdvance[]>([]);
+  const [attendance, setAttendance] = useState<StaffAttendanceRecord[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
@@ -120,6 +137,23 @@ export default function MobileOwnerApp() {
   const [billsSearch, setBillsSearch] = useState<string>("");
   const [billsPaymentFilter, setBillsPaymentFilter] = useState<string>("all");
 
+  // Staff Section Sub-tab: 'expenses' | 'advances' | 'attendance' | 'members'
+  const [staffSubTab, setStaffSubTab] = useState<"expenses" | "advances" | "attendance" | "members">("expenses");
+
+  // Modals inside Staff Manager
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState<boolean>(false);
+  const [newExpTitle, setNewExpTitle] = useState<string>("");
+  const [newExpAmount, setNewExpAmount] = useState<string>("");
+  const [newExpCategory, setNewExpCategory] = useState<StoreExpense["category"]>("chai_nashta");
+  const [newExpPaidBy, setNewExpPaidBy] = useState<StoreExpense["paidBy"]>("cash_galla");
+  const [newExpNote, setNewExpNote] = useState<string>("");
+
+  const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
+  const [newMemberName, setNewMemberName] = useState<string>("");
+  const [newMemberPhone, setNewMemberPhone] = useState<string>("");
+  const [newMemberRole, setNewMemberRole] = useState<string>("Sales Executive");
+  const [newMemberSalary, setNewMemberSalary] = useState<string>("15000");
+
   // Modal State for Viewing Full Bill
   const [viewingBill, setViewingBill] = useState<CompletedBill | null>(null);
 
@@ -127,6 +161,9 @@ export default function MobileOwnerApp() {
   const [otpData, setOtpData] = useState(getCurrentOwnerOtp());
   const [copiedOtp, setCopiedOtp] = useState<boolean>(false);
   const [isProcessingId, setIsProcessingId] = useState<string | null>(null);
+
+  // Today Date String
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   // Check persisted device authentication on mount
   useEffect(() => {
@@ -147,15 +184,19 @@ export default function MobileOwnerApp() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch all live bills & inventory from Supabase
+  // Fetch all live bills, inventory, and staff data from Supabase
   const loadAllData = async (showSpinner = false) => {
     if (showSpinner) setIsRefreshing(true);
     try {
-      const [remoteBills, remoteProducts, reqs, logs] = await Promise.all([
+      const [remoteBills, remoteProducts, reqs, logs, expList, advList, attList, staffList] = await Promise.all([
         SupabaseService.fetchRecentBills().catch(() => null),
         SupabaseService.fetchProducts().catch(() => null),
         OwnerSecurityService.fetchPendingRequests().catch(() => []),
         OwnerSecurityService.fetchAuditLogs().catch(() => []),
+        StaffExpenseService.fetchExpenses().catch(() => []),
+        StaffExpenseService.fetchAdvances().catch(() => []),
+        StaffExpenseService.fetchAttendance().catch(() => []),
+        StaffExpenseService.fetchStaffMembers().catch(() => []),
       ]);
 
       if (remoteBills && Array.isArray(remoteBills)) {
@@ -206,6 +247,11 @@ export default function MobileOwnerApp() {
 
       setPendingRequests(reqs || []);
       setAuditLogs(logs || []);
+      setExpenses(expList || []);
+      setAdvances(advList || []);
+      setAttendance(attList || []);
+      setStaffMembers(staffList || []);
+
       setLastRefreshedAt(
         new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
       );
@@ -253,14 +299,6 @@ export default function MobileOwnerApp() {
   };
 
   // Helper date matchers
-  const todayStr = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }, []);
-
   const yesterdayStr = useMemo(() => {
     const yest = new Date(Date.now() - 86400000);
     const year = yest.getFullYear();
@@ -354,6 +392,59 @@ export default function MobileOwnerApp() {
     };
   }, [timeFilteredBills, productCostMap]);
 
+  // Expenses & Advances Calculation for Galla Reconciliation
+  const todayExpenses = useMemo(() => {
+    return expenses.filter((e) => e.date === todayStr);
+  }, [expenses, todayStr]);
+
+  const todayExpenseTotal = useMemo(() => {
+    return todayExpenses.reduce((sum, e) => sum + e.amount, 0);
+  }, [todayExpenses]);
+
+  const todayCashExpense = useMemo(() => {
+    return todayExpenses.filter((e) => e.paidBy === "cash_galla").reduce((sum, e) => sum + e.amount, 0);
+  }, [todayExpenses]);
+
+  const todayAdvances = useMemo(() => {
+    return advances.filter((a) => a.date === todayStr);
+  }, [advances, todayStr]);
+
+  const todayAdvanceTotal = useMemo(() => {
+    return todayAdvances.reduce((sum, a) => sum + a.amount, 0);
+  }, [todayAdvances]);
+
+  const todayCashAdvance = useMemo(() => {
+    return todayAdvances.filter((a) => a.paidBy === "cash_galla").reduce((sum, a) => sum + a.amount, 0);
+  }, [todayAdvances]);
+
+  // Real Galla Cash in Hand (Cash Sales - Cash Expenses - Cash Advances)
+  const netGallaCashInHand = useMemo(() => {
+    return salesStats.cashTotal - todayCashExpense - todayCashAdvance;
+  }, [salesStats.cashTotal, todayCashExpense, todayCashAdvance]);
+
+  // Staff Attendance Stats for Today
+  const attendanceStats = useMemo(() => {
+    let present = 0;
+    let halfDay = 0;
+    let absent = 0;
+    let leave = 0;
+
+    attendance.forEach((a) => {
+      if (a.status === "present") present++;
+      else if (a.status === "half_day") halfDay++;
+      else if (a.status === "absent") absent++;
+      else if (a.status === "leave") leave++;
+    });
+
+    return {
+      present,
+      halfDay,
+      absent,
+      leave,
+      totalStaff: staffMembers.length,
+    };
+  }, [attendance, staffMembers]);
+
   // Top Selling Items in selected time
   const topSellingItems = useMemo(() => {
     const map = new Map<string, { name: string; sku: string; qty: number; revenue: number }>();
@@ -376,7 +467,7 @@ export default function MobileOwnerApp() {
       .slice(0, 10);
   }, [timeFilteredBills]);
 
-  // Accurate Physical Inventory Analytics (Filtering out 999 dummy stock services)
+  // Accurate Physical Inventory Analytics
   const inventoryStats = useMemo(() => {
     let totalPcs = 0;
     let totalRetail = 0;
@@ -389,7 +480,7 @@ export default function MobileOwnerApp() {
     products.forEach((p) => {
       if (isServiceItem(p)) {
         servicesCount++;
-        return; // Exclude salon dummy 999 stock from showroom physical stock valuation
+        return;
       }
 
       physicalItemsCount++;
@@ -422,17 +513,13 @@ export default function MobileOwnerApp() {
   // Filtered Products for Inventory View
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      // Category filter
       if (selectedCategory !== "all" && p.category !== selectedCategory) {
         return false;
       }
-
-      // Stock status filter
       if (stockStatusFilter === "out" && p.stock > 0) return false;
       if (stockStatusFilter === "low" && (p.stock <= 0 || p.stock > 2)) return false;
       if (stockStatusFilter === "good" && p.stock < 3) return false;
 
-      // Search filter
       if (stockSearch.trim()) {
         const q = stockSearch.toLowerCase().trim();
         const matchesName = (p.name || "").toLowerCase().includes(q);
@@ -487,6 +574,48 @@ export default function MobileOwnerApp() {
     }
   };
 
+  // Add Expense by Owner
+  const handleOwnerAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(newExpAmount);
+    if (!newExpTitle.trim() || isNaN(amt) || amt <= 0) {
+      alert("Sahi amount aur kharche ka naam enter karein");
+      return;
+    }
+    await StaffExpenseService.recordExpense({
+      title: newExpTitle,
+      amount: amt,
+      category: newExpCategory,
+      paidBy: newExpPaidBy,
+      staffName: "Showroom Owner",
+      note: newExpNote,
+    });
+    setShowAddExpenseModal(false);
+    setNewExpTitle("");
+    setNewExpAmount("");
+    setNewExpNote("");
+    await loadAllData();
+  };
+
+  // Add New Staff Member by Owner
+  const handleOwnerAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName.trim()) {
+      alert("Staff member ka naam zaroori hai");
+      return;
+    }
+    await StaffExpenseService.addStaffMember({
+      name: newMemberName,
+      phone: newMemberPhone,
+      role: newMemberRole,
+      monthlySalary: Number(newMemberSalary) || 15000,
+    });
+    setShowAddMemberModal(false);
+    setNewMemberName("");
+    setNewMemberPhone("");
+    await loadAllData();
+  };
+
   // =========================================================================
   // VIEW 0: PIN LOCK SCREEN (CLEAN LUXURY WHITE THEME)
   // =========================================================================
@@ -494,7 +623,6 @@ export default function MobileOwnerApp() {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
         <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
-          {/* Top Royal Blue Insignia */}
           <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
             <Crown className="w-8 h-8 text-blue-600" />
           </div>
@@ -578,10 +706,18 @@ export default function MobileOwnerApp() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/staff"
+              className="text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition flex items-center gap-1"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Staff App</span>
+            </Link>
+
             <button
               onClick={() => loadAllData(true)}
               disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-blue-50 active:scale-95 transition shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 active:scale-95 transition shadow-sm"
               title="Refresh Live Data"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
@@ -589,7 +725,7 @@ export default function MobileOwnerApp() {
 
             <button
               onClick={handleLock}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-rose-600 active:scale-95 transition shadow-sm"
               title="Lock App"
             >
               <Lock className="w-4 h-4" />
@@ -690,12 +826,46 @@ export default function MobileOwnerApp() {
               </div>
             </div>
 
-            {/* 4 Quick Stat Metric Cards (Crisp White & Distinct Accents) */}
+            {/* REAL NET GALLA CASH IN HAND RECONCILIATION CARD */}
+            <div className="bg-gradient-to-br from-emerald-50 via-slate-50 to-blue-50/40 border border-emerald-200 rounded-3xl p-4 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-emerald-700" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                    Galla Cash In Hand (दुकान का शुद्ध नकद)
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
+                  Realtime Drawer Cash
+                </span>
+              </div>
+
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
+                    ₹{netGallaCashInHand.toLocaleString("en-IN")}
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Counter Cash: ₹{salesStats.cashTotal.toLocaleString("en-IN")} | Chai Kharch: -₹{todayCashExpense} | Advances: -₹{todayCashAdvance}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setActiveNav("staff")}
+                  className="text-xs font-bold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-xl shadow-sm hover:bg-blue-50 transition flex items-center gap-1"
+                >
+                  <span>Details</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Quick Stat Metric Cards */}
             <div className="grid grid-cols-2 gap-3">
               {/* Cash Collection */}
               <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cash In Hand</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cash Collected</span>
                   <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
                     <Wallet className="w-3.5 h-3.5 text-emerald-600" />
                   </div>
@@ -704,7 +874,7 @@ export default function MobileOwnerApp() {
                   ₹{salesStats.cashTotal.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-emerald-700 font-semibold">Galla Cash</span>
+                  <span className="text-emerald-700 font-semibold">Galla Sales</span>
                   <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.cashTotal)}</span>
                 </div>
               </div>
@@ -845,7 +1015,6 @@ export default function MobileOwnerApp() {
           <div className="space-y-4">
             {/* Stock Overview Hero Card with Clean White Layout */}
             <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-4">
-              {/* Title & Total Pcs Badge */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Package className="w-4 h-4 text-blue-600" />
@@ -858,7 +1027,7 @@ export default function MobileOwnerApp() {
                 </span>
               </div>
 
-              {/* Primary Metric: Total Physical Retail Value (Accurate ~₹44.57 Lakhs, No Services dummy) */}
+              {/* Primary Metric: Total Physical Retail Value (Accurate ~₹44.57 Lakhs) */}
               <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/50 border border-blue-100 rounded-2xl p-4">
                 <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
                   Total Showroom Stock Retail Value (दुकान का कुल स्टॉक बिक्री मूल्य)
@@ -878,7 +1047,6 @@ export default function MobileOwnerApp() {
 
               {/* Wholesale Cost & Profit Potential in distinct cards */}
               <div className="grid grid-cols-2 gap-3">
-                {/* Wholesale Cost */}
                 <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
                   <span className="text-[10px] text-slate-500 uppercase font-semibold block">
                     Wholesale Cost (खरीद लागत)
@@ -891,7 +1059,6 @@ export default function MobileOwnerApp() {
                   </span>
                 </div>
 
-                {/* Potential Margin */}
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 shadow-sm">
                   <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
                     Estimated Profit (संभावित मुनाफा)
@@ -1002,7 +1169,7 @@ export default function MobileOwnerApp() {
               </div>
             </div>
 
-            {/* Product Item Cards List (Clean White Cards with Zero Squishing) */}
+            {/* Product Item Cards List */}
             <div className="space-y-2.5">
               <span className="text-[11px] text-slate-500 font-semibold block px-1">
                 Showing {filteredProducts.length} items
@@ -1017,7 +1184,6 @@ export default function MobileOwnerApp() {
                     key={p.id}
                     className="bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 shadow-sm hover:border-blue-300 transition"
                   >
-                    {/* Top Row: Category, SKU, and Stock Badge */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1051,7 +1217,7 @@ export default function MobileOwnerApp() {
                       </span>
                     </div>
 
-                    {/* Price & Cost Row with clear spacing and zero overlap */}
+                    {/* Price & Cost Row with clear spacing */}
                     <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                       <div className="flex items-baseline gap-2">
                         <span className="text-sm font-black text-blue-700 font-mono tabular-nums">
@@ -1093,7 +1259,6 @@ export default function MobileOwnerApp() {
             ========================================================================= */}
         {activeNav === "bills" && (
           <div className="space-y-4">
-            {/* Search & Payment Filter */}
             <div className="space-y-2.5">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
@@ -1191,7 +1356,344 @@ export default function MobileOwnerApp() {
         )}
 
         {/* =========================================================================
-            TAB 4: 🛡️ SECURITY & STAFF APPROVALS
+            TAB 4: ☕ STAFF & EXPENSES SUITE (OWNER CONTROL & AUDIT)
+            ========================================================================= */}
+        {activeNav === "staff" && (
+          <div className="space-y-4">
+            {/* Header & Sub-tab Bar */}
+            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    Staff &amp; Store Expenses Management
+                  </span>
+                  <span className="text-xs text-blue-700 font-bold">
+                    Connected with Head Staff App
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddExpenseModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Kharcha</span>
+                  </button>
+                  <button
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold hover:bg-slate-200 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Staff</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-tab Navigation */}
+              <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-xs">
+                {[
+                  { id: "expenses", label: "☕ Kharch", count: todayExpenses.length },
+                  { id: "advances", label: "👥 Advance", count: advances.length },
+                  { id: "attendance", label: "📅 Haajiri", count: `${attendanceStats.present}/${attendanceStats.totalStaff}` },
+                  { id: "members", label: "👔 Staff", count: staffMembers.length },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => setStaffSubTab(st.id as any)}
+                    className={`py-2 px-1 rounded-xl font-bold transition flex flex-col items-center justify-center text-[11px] ${
+                      staffSubTab === st.id
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    <span>{st.label}</span>
+                    <span className={`text-[9px] font-mono ${staffSubTab === st.id ? "text-blue-100" : "text-slate-400"}`}>
+                      {st.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sub-Tab 1: Expenses Feed */}
+            {staffSubTab === "expenses" && (
+              <div className="space-y-3">
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Today's Store Kharch</span>
+                    <span className="text-xl font-black text-slate-900 font-mono">₹{todayExpenseTotal}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Cash Galla Se Diya</span>
+                    <span className="text-xl font-black text-rose-600 font-mono">₹{todayCashExpense}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {expenses.length === 0 ? (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
+                      Koi kharcha record nahi hai.
+                    </div>
+                  ) : (
+                    expenses.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
+                              {exp.category.replace("_", " ")}
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                                exp.paidBy === "cash_galla"
+                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}
+                            >
+                              {exp.paidBy === "cash_galla" ? "Cash Galla" : "Online UPI"}
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-bold text-slate-900 mt-1">{exp.title}</h4>
+                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            By {exp.staffName} • {exp.date} {exp.note ? `• "${exp.note}"` : ""}
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0 flex items-center gap-2">
+                          <span className="text-base font-black text-rose-600 font-mono tabular-nums">
+                            -₹{exp.amount}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Kya aap "${exp.title}" ko delete karna chahte hain?`)) {
+                                await StaffExpenseService.deleteExpense(exp.id, exp.tokenNumber);
+                                await loadAllData();
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                            title="Delete Kharcha"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 2: Advances Feed */}
+            {staffSubTab === "advances" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  {advances.length === 0 ? (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
+                      Koi staff advance record nahi hai.
+                    </div>
+                  ) : (
+                    advances.map((adv) => (
+                      <div
+                        key={adv.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-900">{adv.staffName}</span>
+                            <span
+                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                                adv.status === "active"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}
+                            >
+                              {adv.status === "active" ? "Pending Advance" : "Cleared"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            Reason: {adv.reason.replace("_", " ")} • {adv.date} • {adv.paidBy === "cash_galla" ? "Cash" : "UPI"}
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0 flex items-center gap-2">
+                          <span className="text-base font-black text-rose-600 font-mono tabular-nums">
+                            ₹{adv.amount}
+                          </span>
+                          {adv.status === "active" ? (
+                            <button
+                              onClick={async () => {
+                                await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "cleared");
+                                await loadAllData();
+                              }}
+                              className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100"
+                            >
+                              Clear
+                            </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "active");
+                                await loadAllData();
+                              }}
+                              className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold"
+                            >
+                              Undo
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Delete advance record for ${adv.staffName}?`)) {
+                                await StaffExpenseService.deleteAdvance(adv.id, adv.tokenNumber);
+                                await loadAllData();
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 3: Attendance Feed */}
+            {staffSubTab === "attendance" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                    <span className="text-[10px] text-emerald-800 font-bold uppercase block">Present</span>
+                    <span className="text-lg font-black text-emerald-700 font-mono">{attendanceStats.present}</span>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                    <span className="text-[10px] text-amber-800 font-bold uppercase block">Half Day</span>
+                    <span className="text-lg font-black text-amber-700 font-mono">{attendanceStats.halfDay}</span>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                    <span className="text-[10px] text-rose-800 font-bold uppercase block">Absent</span>
+                    <span className="text-lg font-black text-rose-700 font-mono">{attendanceStats.absent}</span>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                    <span className="text-[10px] text-blue-800 font-bold uppercase block">Leave</span>
+                    <span className="text-lg font-black text-blue-700 font-mono">{attendanceStats.leave}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {staffMembers.map((staff) => {
+                    const record = attendance.find((a) => a.staffId === staff.id);
+                    const currentStatus = record?.status || "present";
+
+                    return (
+                      <div
+                        key={staff.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                            <p className="text-[10px] text-slate-500">{staff.role}</p>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md uppercase font-mono ${
+                              currentStatus === "present"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : currentStatus === "half_day"
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                : currentStatus === "absent"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-blue-50 text-blue-700 border border-blue-200"
+                            }`}
+                          >
+                            {currentStatus.replace("_", " ")}
+                          </span>
+                        </div>
+
+                        {/* Owner 1-Tap Status Override Buttons */}
+                        <div className="grid grid-cols-4 gap-1.5 text-xs">
+                          {[
+                            { id: "present", label: "P", active: "bg-emerald-600 text-white" },
+                            { id: "half_day", label: "HD", active: "bg-amber-500 text-white" },
+                            { id: "absent", label: "A", active: "bg-rose-600 text-white" },
+                            { id: "leave", label: "L", active: "bg-blue-600 text-white" },
+                          ].map((s) => {
+                            const isSel = currentStatus === s.id;
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={async () => {
+                                  await StaffExpenseService.markAttendance({
+                                    staffId: staff.id,
+                                    staffName: staff.name,
+                                    date: todayStr,
+                                    status: s.id as any,
+                                    markedBy: "Showroom Owner",
+                                  });
+                                  await loadAllData();
+                                }}
+                                className={`py-1.5 rounded-xl font-bold transition text-[11px] ${
+                                  isSel ? `${s.active} shadow-sm` : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                {s.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 4: Staff Directory & Salary Setup */}
+            {staffSubTab === "members" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  {staffMembers.map((staff) => {
+                    const activeAdv = advances
+                      .filter((a) => a.staffId === staff.id && a.status === "active")
+                      .reduce((sum, a) => sum + a.amount, 0);
+
+                    return (
+                      <div
+                        key={staff.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between shadow-sm"
+                      >
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                          <p className="text-[10px] text-slate-500">
+                            {staff.role} • Ph: {staff.phone}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black font-mono text-slate-900 block">
+                            Salary: ₹{staff.monthlySalary.toLocaleString("en-IN")}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold ${
+                              activeAdv > 0 ? "text-rose-600" : "text-emerald-600"
+                            }`}
+                          >
+                            {activeAdv > 0 ? `Advance: ₹${activeAdv}` : "No Advance"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            TAB 5: 🛡️ SECURITY & STAFF APPROVALS
             ========================================================================= */}
         {activeNav === "security" && (
           <div className="space-y-4">
@@ -1322,6 +1824,204 @@ export default function MobileOwnerApp() {
       </main>
 
       {/* =========================================================================
+          MODAL: ADD EXPENSE BY OWNER
+          ========================================================================= */}
+      {showAddExpenseModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Owner Expense Entry
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Showroom Kharcha Dalein</h3>
+              </div>
+              <button
+                onClick={() => setShowAddExpenseModal(false)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleOwnerAddExpense} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Kharcha Item / Naam</label>
+                <input
+                  type="text"
+                  required
+                  value={newExpTitle}
+                  onChange={(e) => setNewExpTitle(e.target.value)}
+                  placeholder="e.g. Chai Samosa, Cold Drinks, Cleaning, Tape"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Amount (₹ Rupaye)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={newExpAmount}
+                  onChange={(e) => setNewExpAmount(e.target.value)}
+                  placeholder="₹ 60"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Category</label>
+                  <select
+                    value={newExpCategory}
+                    onChange={(e) => setNewExpCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                  >
+                    <option value="chai_nashta">Chai &amp; Nashta</option>
+                    <option value="refreshments">Cold Drinks / Water</option>
+                    <option value="cleaning_pooja">Cleaning &amp; Pooja</option>
+                    <option value="stationery_packing">Packing Tape / Bags</option>
+                    <option value="transport_fuel">Transport / Auto</option>
+                    <option value="other">Other Misc</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Paid From</label>
+                  <select
+                    value={newExpPaidBy}
+                    onChange={(e) => setNewExpPaidBy(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                  >
+                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="online_upi">📱 Online UPI</option>
+                    <option value="owner_personal">👑 Owner Personal</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
+                <input
+                  type="text"
+                  value={newExpNote}
+                  onChange={(e) => setNewExpNote(e.target.value)}
+                  placeholder="e.g. Added by Owner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddExpenseModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                >
+                  Save Kharcha
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: ADD NEW STAFF MEMBER BY OWNER
+          ========================================================================= */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Showroom Staff
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Naya Staff Add Karein</h3>
+              </div>
+              <button
+                onClick={() => setShowAddMemberModal(false)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleOwnerAddMember} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Staff Member Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  placeholder="e.g. Sunita Devi"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Mobile Phone (Optional)</label>
+                <input
+                  type="tel"
+                  value={newMemberPhone}
+                  onChange={(e) => setNewMemberPhone(e.target.value)}
+                  placeholder="98XXXXXXXX"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Designation / Role</label>
+                  <input
+                    type="text"
+                    value={newMemberRole}
+                    onChange={(e) => setNewMemberRole(e.target.value)}
+                    placeholder="Sales Executive"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Monthly Salary (₹)</label>
+                  <input
+                    type="number"
+                    value={newMemberSalary}
+                    onChange={(e) => setNewMemberSalary(e.target.value)}
+                    placeholder="15000"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                >
+                  Save Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
           VIEW BILL MODAL POPUP
           ========================================================================= */}
       {viewingBill && (
@@ -1418,15 +2118,16 @@ export default function MobileOwnerApp() {
       )}
 
       {/* =========================================================================
-          FIXED BOTTOM MOBILE NAVIGATION BAR (CLEAN WHITE DOCK)
+          FIXED BOTTOM MOBILE NAVIGATION BAR (5 TABS IN CLEAN WHITE DOCK)
           ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-3 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
-        <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-0.5">
           {[
-            { id: "sales", label: "Daily Sales", icon: TrendingUp },
-            { id: "stock", label: "Full Stock", icon: Package },
-            { id: "bills", label: "All Bills", icon: Receipt },
-            { id: "security", label: "Security & OTP", icon: ShieldCheck },
+            { id: "sales", label: "Sales", icon: TrendingUp },
+            { id: "stock", label: "Stock", icon: Package },
+            { id: "bills", label: "Bills", icon: Receipt },
+            { id: "staff", label: "Kharcha", icon: Users },
+            { id: "security", label: "Security", icon: ShieldCheck },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeNav === tab.id;
@@ -1434,18 +2135,20 @@ export default function MobileOwnerApp() {
               <button
                 key={tab.id}
                 onClick={() => setActiveNav(tab.id as any)}
-                className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition active:scale-95 ${
+                className={`flex flex-col items-center justify-center py-1 rounded-2xl transition active:scale-95 ${
                   isActive ? "text-blue-600 font-bold" : "text-slate-400 hover:text-slate-700"
                 }`}
               >
                 <div
-                  className={`p-1.5 rounded-xl transition ${
+                  className={`p-1 rounded-xl transition ${
                     isActive ? "bg-blue-50 text-blue-600 shadow-sm border border-blue-100" : ""
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <span className="text-[10px] mt-0.5 tracking-tight font-medium">{tab.label}</span>
+                <span className="text-[9px] mt-0.5 tracking-tight font-medium truncate max-w-full">
+                  {tab.label}
+                </span>
               </button>
             );
           })}
