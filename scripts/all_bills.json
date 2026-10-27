@@ -1,0 +1,5064 @@
+[
+  {
+    "id": "50475ec9-54cb-4d04-87f0-0483b995ec09",
+    "invoice_number": "RJN-2026-0111",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1195,
+    "discount": 0,
+    "tax": 0,
+    "total": 1195,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790777750535",
+        "sku": "RJ-SAR-185",
+        "name": "khat k 241 j j",
+        "price": 1140,
+        "quantity": 1
+      },
+      {
+        "id": "prod-1791621635642",
+        "sku": "RJ-BAG-077",
+        "name": "lip balm ultra",
+        "price": 55,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T06:53:35.208+00:00"
+  },
+  {
+    "id": "7c3a8232-d4d2-4987-805f-cd91eccb7322",
+    "invoice_number": "RJN-2026-0112",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 825,
+    "discount": 83,
+    "tax": 0,
+    "total": 742,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791576708113",
+        "sku": "RJ-HDL-010",
+        "name": "rozee",
+        "price": 825,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T06:59:08.382+00:00"
+  },
+  {
+    "id": "35a758b5-9a1b-4e14-aa0f-d86d6830f909",
+    "invoice_number": "RJN-2026-0113",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1874,
+    "discount": 274,
+    "tax": 0,
+    "total": 1600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790863755409",
+        "sku": "RJ-SAR-194",
+        "name": "l h vetro",
+        "price": 1874,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T07:05:21.152+00:00"
+  },
+  {
+    "id": "c58e9dc1-676b-4b51-8796-14e07c7ec9b7",
+    "invoice_number": "RJN-2026-0114",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1418,
+    "discount": 71,
+    "tax": 0,
+    "total": 1347,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791360028701",
+        "sku": "RJ-FTW-012",
+        "name": "PANJABI JUTTY",
+        "price": 240,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791544846552",
+        "sku": "RJ-FTW-029",
+        "name": "payal jutti",
+        "price": 330,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791204322215",
+        "sku": "RJ-JWL-022",
+        "name": "RAD BANGALES",
+        "price": 149,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697870759",
+        "sku": "RJ-SAR-126",
+        "name": "A SCORPIO",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T07:14:54.465+00:00"
+  },
+  {
+    "id": "afd04c0d-e073-4721-b393-a5b5a68e7a68",
+    "invoice_number": "RJN-2026-0115",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 3322,
+    "discount": 332,
+    "tax": 0,
+    "total": 2990,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791273368298",
+        "sku": "RJ-SAR-233",
+        "name": "MAACHIS",
+        "price": 1044,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791649672012",
+        "sku": "RJ-SAR-305",
+        "name": "BLACK DIMOND",
+        "price": 800,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-bill-55",
+        "sku": "RJ-SAR-055",
+        "name": "Heritage K-241 Traditional Saree",
+        "price": 1478,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T07:35:23.925+00:00"
+  },
+  {
+    "id": "855108af-63ab-4c1c-8e9a-f7558c6aac1f",
+    "invoice_number": "RJN-2026-0116",
+    "customer_name": "8901164",
+    "customer_phone": "NA",
+    "subtotal": 4072,
+    "discount": 0,
+    "tax": 0,
+    "total": 4072,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790861698760",
+        "sku": "RJ-SAR-192",
+        "name": "mandira",
+        "price": 1973,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790696032254",
+        "sku": "RJ-SAR-118",
+        "name": "A SK101",
+        "price": 2099,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T08:01:30.456+00:00"
+  },
+  {
+    "id": "bd82f43d-42b7-4264-8f6a-16d5691b98d4",
+    "invoice_number": "RJN-2026-0117",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2548,
+    "discount": 0,
+    "tax": 0,
+    "total": 2548,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790668324823",
+        "sku": "RJ-BAG-047",
+        "name": "25 muskan warm",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790764143867",
+        "sku": "RJ-BAG-052",
+        "name": "superwomen print",
+        "price": 1349,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T08:03:29.992+00:00"
+  },
+  {
+    "id": "6f2fe48c-fcaf-46e5-98c9-1098149ccf26",
+    "invoice_number": "RJN-2026-0118",
+    "customer_name": "isha",
+    "customer_phone": "NA",
+    "subtotal": 992,
+    "discount": 0,
+    "tax": 0,
+    "total": 992,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791183903185",
+        "sku": "RJ-SAR-219",
+        "name": "tana bana",
+        "price": 992,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T08:12:21.399+00:00"
+  },
+  {
+    "id": "f5f8bc3c-d929-4fad-a913-4bfac79d9837",
+    "invoice_number": "RJN-2026-0119",
+    "customer_name": "manju didi",
+    "customer_phone": "NA",
+    "subtotal": 810,
+    "discount": 0,
+    "tax": 0,
+    "total": 810,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790758189656",
+        "sku": "RJ-SAR-150",
+        "name": "A Puspika",
+        "price": 810,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T08:13:07.663+00:00"
+  },
+  {
+    "id": "f284b045-742a-4bb8-b049-9581f2f5131d",
+    "invoice_number": "RJN-2026-0120",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 27,
+    "discount": 0,
+    "tax": 0,
+    "total": 27,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791546059225",
+        "sku": "RJ-JWL-096",
+        "name": "regal",
+        "price": 27,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T08:25:38.86+00:00"
+  },
+  {
+    "id": "69e18353-3d0b-49a4-a5e4-418ac590f615",
+    "invoice_number": "RJN-2026-0121",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 509,
+    "discount": 51,
+    "tax": 0,
+    "total": 458,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791308795484",
+        "sku": "RJ-JWL-095",
+        "name": "BENGALS",
+        "price": 80,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791363394660",
+        "sku": "RJ-FTW-014",
+        "name": "RED JUTTY",
+        "price": 310,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791546059225",
+        "sku": "RJ-JWL-096",
+        "name": "regal",
+        "price": 27,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791546059225",
+        "sku": "RJ-JWL-096",
+        "name": "regal",
+        "price": 27,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791621635642",
+        "sku": "RJ-BAG-077",
+        "name": "lip balm ultra",
+        "price": 55,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792052997065",
+        "sku": "RJ-COS-016",
+        "name": "persion",
+        "price": 10,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T08:35:07.28+00:00"
+  },
+  {
+    "id": "27ef2576-20f3-4237-a43c-b18c20ee30a9",
+    "invoice_number": "RJN-2026-0122",
+    "customer_name": "vijay singh",
+    "customer_phone": "NA",
+    "subtotal": 2303,
+    "discount": 303,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T08:44:27.891+00:00"
+  },
+  {
+    "id": "94349d71-0b13-4707-b9ca-0e4dd6b3f6d2",
+    "invoice_number": "RJN-2026-0123",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 180,
+    "discount": 0,
+    "tax": 0,
+    "total": 180,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791289108690",
+        "sku": "RJ-JWL-061",
+        "name": "BANGALES",
+        "price": 180,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T08:51:00.832+00:00"
+  },
+  {
+    "id": "958661e4-e1ce-48d3-9e5f-e21656fda0ac",
+    "invoice_number": "RJN-2026-0124",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2303,
+    "discount": 303,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-15T08:54:41.483+00:00"
+  },
+  {
+    "id": "702051cf-33e8-4e46-b402-a2c292008702",
+    "invoice_number": "RJN-2026-0125",
+    "customer_name": "piyush",
+    "customer_phone": "8439312372",
+    "subtotal": 3846,
+    "discount": 0,
+    "tax": 0,
+    "total": 3846,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790933734497",
+        "sku": "RJ-BAG-069",
+        "name": "gulshan dilnaaj",
+        "price": 1923,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790933734497",
+        "sku": "RJ-BAG-069",
+        "name": "gulshan dilnaaj",
+        "price": 1923,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T09:29:49.402+00:00"
+  },
+  {
+    "id": "5b67381f-0614-4819-9bd0-4c2ba744a90b",
+    "invoice_number": "RJN-2026-0126",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 180,
+    "discount": 0,
+    "tax": 0,
+    "total": 180,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791289108690",
+        "sku": "RJ-JWL-061",
+        "name": "BANGALES",
+        "price": 180,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T09:32:02.299+00:00"
+  },
+  {
+    "id": "75b4d745-b427-4ea4-b5f6-938e27c8ff73",
+    "invoice_number": "RJN-2026-0127",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 5111,
+    "discount": 111,
+    "tax": 0,
+    "total": 5000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790696032254",
+        "sku": "RJ-SAR-118",
+        "name": "A SK101",
+        "price": 2099,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790768484370",
+        "sku": "RJ-SAR-172",
+        "name": "J.J Ragani",
+        "price": 1872,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790777750535",
+        "sku": "RJ-SAR-185",
+        "name": "khat k 241 j j",
+        "price": 1140,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T09:52:45.959+00:00"
+  },
+  {
+    "id": "4a3ad285-6854-452e-85dc-4c29e29dcc6d",
+    "invoice_number": "RJN-2026-0128",
+    "customer_name": "AARTI",
+    "customer_phone": "9917806241",
+    "subtotal": 818,
+    "discount": 0,
+    "tax": 0,
+    "total": 818,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790764900469",
+        "sku": "RJ-SAR-170",
+        "name": "silver silk",
+        "price": 818,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:09:33.429+00:00"
+  },
+  {
+    "id": "9563b36b-e812-4cc7-b835-507a4cd0d6a4",
+    "invoice_number": "RJN-2026-0129",
+    "customer_name": "SONAM",
+    "customer_phone": "9084239399",
+    "subtotal": 2033,
+    "discount": 233,
+    "tax": 0,
+    "total": 1800,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790780603834",
+        "sku": "RJ-BAG-065",
+        "name": "bingo silk",
+        "price": 2033,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:11:51.611+00:00"
+  },
+  {
+    "id": "f4c85125-7c46-4b2f-8c39-58e65886e5e1",
+    "invoice_number": "RJN-2026-0130",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 3633,
+    "discount": 363,
+    "tax": 0,
+    "total": 3270,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790779261725",
+        "sku": "RJ-SAR-186",
+        "name": "murli k 241 j j",
+        "price": 2235,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697732510",
+        "sku": "RJ-SAR-125",
+        "name": "A ARPITA",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697732510",
+        "sku": "RJ-SAR-125",
+        "name": "A ARPITA",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:21:33.122+00:00"
+  },
+  {
+    "id": "e9cccad6-927e-455d-812a-74e95671abb9",
+    "invoice_number": "RJN-2026-0131",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1632,
+    "discount": 82,
+    "tax": 0,
+    "total": 1550,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1253,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791482008207",
+        "sku": "RJ-FTW-022",
+        "name": "Panjubi Jutti  Jaypuri Sitra",
+        "price": 379,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:26:26.885+00:00"
+  },
+  {
+    "id": "d60c7c69-01ce-4383-afac-fb483a3fe91e",
+    "invoice_number": "RJN-2026-0132",
+    "customer_name": "VANSH JAWALERS",
+    "customer_phone": "83",
+    "subtotal": 200,
+    "discount": 0,
+    "tax": 0,
+    "total": 200,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791287303466",
+        "sku": "RJ-JWL-049",
+        "name": "BANGAELS",
+        "price": 70,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791288610200",
+        "sku": "RJ-JWL-057",
+        "name": "BANGALES",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:28:50.732+00:00"
+  },
+  {
+    "id": "a95a430f-509c-47a1-b328-e72f44d396c9",
+    "invoice_number": "RJN-2026-0133",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 143,
+    "discount": 0,
+    "tax": 0,
+    "total": 143,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:30:14.67+00:00"
+  },
+  {
+    "id": "f3a5dce5-daa4-43e7-afbf-d746730902d8",
+    "invoice_number": "RJN-2026-0134",
+    "customer_name": "Yogita",
+    "customer_phone": "9311137354",
+    "subtotal": 2475,
+    "discount": 0,
+    "tax": 0,
+    "total": 2475,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790769905498",
+        "sku": "RJ-SAR-174",
+        "name": "Ceramic Gajraj K69 J.J",
+        "price": 2475,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T10:56:23.521+00:00"
+  },
+  {
+    "id": "e71a27dd-6378-4e06-b3c3-ff1045933522",
+    "invoice_number": "RJN-2026-0135",
+    "customer_name": "ANITA",
+    "customer_phone": "NA",
+    "subtotal": 349,
+    "discount": 0,
+    "tax": 0,
+    "total": 349,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790613325512",
+        "sku": "RJ-BAG-013",
+        "name": "19 - Designer Purse 2",
+        "price": 349,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T11:03:24.402+00:00"
+  },
+  {
+    "id": "0dc5cb7c-d220-45a3-8e10-a7b42ba6ce3c",
+    "invoice_number": "RJN-2026-0136",
+    "customer_name": "ANJU",
+    "customer_phone": "9997553884",
+    "subtotal": 2732,
+    "discount": 0,
+    "tax": 0,
+    "total": 2732,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791183903185",
+        "sku": "RJ-SAR-219",
+        "name": "tana bana",
+        "price": 992,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790775197168",
+        "sku": "RJ-SAR-179",
+        "name": "sufi k241",
+        "price": 1740,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T11:41:12.775+00:00"
+  },
+  {
+    "id": "d3edf44f-262d-4be8-8553-7e20c8644f32",
+    "invoice_number": "RJN-2026-0137",
+    "customer_name": "POONAM",
+    "customer_phone": "NA",
+    "subtotal": 3665,
+    "discount": 1165,
+    "tax": 0,
+    "total": 2500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791271008450",
+        "sku": "RJ-SAR-227",
+        "name": "VITARA",
+        "price": 2916,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790666574472",
+        "sku": "RJ-KRT-029",
+        "name": "28 cambric cotton",
+        "price": 749,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T11:55:14.761+00:00"
+  },
+  {
+    "id": "973e5c6d-6872-40d3-bd8b-d82351da18fd",
+    "invoice_number": "RJN-2026-0138",
+    "customer_name": "babita sharma",
+    "customer_phone": "9411564300",
+    "subtotal": 1533,
+    "discount": 0,
+    "tax": 0,
+    "total": 1533,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791358333834",
+        "sku": "RJ-FTW-004",
+        "name": "MALTY JUTTY",
+        "price": 280,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1253,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:00:31.451+00:00"
+  },
+  {
+    "id": "1384db4d-2e28-40cb-b36f-23e678f86c97",
+    "invoice_number": "RJN-2026-0139",
+    "customer_name": "CHARU SHARMA",
+    "customer_phone": "8534042059",
+    "subtotal": 4688,
+    "discount": 469,
+    "tax": 0,
+    "total": 4219,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791301670200",
+        "sku": "RJ-JWL-075",
+        "name": "METAL BANGALS",
+        "price": 210,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790612318397",
+        "sku": "RJ-BAG-009",
+        "name": "19 - Sling Bag",
+        "price": 410,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790666574472",
+        "sku": "RJ-KRT-029",
+        "name": "28 cambric cotton",
+        "price": 749,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790667966712",
+        "sku": "RJ-KRT-034",
+        "name": "17 kalamkari partywear",
+        "price": 1349,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791896580632",
+        "sku": "RJ-KID-002",
+        "name": "Stone 12080 18 t0 30",
+        "price": 1970,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:06:29.849+00:00"
+  },
+  {
+    "id": "176a2f70-3eea-4940-98bd-6c644a142223",
+    "invoice_number": "RJN-2026-0140",
+    "customer_name": "SHUBHAM",
+    "customer_phone": "9720489223",
+    "subtotal": 3188,
+    "discount": 488,
+    "tax": 0,
+    "total": 2700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790758406771",
+        "sku": "RJ-SAR-151",
+        "name": "A Amela",
+        "price": 1493,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790780873227",
+        "sku": "RJ-BAG-067",
+        "name": "kulcha silk",
+        "price": 1695,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:21:26.086+00:00"
+  },
+  {
+    "id": "861bd52c-72f4-4d9f-8cc8-eba5c693f730",
+    "invoice_number": "RJN-2026-0141",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2916,
+    "discount": 292,
+    "tax": 0,
+    "total": 2624,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791271008450",
+        "sku": "RJ-SAR-227",
+        "name": "VITARA",
+        "price": 2916,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:24:41.082+00:00"
+  },
+  {
+    "id": "461c35b8-c74a-4fd1-8ec7-a2877029226f",
+    "invoice_number": "RJN-2026-0142",
+    "customer_name": "SHWETA SHARMA",
+    "customer_phone": "9759291608",
+    "subtotal": 1786,
+    "discount": 0,
+    "tax": 0,
+    "total": 1786,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791273615164",
+        "sku": "RJ-SAR-235",
+        "name": "KAYAAN",
+        "price": 443,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1253,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791557162990",
+        "sku": "RJ-JWL-113",
+        "name": "eversrest bangles",
+        "price": 90,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:38:40.424+00:00"
+  },
+  {
+    "id": "0af811a6-3bc4-4573-9172-1f4f01647319",
+    "invoice_number": "RJN-2026-0143",
+    "customer_name": "RAKHI",
+    "customer_phone": "7409970455",
+    "subtotal": 1695,
+    "discount": 85,
+    "tax": 0,
+    "total": 1610,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790780873227",
+        "sku": "RJ-BAG-067",
+        "name": "kulcha silk",
+        "price": 1695,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:50:08.497+00:00"
+  },
+  {
+    "id": "9264f0ed-7c36-4a2e-bf25-20b5c14a93f7",
+    "invoice_number": "RJN-2026-0144",
+    "customer_name": "RAKESH PATHAK",
+    "customer_phone": "8126272848",
+    "subtotal": 3592,
+    "discount": 0,
+    "tax": 0,
+    "total": 3592,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790758406771",
+        "sku": "RJ-SAR-151",
+        "name": "A Amela",
+        "price": 1493,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697404987",
+        "sku": "RJ-SAR-123",
+        "name": "A DHURANDHAR",
+        "price": 2099,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T12:55:14.493+00:00"
+  },
+  {
+    "id": "d193627d-c258-4af3-af7d-7e35a710a81b",
+    "invoice_number": "RJN-2026-0145",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2404,
+    "discount": 205,
+    "tax": 0,
+    "total": 2199,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791307054876",
+        "sku": "RJ-JWL-093",
+        "name": "Mattel Bangel Chodda Bridel",
+        "price": 199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790773898028",
+        "sku": "RJ-BAG-055",
+        "name": "Neha silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T13:03:06.213+00:00"
+  },
+  {
+    "id": "f0525f18-0c4e-4a58-9ff0-6f6fb75db982",
+    "invoice_number": "RJN-2026-0146",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1649,
+    "discount": 0,
+    "tax": 0,
+    "total": 1649,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790757880276",
+        "sku": "RJ-SAR-148",
+        "name": "A Pink",
+        "price": 1649,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T13:15:35.413+00:00"
+  },
+  {
+    "id": "a5b112eb-bbbc-48fe-904a-43ade90b5d53",
+    "invoice_number": "RJN-2026-0147",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 104,
+    "discount": 4,
+    "tax": 0,
+    "total": 100,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791546059225",
+        "sku": "RJ-JWL-096",
+        "name": "regal",
+        "price": 27,
+        "quantity": 2,
+        "isService": false
+      },
+      {
+        "id": "manual-1792070862223",
+        "sku": "MANUAL-2223",
+        "name": "Fancy Jewellery / Bangles",
+        "price": 50,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T13:28:07.827+00:00"
+  },
+  {
+    "id": "147a40f6-7b92-4be0-90bd-fc5de37a84b9",
+    "invoice_number": "RJN-2026-0148",
+    "customer_name": "SAROJNI",
+    "customer_phone": "7895016978",
+    "subtotal": 2235,
+    "discount": 235,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790779261725",
+        "sku": "RJ-SAR-186",
+        "name": "murli k 241 j j",
+        "price": 2235,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T13:40:01.341+00:00"
+  },
+  {
+    "id": "282be1c1-3662-4d67-9621-0fc501f3dd58",
+    "invoice_number": "RJN-2026-0149",
+    "customer_name": "VINAY KUMAR",
+    "customer_phone": "9837501235",
+    "subtotal": 2420,
+    "discount": 20,
+    "tax": 0,
+    "total": 2400,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790757496322",
+        "sku": "RJ-SAR-145",
+        "name": "A Melody",
+        "price": 1421,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790774222156",
+        "sku": "RJ-BAG-057",
+        "name": "mysure silk k 249",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T13:54:58.599+00:00"
+  },
+  {
+    "id": "2b0c22f6-a39f-49f2-9882-2fd2d9519c4a",
+    "invoice_number": "RJN-2026-0150",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 465,
+    "discount": 0,
+    "tax": 0,
+    "total": 465,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "manual-1792073174081",
+        "sku": "MANUAL-4081",
+        "name": "Hair Accessories / Pin",
+        "price": 465,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:06:18.21+00:00"
+  },
+  {
+    "id": "b16ae0e7-294c-4426-b9c1-14a310db941c",
+    "invoice_number": "RJN-2026-0151",
+    "customer_name": "MAHIMA",
+    "customer_phone": "9286033279",
+    "subtotal": 2205,
+    "discount": 0,
+    "tax": 0,
+    "total": 2205,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790773898028",
+        "sku": "RJ-BAG-055",
+        "name": "Neha silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:17:30.782+00:00"
+  },
+  {
+    "id": "07cdb6eb-2d45-4b85-9586-87e2309db344",
+    "invoice_number": "RJN-2026-0152",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 830,
+    "discount": 0,
+    "tax": 0,
+    "total": 830,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "manual-1792073944639",
+        "sku": "MANUAL-4639",
+        "name": "JHUMKA",
+        "price": 180,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791542642106",
+        "sku": "RJ-FTW-024",
+        "name": "golden brown jutiya",
+        "price": 300,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791194555073",
+        "sku": "RJ-SAR-225",
+        "name": "MALTY BLOUSE",
+        "price": 350,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:22:40.068+00:00"
+  },
+  {
+    "id": "10abed57-b18e-4187-b6c9-dbb8f04ea8d6",
+    "invoice_number": "RJN-2026-0153",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 470,
+    "discount": 0,
+    "tax": 0,
+    "total": 470,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790612053168",
+        "sku": "RJ-BAG-007",
+        "name": "19 - Sider Bag 3",
+        "price": 390,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792075243400",
+        "sku": "MANUAL-3400",
+        "name": "LIPSTIC",
+        "price": 80,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:40:55.544+00:00"
+  },
+  {
+    "id": "97d4151a-3422-4765-8301-de1783d8a4b7",
+    "invoice_number": "RJN-2026-0154",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1265,
+    "discount": 0,
+    "tax": 0,
+    "total": 1265,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791569911280",
+        "sku": "RJ-KRT-120",
+        "name": "amrita amit j j",
+        "price": 975,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792075465472",
+        "sku": "MANUAL-5472",
+        "name": "JHUMKA",
+        "price": 70,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791205326162",
+        "sku": "RJ-JWL-026",
+        "name": "MALTY BANGALES",
+        "price": 220,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:45:31.059+00:00"
+  },
+  {
+    "id": "5dae56b1-6521-49ad-8e16-60cb5a887ec5",
+    "invoice_number": "RJN-2026-0155",
+    "customer_name": "POOJA DIDI",
+    "customer_phone": "NA",
+    "subtotal": 2235,
+    "discount": 535,
+    "tax": 0,
+    "total": 1700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790779261725",
+        "sku": "RJ-SAR-186",
+        "name": "murli k 241 j j",
+        "price": 2235,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:48:25.584+00:00"
+  },
+  {
+    "id": "8b41e6bf-e617-41d4-8b71-c93fcbfe9246",
+    "invoice_number": "RJN-2026-0156",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1088,
+    "discount": 109,
+    "tax": 0,
+    "total": 979,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790779968263",
+        "sku": "RJ-BAG-062",
+        "name": "chintu",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T14:58:06.844+00:00"
+  },
+  {
+    "id": "8ec3df13-a460-4d64-9db2-9644d117d43f",
+    "invoice_number": "RJN-2026-0157",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2694,
+    "discount": 194,
+    "tax": 0,
+    "total": 2500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790774222156",
+        "sku": "RJ-BAG-057",
+        "name": "mysure silk k 249",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790780873227",
+        "sku": "RJ-BAG-067",
+        "name": "kulcha silk",
+        "price": 1695,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T15:05:50.095+00:00"
+  },
+  {
+    "id": "2dabfd6d-2c0b-4f98-8c4f-6aa6c9074d10",
+    "invoice_number": "RJN-2026-0158",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 3576,
+    "discount": 576,
+    "tax": 0,
+    "total": 3000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791653439784",
+        "sku": "RJ-KRT-159",
+        "name": "NAZRANA",
+        "price": 499,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791653439784",
+        "sku": "RJ-KRT-159",
+        "name": "NAZRANA",
+        "price": 499,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791652965532",
+        "sku": "RJ-KRT-157",
+        "name": "LUCKY DRAW",
+        "price": 480,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790762495556",
+        "sku": "RJ-SAR-162",
+        "name": "A Varsat Time",
+        "price": 1049,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790762495556",
+        "sku": "RJ-SAR-162",
+        "name": "A Varsat Time",
+        "price": 1049,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T15:23:38.526+00:00"
+  },
+  {
+    "id": "9872c60b-88b7-4b2e-9bed-4d9040a24915",
+    "invoice_number": "RJN-2026-0159",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 5738,
+    "discount": 738,
+    "tax": 0,
+    "total": 5000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791282357835",
+        "sku": "RJ-SAR-254",
+        "name": "NEST LEVEL",
+        "price": 4650,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790762900872",
+        "sku": "RJ-SAR-165",
+        "name": "A Creative",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T15:24:50.239+00:00"
+  },
+  {
+    "id": "f339f77b-1f01-4a71-b014-bea351e4ae60",
+    "invoice_number": "RJN-2026-0160",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1290,
+    "discount": 0,
+    "tax": 0,
+    "total": 1290,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791575770251",
+        "sku": "RJ-HDL-005",
+        "name": "spring summer sheet",
+        "price": 645,
+        "quantity": 2,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T15:27:53.91+00:00"
+  },
+  {
+    "id": "791fbc6e-4dc1-473e-9db0-47ca46b58440",
+    "invoice_number": "RJN-2026-0161",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 4578,
+    "discount": 578,
+    "tax": 0,
+    "total": 4000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790612679984",
+        "sku": "RJ-BAG-011",
+        "name": "19 - Pearl bag",
+        "price": 449,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791479155922",
+        "sku": "RJ-BAG-074",
+        "name": "Panjubi Jutti  Payal Royal change",
+        "price": 389,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791566219867",
+        "sku": "RJ-KRT-091",
+        "name": "sweetdreams",
+        "price": 1475,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791569349573",
+        "sku": "RJ-KRT-116",
+        "name": "leena savarna",
+        "price": 900,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791576153951",
+        "sku": "RJ-HDL-007",
+        "name": "story 1+2 sheet",
+        "price": 720,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791575770251",
+        "sku": "RJ-HDL-005",
+        "name": "spring summer sheet",
+        "price": 645,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T15:36:55.673+00:00"
+  },
+  {
+    "id": "8ee9c409-d272-41d9-bb50-b2c597e52c61",
+    "invoice_number": "RJN-2026-0162",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 4697,
+    "discount": 397,
+    "tax": 0,
+    "total": 4300,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790775594211",
+        "sku": "RJ-SAR-183",
+        "name": "linen silk k 179",
+        "price": 1999,
+        "quantity": 2,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697732510",
+        "sku": "RJ-SAR-125",
+        "name": "A ARPITA",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-15T16:36:50.655+00:00"
+  },
+  {
+    "id": "d1ebf08c-4c2e-483b-aaa6-c089d8228c78",
+    "invoice_number": "RJN-2026-0163",
+    "customer_name": "raj",
+    "customer_phone": "9855955767",
+    "subtotal": 849,
+    "discount": 49,
+    "tax": 0,
+    "total": 800,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790614574449",
+        "sku": "RJ-BAG-021",
+        "name": "bride party",
+        "price": 849,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:23:45.287+00:00"
+  },
+  {
+    "id": "7356cdab-be41-43bd-88d1-86cf449e32ed",
+    "invoice_number": "RJN-2026-0164",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1425,
+    "discount": 225,
+    "tax": 0,
+    "total": 1200,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791574214850",
+        "sku": "RJ-KRT-134",
+        "name": "1694 jsr jj",
+        "price": 1305,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791558080186",
+        "sku": "RJ-JWL-117",
+        "name": "uninor bangles",
+        "price": 120,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:25:50.061+00:00"
+  },
+  {
+    "id": "b18bcc1c-389b-4634-9840-253d9abe12b9",
+    "invoice_number": "RJN-2026-0165",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2517,
+    "discount": 517,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791094286502",
+        "sku": "RJ-KRT-043",
+        "name": "k4171",
+        "price": 2517,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:42:40.946+00:00"
+  },
+  {
+    "id": "75d16656-c109-4fde-ab33-03e96177252a",
+    "invoice_number": "RJN-2026-0166",
+    "customer_name": "RAM KISHAN",
+    "customer_phone": "9720501188",
+    "subtotal": 2235,
+    "discount": 435,
+    "tax": 0,
+    "total": 1800,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790779261725",
+        "sku": "RJ-SAR-186",
+        "name": "murli k 241 j j",
+        "price": 2235,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:43:00.716+00:00"
+  },
+  {
+    "id": "96bdc2b8-ace9-42db-b527-32d2b8e7ac37",
+    "invoice_number": "RJN-2026-0167",
+    "customer_name": "GITA GUPTA",
+    "customer_phone": "9411536603",
+    "subtotal": 1049,
+    "discount": 105,
+    "tax": 0,
+    "total": 944,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790700336937",
+        "sku": "RJ-SAR-140",
+        "name": "A DISCO -19",
+        "price": 1049,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:54:38.213+00:00"
+  },
+  {
+    "id": "f387ba50-c6cb-460b-916b-966806352183",
+    "invoice_number": "RJN-2026-0168",
+    "customer_name": "MANISH GUPTA",
+    "customer_phone": "8755472014",
+    "subtotal": 3011,
+    "discount": 411,
+    "tax": 0,
+    "total": 2600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791097559583",
+        "sku": "RJ-KRT-054",
+        "name": "D.NO.9358",
+        "price": 1991,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791568708000",
+        "sku": "RJ-KRT-111",
+        "name": "ramila twinkle",
+        "price": 1020,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T07:57:04.333+00:00"
+  },
+  {
+    "id": "aab99991-907b-4c80-ba71-89ec9d393446",
+    "invoice_number": "RJN-2026-0169",
+    "customer_name": "PAYAL THAKUR",
+    "customer_phone": "9557365509",
+    "subtotal": 1799,
+    "discount": 199,
+    "tax": 0,
+    "total": 1600,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790696548909",
+        "sku": "RJ-SAR-119",
+        "name": "A SK 102",
+        "price": 1799,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T08:01:39.36+00:00"
+  },
+  {
+    "id": "b8dad33e-5ac2-4147-a71e-fcddd543df17",
+    "invoice_number": "RJN-2026-0170",
+    "customer_name": "PAYAL THAKUR",
+    "customer_phone": "9557365509",
+    "subtotal": 1088,
+    "discount": 200,
+    "tax": 0,
+    "total": 888,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790779968263",
+        "sku": "RJ-BAG-062",
+        "name": "chintu",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T08:12:15.616+00:00"
+  },
+  {
+    "id": "4e94021d-db7d-4da5-98f2-859d066629d0",
+    "invoice_number": "RJN-2026-0171",
+    "customer_name": "Ravi Sankar",
+    "customer_phone": "9359776713",
+    "subtotal": 4099,
+    "discount": 410,
+    "tax": 0,
+    "total": 3689,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790774657929",
+        "sku": "RJ-SAR-178",
+        "name": "pepsi",
+        "price": 2100,
+        "quantity": 1
+      },
+      {
+        "id": "prod-1791903006855",
+        "sku": "RJ-KID-012",
+        "name": "STONE 12099",
+        "price": 1999,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-16T09:47:16.459+00:00"
+  },
+  {
+    "id": "ee9e46e4-6ef3-432a-aafb-ad939b7b5719",
+    "invoice_number": "RJN-2026-0172",
+    "customer_name": "KUSHUAM LATA",
+    "customer_phone": "8126433147",
+    "subtotal": 2506,
+    "discount": 206,
+    "tax": 0,
+    "total": 2300,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1253,
+        "quantity": 2,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T10:25:11.734+00:00"
+  },
+  {
+    "id": "9e6e1f6d-8efc-4de4-975d-7d5b12bac142",
+    "invoice_number": "RJN-2026-0173",
+    "customer_name": "RAJANA SHARMA",
+    "customer_phone": "9193577128",
+    "subtotal": 899,
+    "discount": 99,
+    "tax": 0,
+    "total": 800,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790698329375",
+        "sku": "RJ-SAR-129",
+        "name": "A ONCE TIME",
+        "price": 899,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T11:06:11.374+00:00"
+  },
+  {
+    "id": "943857d9-1105-4e90-a316-3d8806315575",
+    "invoice_number": "RJN-2026-0174",
+    "customer_name": "RAHUL KUMAR",
+    "customer_phone": "NA",
+    "subtotal": 9000,
+    "discount": 1350,
+    "tax": 0,
+    "total": 7650,
+    "payment_mode": "khata",
+    "items": [
+      {
+        "id": "prod-1791272985570",
+        "sku": "RJ-SAR-231",
+        "name": "JINIE ROSE -305",
+        "price": 2768,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791459173240",
+        "sku": "RJ-KRT-073",
+        "name": "Kurti Palzo Set",
+        "price": 1399,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790667335717",
+        "sku": "RJ-KRT-032",
+        "name": "20 chanderi silk",
+        "price": 1299,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790667631739",
+        "sku": "RJ-BAG-044",
+        "name": "22 jarkon work",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792048758249",
+        "sku": "RJ-COS-015",
+        "name": "mega matte lipastic",
+        "price": 230,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792048758249",
+        "sku": "RJ-COS-015",
+        "name": "mega matte lipastic",
+        "price": 230,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792149797320",
+        "sku": "MANUAL-7320",
+        "name": "FACEWASH",
+        "price": 345,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792149867297",
+        "sku": "MANUAL-7297",
+        "name": "GARNIER CREAM",
+        "price": 299,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791620135332",
+        "sku": "RJ-COS-007",
+        "name": "nail paint mix",
+        "price": 75,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791620135332",
+        "sku": "RJ-COS-007",
+        "name": "nail paint mix",
+        "price": 75,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792149976560",
+        "sku": "MANUAL-6560",
+        "name": "EVERTHING FACE PACK",
+        "price": 60,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792150086133",
+        "sku": "MANUAL-6133",
+        "name": "JHUMKA",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791287537031",
+        "sku": "RJ-JWL-051",
+        "name": "BANGALES",
+        "price": 349,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791478664902",
+        "sku": "RJ-BAG-073",
+        "name": "Panjubi Jutti  Payal",
+        "price": 399,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T11:32:40.675+00:00"
+  },
+  {
+    "id": "8dfeadf9-afd1-4b9e-951f-20c58e69969e",
+    "invoice_number": "RJN-2026-0175",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2105,
+    "discount": 415,
+    "tax": 0,
+    "total": 1690,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790768484370",
+        "sku": "RJ-SAR-172",
+        "name": "J.J Ragani",
+        "price": 1872,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791557162990",
+        "sku": "RJ-JWL-113",
+        "name": "eversrest bangles",
+        "price": 90,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T11:51:42.009+00:00"
+  },
+  {
+    "id": "f15a9079-b6fb-41f8-865b-aa401d0dea7d",
+    "invoice_number": "RJN-2026-0176",
+    "customer_name": "SANDHYA",
+    "customer_phone": "7518974243",
+    "subtotal": 1140,
+    "discount": 140,
+    "tax": 0,
+    "total": 1000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790777750535",
+        "sku": "RJ-SAR-185",
+        "name": "khat k 241 j j",
+        "price": 1140,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T11:55:17.131+00:00"
+  },
+  {
+    "id": "1b51cda2-5280-4f61-bad2-a75b3ba49e25",
+    "invoice_number": "RJN-2026-0177",
+    "customer_name": "RAKHI",
+    "customer_phone": "7248698472",
+    "subtotal": 598,
+    "discount": 8,
+    "tax": 0,
+    "total": 590,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791287537031",
+        "sku": "RJ-JWL-051",
+        "name": "BANGALES",
+        "price": 349,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792152245886",
+        "sku": "MANUAL-5886",
+        "name": "LIPISTIC",
+        "price": 249,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T12:05:02.376+00:00"
+  },
+  {
+    "id": "1d303a10-1ad1-4615-8018-e1a836153bb3",
+    "invoice_number": "RJN-2026-0178",
+    "customer_name": "PARUL",
+    "customer_phone": "8630189003",
+    "subtotal": 3232,
+    "discount": 432,
+    "tax": 0,
+    "total": 2800,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790762900872",
+        "sku": "RJ-SAR-165",
+        "name": "A Creative",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790775555143",
+        "sku": "RJ-SAR-182",
+        "name": "rashmi k 139",
+        "price": 2144,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T13:00:07.922+00:00"
+  },
+  {
+    "id": "7c8425ee-309f-4aaa-8d42-78218db531c0",
+    "invoice_number": "RJN-2026-0179",
+    "customer_name": "MAHIMA",
+    "customer_phone": "9286033279",
+    "subtotal": 279,
+    "discount": 0,
+    "tax": 0,
+    "total": 279,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "manual-1792160612387",
+        "sku": "MANUAL-2387",
+        "name": "JHUMKA MEGGA MATT TOSS",
+        "price": 279,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T14:24:01.622+00:00"
+  },
+  {
+    "id": "0a8e37f4-c211-4fd6-ac40-08d3926234e4",
+    "invoice_number": "RJN-2026-0180",
+    "customer_name": "ASHWANI KUMAR",
+    "customer_phone": "8449999120",
+    "subtotal": 2475,
+    "discount": 445,
+    "tax": 0,
+    "total": 2030,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790769905498",
+        "sku": "RJ-SAR-174",
+        "name": "Ceramic Gajraj K69 J.J",
+        "price": 2475,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T14:36:09.356+00:00"
+  },
+  {
+    "id": "f0ae9934-e18b-4932-9915-e53e5f3d3b2a",
+    "invoice_number": "RJN-2026-0181",
+    "customer_name": "AFSANA",
+    "customer_phone": "8439928550",
+    "subtotal": 77,
+    "discount": 0,
+    "tax": 0,
+    "total": 77,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "manual-1792162046410",
+        "sku": "MANUAL-6410",
+        "name": "JHUMKA",
+        "price": 77,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T14:47:28.554+00:00"
+  },
+  {
+    "id": "67777bbc-d862-4185-8071-e1ab910b89f8",
+    "invoice_number": "RJN-2026-0182",
+    "customer_name": "ROHIT",
+    "customer_phone": "9045870676",
+    "subtotal": 4925,
+    "discount": 825,
+    "tax": 0,
+    "total": 4100,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791568020494",
+        "sku": "RJ-KRT-106",
+        "name": "harivesh j.j",
+        "price": 1311,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791567937836",
+        "sku": "RJ-KRT-105",
+        "name": "harivesh .j.j",
+        "price": 1311,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T15:07:01.052+00:00"
+  },
+  {
+    "id": "5e4807a9-19c1-4461-b839-1e31d12817bd",
+    "invoice_number": "RJN-2026-0183",
+    "customer_name": "Ramesh",
+    "customer_phone": "7500675537",
+    "subtotal": 999,
+    "discount": 0,
+    "tax": 0,
+    "total": 999,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790668126616",
+        "sku": "RJ-KRT-035",
+        "name": "24 two side patti",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T16:20:27.864+00:00"
+  },
+  {
+    "id": "a4d8998f-e54a-40ef-be13-a0bfc3f39af0",
+    "invoice_number": "RJN-2026-0184",
+    "customer_name": "NEERU",
+    "customer_phone": "7900966316",
+    "subtotal": 1799,
+    "discount": 199,
+    "tax": 0,
+    "total": 1600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790696548909",
+        "sku": "RJ-SAR-119",
+        "name": "A SK 102",
+        "price": 1799,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-16T17:09:16.33+00:00"
+  },
+  {
+    "id": "34ef7100-9a01-442b-9a65-17fcdd309d96",
+    "invoice_number": "RJN-2026-0185",
+    "customer_name": "Suman",
+    "customer_phone": "9991401658",
+    "subtotal": 810,
+    "discount": 0,
+    "tax": 0,
+    "total": 810,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790758189656",
+        "sku": "RJ-SAR-150",
+        "name": "A Puspika",
+        "price": 810,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T08:22:28.578+00:00"
+  },
+  {
+    "id": "12291abc-c1e3-4371-9360-61ae4dcf32b2",
+    "invoice_number": "RJN-2026-0186",
+    "customer_name": "Sakshi",
+    "customer_phone": "9012412544",
+    "subtotal": 199,
+    "discount": 0,
+    "tax": 0,
+    "total": 199,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "manual-1792225948451",
+        "sku": "MANUAL-8451",
+        "name": "HD Beauity",
+        "price": 199,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T08:32:33.532+00:00"
+  },
+  {
+    "id": "07b04a95-bbf7-4675-bff2-8ae4ae65b0ce",
+    "invoice_number": "RJN-2026-0187",
+    "customer_name": "saroj verma",
+    "customer_phone": "9286692674",
+    "subtotal": 410,
+    "discount": 10,
+    "tax": 0,
+    "total": 400,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791652649748",
+        "sku": "RJ-KRT-156",
+        "name": "SUN SHINE",
+        "price": 410,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T08:35:02.541+00:00"
+  },
+  {
+    "id": "80f34b1a-2e12-4bab-b601-58aabd1877e6",
+    "invoice_number": "RJN-2026-0188",
+    "customer_name": "Suman",
+    "customer_phone": "8979387923",
+    "subtotal": 2603,
+    "discount": 130,
+    "tax": 0,
+    "total": 2473,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790773756630",
+        "sku": "RJ-SAR-177",
+        "name": "paneri silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792230373706",
+        "sku": "MANUAL-3706",
+        "name": "kajal jhumka",
+        "price": 255,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T09:49:03.94+00:00"
+  },
+  {
+    "id": "a15e374e-5a3d-4407-aef1-7fa94aa0c630",
+    "invoice_number": "RJN-2026-0189",
+    "customer_name": "Savita Saini",
+    "customer_phone": "9719673388",
+    "subtotal": 2612,
+    "discount": 512,
+    "tax": 0,
+    "total": 2100,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791274832545",
+        "sku": "RJ-SAR-239",
+        "name": "T 68",
+        "price": 2612,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T10:06:11.145+00:00"
+  },
+  {
+    "id": "3a9408e0-2f88-45ef-a57d-81ca668b4e77",
+    "invoice_number": "RJN-2026-0190",
+    "customer_name": "INDU BHABHI",
+    "customer_phone": "NA",
+    "subtotal": 825,
+    "discount": 0,
+    "tax": 0,
+    "total": 825,
+    "payment_mode": "khata",
+    "items": [
+      {
+        "id": "prod-1791279183560",
+        "sku": "RJ-KRT-067",
+        "name": "VZZ",
+        "price": 825,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T10:18:47.974+00:00"
+  },
+  {
+    "id": "f4916b04-f79c-49f8-8734-6b25daed5b0c",
+    "invoice_number": "RJN-2026-0191",
+    "customer_name": "NIKHIL",
+    "customer_phone": "9808414091",
+    "subtotal": 1493,
+    "discount": 43,
+    "tax": 0,
+    "total": 1450,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790762192498",
+        "sku": "RJ-SAR-160",
+        "name": "AJunoon",
+        "price": 1493,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T11:06:39.748+00:00"
+  },
+  {
+    "id": "09f37d22-5ce0-4317-bc11-83f66af7212a",
+    "invoice_number": "RJN-2026-0192",
+    "customer_name": "SUNIL",
+    "customer_phone": "6398611213",
+    "subtotal": 2428,
+    "discount": 200,
+    "tax": 0,
+    "total": 2228,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790697568095",
+        "sku": "RJ-SAR-124",
+        "name": "A MOSHITA",
+        "price": 2401,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791547265965",
+        "sku": "RJ-JWL-102",
+        "name": "tiny tops",
+        "price": 27,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T11:57:23.365+00:00"
+  },
+  {
+    "id": "39debf49-00d2-43d4-aa96-187bd1ac271e",
+    "invoice_number": "RJN-2026-0193",
+    "customer_name": "CHANDA",
+    "customer_phone": "7080770617",
+    "subtotal": 349,
+    "discount": 0,
+    "tax": 0,
+    "total": 349,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791458532634",
+        "sku": "RJ-KRT-071",
+        "name": "Short Kurti",
+        "price": 349,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T12:05:39.01+00:00"
+  },
+  {
+    "id": "fc214d24-68ce-4351-906a-4402f6901387",
+    "invoice_number": "RJN-2026-0194",
+    "customer_name": "NARENDER SINGH",
+    "customer_phone": "9720818184",
+    "subtotal": 2370,
+    "discount": 370,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790780726507",
+        "sku": "RJ-BAG-066",
+        "name": "rubal silk",
+        "price": 2370,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T12:17:14.071+00:00"
+  },
+  {
+    "id": "0e3ec39b-bb3a-452d-a30f-6ce141be44f6",
+    "invoice_number": "RJN-2026-0195",
+    "customer_name": "POOJA",
+    "customer_phone": "9897188357",
+    "subtotal": 765,
+    "discount": 65,
+    "tax": 0,
+    "total": 700,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791575078451",
+        "sku": "RJ-BAG-076",
+        "name": "9780 makhija j j",
+        "price": 765,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-17T12:24:08.627+00:00"
+  },
+  {
+    "id": "e3a0599c-4bc0-4deb-846a-e0f13bf30bac",
+    "invoice_number": "RJN-2026-0196",
+    "customer_name": "MANOJ RAWAT",
+    "customer_phone": "7017587714",
+    "subtotal": 3057,
+    "discount": 357,
+    "tax": 0,
+    "total": 2700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791275224295",
+        "sku": "RJ-SAR-240",
+        "name": "JEMIN 3",
+        "price": 1418,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790777750535",
+        "sku": "RJ-SAR-185",
+        "name": "khat k 241 j j",
+        "price": 1140,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792303476652",
+        "sku": "MANUAL-6652",
+        "name": "PITICOAT STUCH",
+        "price": 499,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T06:06:12.925+00:00"
+  },
+  {
+    "id": "5d77f2fd-511b-4d9e-aee9-b9649dc572d6",
+    "invoice_number": "RJN-2026-0197",
+    "customer_name": "PRITI",
+    "customer_phone": "9412073310",
+    "subtotal": 2099,
+    "discount": 199,
+    "tax": 0,
+    "total": 1900,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790696032254",
+        "sku": "RJ-SAR-118",
+        "name": "A SK101",
+        "price": 2099,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T06:39:17.71+00:00"
+  },
+  {
+    "id": "61c73c3f-8fb9-4aeb-ba96-71af92ed5fea",
+    "invoice_number": "RJN-2026-0198",
+    "customer_name": "SARITA",
+    "customer_phone": "7452807299",
+    "subtotal": 2617,
+    "discount": 317,
+    "tax": 0,
+    "total": 2300,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791275224295",
+        "sku": "RJ-SAR-240",
+        "name": "JEMIN 3",
+        "price": 1418,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790668324823",
+        "sku": "RJ-BAG-047",
+        "name": "25 muskan warm",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T07:09:32.801+00:00"
+  },
+  {
+    "id": "c77c09cc-0aa3-4943-8e5f-0d3365f17465",
+    "invoice_number": "RJN-2026-0199",
+    "customer_name": "SUMIT",
+    "customer_phone": "9760164710",
+    "subtotal": 1044,
+    "discount": 44,
+    "tax": 0,
+    "total": 1000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791273368298",
+        "sku": "RJ-SAR-233",
+        "name": "MAACHIS",
+        "price": 1044,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T08:21:14.421+00:00"
+  },
+  {
+    "id": "0b766095-36aa-4594-9539-a3b85b44a6f6",
+    "invoice_number": "RJN-2026-0200",
+    "customer_name": "ASHWANI",
+    "customer_phone": "7906679852",
+    "subtotal": 599,
+    "discount": 99,
+    "tax": 0,
+    "total": 500,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790666325856",
+        "sku": "RJ-KRT-028",
+        "name": "31 slub cotton",
+        "price": 599,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T08:31:50.685+00:00"
+  },
+  {
+    "id": "99c974d9-d7a4-4efe-a3e8-0cb89ef6cb83",
+    "invoice_number": "RJN-2026-0201",
+    "customer_name": "NEHA MITTAL",
+    "customer_phone": "9719122212",
+    "subtotal": 1575,
+    "discount": 175,
+    "tax": 0,
+    "total": 1400,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790857595079",
+        "sku": "RJ-BAG-068",
+        "name": "laal",
+        "price": 1575,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T08:36:56.863+00:00"
+  },
+  {
+    "id": "2c033cec-95e5-445a-ac06-33c37fd53cff",
+    "invoice_number": "RJN-2026-0202",
+    "customer_name": "RAM KISHAN",
+    "customer_phone": "9720501188",
+    "subtotal": 143,
+    "discount": 23,
+    "tax": 0,
+    "total": 120,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T08:57:08.597+00:00"
+  },
+  {
+    "id": "109b4e44-1de5-47ae-989c-6710dee1cfc5",
+    "invoice_number": "RJN-2026-0203",
+    "customer_name": "PARSHANT GUPTA",
+    "customer_phone": "8193952394",
+    "subtotal": 4699,
+    "discount": 199,
+    "tax": 0,
+    "total": 4500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790672787056",
+        "sku": "RJ-LHG-007",
+        "name": "11 - BE FINE",
+        "price": 3199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791924831265",
+        "sku": "RJ-LHG-015",
+        "name": "10 GOWNS",
+        "price": 1500,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T09:58:40.062+00:00"
+  },
+  {
+    "id": "4522bffc-7ce6-411e-abb5-8dfb0f3b590b",
+    "invoice_number": "RJN-2026-0204",
+    "customer_name": "SHIVAM",
+    "customer_phone": "7895425240",
+    "subtotal": 1088,
+    "discount": 0,
+    "tax": 0,
+    "total": 1088,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790762900872",
+        "sku": "RJ-SAR-165",
+        "name": "A Creative",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T10:11:23.543+00:00"
+  },
+  {
+    "id": "7c52be8f-4f13-42fd-8c72-642500370078",
+    "invoice_number": "RJN-2026-0205",
+    "customer_name": "RAHUL",
+    "customer_phone": "9720551717",
+    "subtotal": 1335,
+    "discount": 0,
+    "tax": 0,
+    "total": 1335,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790780300418",
+        "sku": "RJ-BAG-064",
+        "name": "tilak dola",
+        "price": 1335,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T10:40:49.937+00:00"
+  },
+  {
+    "id": "33e0e3e7-a65e-402b-8c34-409259a1837d",
+    "invoice_number": "RJN-2026-0206",
+    "customer_name": "MANISH YADAV",
+    "customer_phone": "8954211712",
+    "subtotal": 3570,
+    "discount": 357,
+    "tax": 0,
+    "total": 3213,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790775197168",
+        "sku": "RJ-SAR-179",
+        "name": "sufi k241",
+        "price": 1740,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790768181228",
+        "sku": "RJ-SAR-171",
+        "name": "J.J K 69",
+        "price": 1544,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791468909668",
+        "sku": "RJ-SAR-261",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791468909668",
+        "sku": "RJ-SAR-261",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T10:53:59.361+00:00"
+  },
+  {
+    "id": "82efc6a0-aeeb-4a40-ab47-da70a21aa8bb",
+    "invoice_number": "RJN-2026-0207",
+    "customer_name": "MANISH YADAV",
+    "customer_phone": "8954211712",
+    "subtotal": 260,
+    "discount": 30,
+    "tax": 0,
+    "total": 230,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790611875653",
+        "sku": "RJ-BAG-006",
+        "name": "19- Sider Bag 2",
+        "price": 260,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T11:06:16.525+00:00"
+  },
+  {
+    "id": "7c8ae8ab-5163-4dc4-af3f-b4442c771e00",
+    "invoice_number": "RJN-2026-0208",
+    "customer_name": "PARSHANT GUPTA",
+    "customer_phone": "8193952394",
+    "subtotal": 3179,
+    "discount": 619,
+    "tax": 0,
+    "total": 2560,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791273092736",
+        "sku": "RJ-SAR-232",
+        "name": "BINAYAK-106",
+        "price": 3179,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T13:21:34.417+00:00"
+  },
+  {
+    "id": "60555e2c-952c-409b-af69-8c97b0d01030",
+    "invoice_number": "RJN-2026-0209",
+    "customer_name": "NARENDAR CHAUHAN",
+    "customer_phone": "9458127543",
+    "subtotal": 2537,
+    "discount": 137,
+    "tax": 0,
+    "total": 2400,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791273368298",
+        "sku": "RJ-SAR-233",
+        "name": "MAACHIS",
+        "price": 1044,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790758406771",
+        "sku": "RJ-SAR-151",
+        "name": "A Amela",
+        "price": 1493,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T13:46:08.789+00:00"
+  },
+  {
+    "id": "1625a95a-2aca-4998-b7ef-7421ac7893c0",
+    "invoice_number": "RJN-2026-0210",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 599,
+    "discount": 99,
+    "tax": 0,
+    "total": 500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790675408993",
+        "sku": "RJ-SAR-114",
+        "name": "04",
+        "price": 599,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T15:12:09.788+00:00"
+  },
+  {
+    "id": "41127022-c031-4f34-90cc-6ca0610fce2f",
+    "invoice_number": "RJN-2026-0211",
+    "customer_name": "Sarika",
+    "customer_phone": "9759279555",
+    "subtotal": 599,
+    "discount": 99,
+    "tax": 0,
+    "total": 500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790675408993",
+        "sku": "RJ-SAR-114",
+        "name": "04",
+        "price": 599,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T15:14:39.875+00:00"
+  },
+  {
+    "id": "2aa057ef-e130-4961-8721-aa7cb779cd5d",
+    "invoice_number": "RJN-2026-0212",
+    "customer_name": "satyam",
+    "customer_phone": "8433198483",
+    "subtotal": 825,
+    "discount": 125,
+    "tax": 0,
+    "total": 700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791576532295",
+        "sku": "RJ-HDL-009",
+        "name": "sheetal lotus",
+        "price": 825,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-18T15:44:20.962+00:00"
+  },
+  {
+    "id": "4aee18e7-1809-4217-81c2-1ea27c4a43ca",
+    "invoice_number": "RJN-2026-0213",
+    "customer_name": "Pankaj",
+    "customer_phone": "8057032205",
+    "subtotal": 3640,
+    "discount": 240,
+    "tax": 0,
+    "total": 3400,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790775197168",
+        "sku": "RJ-SAR-179",
+        "name": "sufi k241",
+        "price": 1740,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792340633480",
+        "sku": "MANUAL-3480",
+        "name": "orgeja purple",
+        "price": 1900,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-18T16:08:06.915+00:00"
+  },
+  {
+    "id": "efc4d9a1-4ab3-4156-9fb7-09b452d745e8",
+    "invoice_number": "RJN-2026-0214",
+    "customer_name": "Reena mahlotra",
+    "customer_phone": "9557022501",
+    "subtotal": 3523,
+    "discount": 623,
+    "tax": 0,
+    "total": 2900,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790857595079",
+        "sku": "RJ-BAG-068",
+        "name": "laal",
+        "price": 1575,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790700336937",
+        "sku": "RJ-SAR-140",
+        "name": "A DISCO -19",
+        "price": 1049,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790698329375",
+        "sku": "RJ-SAR-129",
+        "name": "A ONCE TIME",
+        "price": 899,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T08:36:54.842+00:00"
+  },
+  {
+    "id": "56c096e3-2c84-4e76-9631-1bc7c503d884",
+    "invoice_number": "RJN-2026-0215",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1199,
+    "discount": 199,
+    "tax": 0,
+    "total": 1000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790668324823",
+        "sku": "RJ-BAG-047",
+        "name": "25 muskan warm",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T10:18:14.612+00:00"
+  },
+  {
+    "id": "d92288c9-49ff-4ba7-89f7-a2e79f5bba56",
+    "invoice_number": "RJN-2026-0217",
+    "customer_name": "Raju Chaudhary",
+    "customer_phone": "7310590798",
+    "subtotal": 1665,
+    "discount": 165,
+    "tax": 0,
+    "total": 1500,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790775301692",
+        "sku": "RJ-SAR-180",
+        "name": "haritagre k 241",
+        "price": 1485,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791193785229",
+        "sku": "RJ-SAR-224",
+        "name": "PLANE  BLOUSE",
+        "price": 180,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T11:12:14.45+00:00"
+  },
+  {
+    "id": "89066a58-a462-4d69-a063-31c75cc96d50",
+    "invoice_number": "RJN-2026-0218",
+    "customer_name": "swati",
+    "customer_phone": "9045828728",
+    "subtotal": 599,
+    "discount": 60,
+    "tax": 0,
+    "total": 539,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790666325856",
+        "sku": "RJ-KRT-028",
+        "name": "31 slub cotton",
+        "price": 599,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T11:47:19.605+00:00"
+  },
+  {
+    "id": "e406abe7-ce6b-461f-81d5-3de48cc56b3c",
+    "invoice_number": "RJN-2026-0219",
+    "customer_name": "veena devi",
+    "customer_phone": "8816031138",
+    "subtotal": 4677,
+    "discount": 877,
+    "tax": 0,
+    "total": 3800,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790696032254",
+        "sku": "RJ-SAR-118",
+        "name": "A SK101",
+        "price": 2099,
+        "quantity": 1
+      },
+      {
+        "id": "prod-1791106582956",
+        "sku": "RJ-KRT-061",
+        "name": "BILLU",
+        "price": 729,
+        "quantity": 1
+      },
+      {
+        "id": "manual-1792411065075",
+        "sku": "MANUAL-5075",
+        "name": "jhumka chuda lipistic",
+        "price": 650,
+        "quantity": 1
+      },
+      {
+        "id": "prod-1790668802654",
+        "sku": "RJ-KRT-037",
+        "name": "26  pashmina wool",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T12:00:45.443+00:00"
+  },
+  {
+    "id": "10c8a04f-6e46-47e3-b032-75b0a5a1fdff",
+    "invoice_number": "RJN-2026-0220",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1799,
+    "discount": 249,
+    "tax": 0,
+    "total": 1550,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790777750535",
+        "sku": "RJ-SAR-185",
+        "name": "khat k 241 j j",
+        "price": 1140,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790698551896",
+        "sku": "RJ-SAR-131",
+        "name": "A MADHUNADAN DEV GURU",
+        "price": 659,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T12:16:17.197+00:00"
+  },
+  {
+    "id": "0130ccca-5f01-4d29-b760-96da53132945",
+    "invoice_number": "RJN-2026-0221",
+    "customer_name": "birjesh kumar shukala",
+    "customer_phone": "8004114708",
+    "subtotal": 2001,
+    "discount": 301,
+    "tax": 0,
+    "total": 1700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790701092959",
+        "sku": "RJ-BAG-051",
+        "name": "A 1540",
+        "price": 2001,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T13:32:09.81+00:00"
+  },
+  {
+    "id": "314905a1-6237-4e9f-b0b7-9c992b0b2612",
+    "invoice_number": "RJN-2026-0222",
+    "customer_name": "swati",
+    "customer_phone": "9045828728",
+    "subtotal": 1421,
+    "discount": 242,
+    "tax": 0,
+    "total": 1179,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790757496322",
+        "sku": "RJ-SAR-145",
+        "name": "A Melody",
+        "price": 1421,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T13:36:12.484+00:00"
+  },
+  {
+    "id": "6bf9b045-e53a-48ad-86c9-5ccad447a0ef",
+    "invoice_number": "RJN-2026-0216",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2163,
+    "discount": 263,
+    "tax": 0,
+    "total": 1900,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791285922222",
+        "sku": "RJ-JWL-040",
+        "name": "BABY BANGALES",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790780603834",
+        "sku": "RJ-BAG-065",
+        "name": "bingo silk",
+        "price": 2033,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T13:45:53.932+00:00"
+  },
+  {
+    "id": "f7e80521-0997-4b07-b7be-1d2fe3ed86ac",
+    "invoice_number": "RJN-2026-0223",
+    "customer_name": "Raj",
+    "customer_phone": "9855955767",
+    "subtotal": 580,
+    "discount": 29,
+    "tax": 0,
+    "total": 551,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790615092584",
+        "sku": "RJ-BAG-025",
+        "name": "3 short hand",
+        "price": 580,
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-10-19T14:56:17.438+00:00"
+  },
+  {
+    "id": "64c16c80-8bd1-40b2-bfda-700e3a829fca",
+    "invoice_number": "RJN-2026-0224",
+    "customer_name": "sunita",
+    "customer_phone": "8816031138",
+    "subtotal": 2205,
+    "discount": 205,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790773898028",
+        "sku": "RJ-BAG-055",
+        "name": "Neha silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T15:31:01.861+00:00"
+  },
+  {
+    "id": "efe2dc6c-7227-4e71-91ae-ab353ae3f201",
+    "invoice_number": "RJN-2026-0225",
+    "customer_name": "PRIYA",
+    "customer_phone": "9557500962",
+    "subtotal": 2205,
+    "discount": 205,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790773756630",
+        "sku": "RJ-SAR-177",
+        "name": "paneri silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T15:38:38.848+00:00"
+  },
+  {
+    "id": "8bb1281f-f48d-40df-9348-9abb4045e7c7",
+    "invoice_number": "RJN-2026-0226",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 2033,
+    "discount": 533,
+    "tax": 0,
+    "total": 1500,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790780603834",
+        "sku": "RJ-BAG-065",
+        "name": "bingo silk",
+        "price": 2033,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-19T16:07:14.477+00:00"
+  },
+  {
+    "id": "6adfd2eb-c23e-4243-b540-d3a948399734",
+    "invoice_number": "RJN-2026-0227",
+    "customer_name": "harsh",
+    "customer_phone": "8006759546",
+    "subtotal": 2205,
+    "discount": 205,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790773898028",
+        "sku": "RJ-BAG-055",
+        "name": "Neha silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T06:34:18.601+00:00"
+  },
+  {
+    "id": "1f267f49-4120-4729-9c3d-74d4169d515c",
+    "invoice_number": "RJN-2026-0228",
+    "customer_name": "Hemant",
+    "customer_phone": "9634463858",
+    "subtotal": 1773,
+    "discount": 223,
+    "tax": 0,
+    "total": 1550,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790934163996",
+        "sku": "RJ-SAR-197",
+        "name": "meena",
+        "price": 1773,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T08:06:26.831+00:00"
+  },
+  {
+    "id": "7288004a-fb45-420e-87d4-537bd18703d6",
+    "invoice_number": "RJN-2026-0229",
+    "customer_name": "sakram singh",
+    "customer_phone": "7464989187",
+    "subtotal": 2205,
+    "discount": 405,
+    "tax": 0,
+    "total": 1800,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790773756630",
+        "sku": "RJ-SAR-177",
+        "name": "paneri silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T10:30:43.419+00:00"
+  },
+  {
+    "id": "ab9ecf68-d17c-48d8-9d28-78847c32d8ec",
+    "invoice_number": "RJN-2026-0230",
+    "customer_name": "Sapna",
+    "customer_phone": "7060162306",
+    "subtotal": 1485,
+    "discount": 135,
+    "tax": 0,
+    "total": 1350,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790775301692",
+        "sku": "RJ-SAR-180",
+        "name": "haritagre k 241",
+        "price": 1485,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T11:21:35.645+00:00"
+  },
+  {
+    "id": "659b4ad2-744c-458c-94b1-3d4368f1c12a",
+    "invoice_number": "RJN-2026-0231",
+    "customer_name": "ARVIND",
+    "customer_phone": "8958375147",
+    "subtotal": 1650,
+    "discount": 300,
+    "tax": 0,
+    "total": 1350,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790666025293",
+        "sku": "RJ-KRT-027",
+        "name": "21 chandri suit",
+        "price": 1650,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T12:21:24.117+00:00"
+  },
+  {
+    "id": "e45bd6dc-b9f0-46a7-baba-52cb8cc2012b",
+    "invoice_number": "RJN-2026-0232",
+    "customer_name": "Manish Yadav",
+    "customer_phone": "8954211712",
+    "subtotal": 2599,
+    "discount": 499,
+    "tax": 0,
+    "total": 2100,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1792062300835",
+        "sku": "RJ-KRT-172",
+        "name": "OLIVE",
+        "price": 2599,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T13:08:04.877+00:00"
+  },
+  {
+    "id": "754ba18f-5128-4764-a2f7-c7ffc17fa654",
+    "invoice_number": "RJN-2026-0233",
+    "customer_name": "Anuj",
+    "customer_phone": "9129236322",
+    "subtotal": 1195,
+    "discount": 95,
+    "tax": 0,
+    "total": 1100,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790762293450",
+        "sku": "RJ-SAR-161",
+        "name": "A Dum Leval",
+        "price": 1195,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T13:51:34.944+00:00"
+  },
+  {
+    "id": "e795bac9-dfa2-4eef-a98b-4d5249633569",
+    "invoice_number": "RJN-2026-0234",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 286,
+    "discount": 36,
+    "tax": 0,
+    "total": 250,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "manual-1792505004977",
+        "sku": "MANUAL-4977",
+        "name": "Chumka",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792505046762",
+        "sku": "MANUAL-6762",
+        "name": "lipistik",
+        "price": 78,
+        "quantity": 2,
+        "isService": true
+      }
+    ],
+    "created_at": "2026-10-20T14:05:28.949+00:00"
+  },
+  {
+    "id": "ee16cf69-ee38-47fe-af6e-71324fae035a",
+    "invoice_number": "RJN-2026-0236",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 1499,
+    "discount": 149,
+    "tax": 0,
+    "total": 1350,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790696841944",
+        "sku": "RJ-SAR-121",
+        "name": "A CREAM SILK",
+        "price": 1499,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T14:13:21.698+00:00"
+  },
+  {
+    "id": "c3b8eee2-f236-4186-aaeb-04264607de75",
+    "invoice_number": "RJN-2026-0237",
+    "customer_name": "Poonam",
+    "customer_phone": "7217538668",
+    "subtotal": 992,
+    "discount": 42,
+    "tax": 0,
+    "total": 950,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791183903185",
+        "sku": "RJ-SAR-219",
+        "name": "tana bana",
+        "price": 992,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-20T14:23:41.269+00:00"
+  },
+  {
+    "id": "62ae52ef-34be-4537-bc03-4b06b91d1fd1",
+    "invoice_number": "RJN-2026-0238",
+    "customer_name": "sambhu parshad",
+    "customer_phone": "9758854971",
+    "subtotal": 549,
+    "discount": 69,
+    "tax": 0,
+    "total": 480,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791650804832",
+        "sku": "RJ-SAR-312",
+        "name": "NAYI UMANG",
+        "price": 549,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T09:51:16.808+00:00"
+  },
+  {
+    "id": "1aea7c4f-9868-4ca8-8505-234bcb190a9f",
+    "invoice_number": "RJN-2026-0239",
+    "customer_name": "surendar",
+    "customer_phone": "7300506046",
+    "subtotal": 2816,
+    "discount": 416,
+    "tax": 0,
+    "total": 2400,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790666325856",
+        "sku": "RJ-KRT-028",
+        "name": "31 slub cotton",
+        "price": 599,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791575189949",
+        "sku": "RJ-KRT-143",
+        "name": "1579 makhijha jj",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790759299172",
+        "sku": "RJ-SAR-155",
+        "name": "A Ravita",
+        "price": 548,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792576704635",
+        "sku": "MANUAL-4635",
+        "name": "extra item 6",
+        "price": 670,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T10:02:26.283+00:00"
+  },
+  {
+    "id": "9e42e26c-62b8-4def-a026-3b1d782c1626",
+    "invoice_number": "RJN-2026-0240",
+    "customer_name": "kunal",
+    "customer_phone": "7037022944",
+    "subtotal": 349,
+    "discount": 0,
+    "tax": 0,
+    "total": 349,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791458532634",
+        "sku": "RJ-KRT-071",
+        "name": "Short Kurti",
+        "price": 349,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T10:21:14.304+00:00"
+  },
+  {
+    "id": "6661d738-89c5-4733-9bd8-36912289e743",
+    "invoice_number": "RJN-2026-0241",
+    "customer_name": "Prashant kumar",
+    "customer_phone": "7618462907",
+    "subtotal": 1773,
+    "discount": 177,
+    "tax": 0,
+    "total": 1596,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790779720641",
+        "sku": "RJ-SAR-187",
+        "name": "lh petty cash",
+        "price": 1773,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T11:34:14.324+00:00"
+  },
+  {
+    "id": "b81de32d-cf0e-4566-85f7-252f8a493d11",
+    "invoice_number": "RJN-2026-0242",
+    "customer_name": "sushil",
+    "customer_phone": "8126660197",
+    "subtotal": 1988,
+    "discount": 195,
+    "tax": 0,
+    "total": 1793,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790780195297",
+        "sku": "RJ-BAG-063",
+        "name": "patlu satin",
+        "price": 1845,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T11:53:01.095+00:00"
+  },
+  {
+    "id": "aebe4906-cbb4-4067-833a-15bc97d29cd4",
+    "invoice_number": "RJN-2026-0243",
+    "customer_name": "tularam",
+    "customer_phone": "8218716085",
+    "subtotal": 2303,
+    "discount": 303,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T12:51:29.905+00:00"
+  },
+  {
+    "id": "ba35307a-b1a6-48d2-952b-d431d873578d",
+    "invoice_number": "RJN-2026-0244",
+    "customer_name": "swati",
+    "customer_phone": "9045828728",
+    "subtotal": 810,
+    "discount": 60,
+    "tax": 0,
+    "total": 750,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790758189656",
+        "sku": "RJ-SAR-150",
+        "name": "A Puspika",
+        "price": 810,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T14:03:17.831+00:00"
+  },
+  {
+    "id": "e05b51eb-c630-4e72-b04d-13aeb7425ec6",
+    "invoice_number": "RJN-2026-0245",
+    "customer_name": "Monoj Kumar",
+    "customer_phone": "9045938033",
+    "subtotal": 4079,
+    "discount": 779,
+    "tax": 0,
+    "total": 3300,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790773756630",
+        "sku": "RJ-SAR-177",
+        "name": "paneri silk k 73",
+        "price": 2205,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790863755409",
+        "sku": "RJ-SAR-194",
+        "name": "l h vetro",
+        "price": 1874,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T14:07:27.903+00:00"
+  },
+  {
+    "id": "e8c15788-f105-479f-88e7-e2278bc972d4",
+    "invoice_number": "RJN-2026-0246",
+    "customer_name": "Bharad bhushan sharma",
+    "customer_phone": "9412911475",
+    "subtotal": 12474,
+    "discount": 1474,
+    "tax": 0,
+    "total": 11000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790667631739",
+        "sku": "RJ-BAG-044",
+        "name": "22 jarkon work",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791106582956",
+        "sku": "RJ-KRT-061",
+        "name": "BILLU",
+        "price": 729,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790667631739",
+        "sku": "RJ-BAG-044",
+        "name": "22 jarkon work",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790668034006",
+        "sku": "RJ-BAG-046",
+        "name": "18 silk soft",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790667631739",
+        "sku": "RJ-BAG-044",
+        "name": "22 jarkon work",
+        "price": 1199,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792591934804",
+        "sku": "MANUAL-4804",
+        "name": "Un-tagged Kurti / Top",
+        "price": 1006,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791569911280",
+        "sku": "RJ-KRT-120",
+        "name": "amrita amit j j",
+        "price": 975,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790701092959",
+        "sku": "RJ-BAG-051",
+        "name": "A 1540",
+        "price": 2001,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-bill-38",
+        "sku": "RJ-SAR-038",
+        "name": "Rang Rasiya K-249 Festive Silk Saree",
+        "price": 1810,
+        "quantity": 1
+      },
+      {
+        "id": "prod-1791479155922",
+        "sku": "RJ-BAG-074",
+        "name": "Panjubi Jutti  Payal Royal change",
+        "price": 389,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791482008207",
+        "sku": "RJ-FTW-022",
+        "name": "Panjubi Jutti  Jaypuri Sitra",
+        "price": 379,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791479444715",
+        "sku": "RJ-FTW-018",
+        "name": "Panjubi Jutti  Black Payal",
+        "price": 389,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T14:27:08.251+00:00"
+  },
+  {
+    "id": "5e191844-1edf-4fb9-aeac-2ac8154176f7",
+    "invoice_number": "RJN-2026-0247",
+    "customer_name": "REKHA",
+    "customer_phone": "9368471049",
+    "subtotal": 700,
+    "discount": 100,
+    "tax": 0,
+    "total": 600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791647524045",
+        "sku": "RJ-SAR-296",
+        "name": "CHETNA",
+        "price": 700,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T16:29:18.293+00:00"
+  },
+  {
+    "id": "d357acfb-f434-486c-92ad-3226b7177ebb",
+    "invoice_number": "RJN-2026-0248",
+    "customer_name": "MANISHA",
+    "customer_phone": "9758343408",
+    "subtotal": 1088,
+    "discount": 238,
+    "tax": 0,
+    "total": 850,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790762900872",
+        "sku": "RJ-SAR-165",
+        "name": "A Creative",
+        "price": 1088,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T16:36:24.611+00:00"
+  },
+  {
+    "id": "334e83d5-d711-481e-b67c-3e43b925a1c7",
+    "invoice_number": "RJN-2026-0249",
+    "customer_name": "Walk-in Guest",
+    "customer_phone": "NA",
+    "subtotal": 286,
+    "discount": 6,
+    "tax": 0,
+    "total": 280,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-21T17:03:07.947+00:00"
+  },
+  {
+    "id": "e1544dcc-0684-4193-a7a1-4c3cf7ec9da1",
+    "invoice_number": "RJN-2026-0250",
+    "customer_name": "SUDHANSHU",
+    "customer_phone": "9634360641",
+    "subtotal": 2943,
+    "discount": 193,
+    "tax": 0,
+    "total": 2750,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791575189949",
+        "sku": "RJ-KRT-143",
+        "name": "1579 makhijha jj",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791095077207",
+        "sku": "RJ-KRT-045",
+        "name": "D. No.570",
+        "price": 1734,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791288219029",
+        "sku": "RJ-JWL-054",
+        "name": "BANGALES",
+        "price": 210,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-22T06:28:23.619+00:00"
+  },
+  {
+    "id": "e7395f70-60f8-4acf-89bc-0574deb922bd",
+    "invoice_number": "RJN-2026-0251",
+    "customer_name": "MANOJ GUPTA",
+    "customer_phone": "9997977583",
+    "subtotal": 6203,
+    "discount": 620,
+    "tax": 265.86,
+    "total": 5583,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790769905498",
+        "sku": "RJ-SAR-174",
+        "name": "Ceramic Gajraj K69 J.J",
+        "price": 2475,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790758189656",
+        "sku": "RJ-SAR-150",
+        "name": "A Puspika",
+        "price": 810,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791575954689",
+        "sku": "RJ-HDL-006",
+        "name": "sakoon 1+2 sheet",
+        "price": 615,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-24T10:18:00+00:00"
+  },
+  {
+    "id": "c820dc1b-40cb-4024-950c-9c658de28e52",
+    "invoice_number": "RJN-2026-0252",
+    "customer_name": "Shanti",
+    "customer_phone": "789501714",
+    "subtotal": 2015,
+    "discount": 215,
+    "tax": 0,
+    "total": 1800,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790768484370",
+        "sku": "RJ-SAR-172",
+        "name": "J.J Ragani",
+        "price": 1872,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-24T11:54:53.653+00:00"
+  },
+  {
+    "id": "8de87ed8-1938-4d41-9cc6-f2dcb02da4d4",
+    "invoice_number": "RJN-2026-0253",
+    "customer_name": "Priti dubay",
+    "customer_phone": "9084939438",
+    "subtotal": 2370,
+    "discount": 370,
+    "tax": 0,
+    "total": 2000,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790780726507",
+        "sku": "RJ-BAG-066",
+        "name": "rubal silk",
+        "price": 2370,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-24T14:52:13.795+00:00"
+  },
+  {
+    "id": "8d84b589-565f-4239-902d-497b522ee61d",
+    "invoice_number": "RJN-2026-0254",
+    "customer_name": "Priti upadhiye",
+    "customer_phone": "9045531063",
+    "subtotal": 3459,
+    "discount": 359,
+    "tax": 0,
+    "total": 3100,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791183530177",
+        "sku": "RJ-SAR-218",
+        "name": "tant cotton",
+        "price": 1145,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790697404987",
+        "sku": "RJ-SAR-123",
+        "name": "A DHURANDHAR",
+        "price": 2099,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791557265980",
+        "sku": "RJ-JWL-114",
+        "name": "happy hunny bangles",
+        "price": 95,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791557410494",
+        "sku": "RJ-JWL-115",
+        "name": "miss call bangles",
+        "price": 120,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-24T15:45:24.462+00:00"
+  },
+  {
+    "id": "916efb04-d14f-4b85-b734-3cf67af203e7",
+    "invoice_number": "RJN-2026-0255",
+    "customer_name": "manoj kumar",
+    "customer_phone": "9719555713",
+    "subtotal": 2348,
+    "discount": 248,
+    "tax": 0,
+    "total": 2100,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791575189949",
+        "sku": "RJ-KRT-143",
+        "name": "1579 makhijha jj",
+        "price": 999,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790700455455",
+        "sku": "RJ-SAR-141",
+        "name": "A D. NO. 1324",
+        "price": 1349,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T05:56:38.127+00:00"
+  },
+  {
+    "id": "ce27529c-dbcb-4d94-9d77-4f4eced25773",
+    "invoice_number": "RJN-2026-0256",
+    "customer_name": "REKHA",
+    "customer_phone": "9152048186",
+    "subtotal": 1800,
+    "discount": 400,
+    "tax": 0,
+    "total": 1400,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791573963443",
+        "sku": "RJ-KRT-131",
+        "name": "1699 jsr jj",
+        "price": 1800,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T07:27:13.821+00:00"
+  },
+  {
+    "id": "7a66033d-6c33-4be3-b2b5-08eb25b5520a",
+    "invoice_number": "RJN-2026-0257",
+    "customer_name": "RAJKUMAR",
+    "customer_phone": "9627181318",
+    "subtotal": 1131,
+    "discount": 40,
+    "tax": 0,
+    "total": 1091,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1792661531213",
+        "sku": "RJ-UND-014",
+        "name": "DOLLAR 80",
+        "price": 145,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791298989857",
+        "sku": "RJ-JWL-068",
+        "name": "BANGALES",
+        "price": 219,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792597717989",
+        "sku": "RJ-COS-034",
+        "name": "ROOP NIKHA BINDI",
+        "price": 15,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792596782274",
+        "sku": "RJ-COS-028",
+        "name": "FAB 18 SUHAG",
+        "price": 49,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792596288648",
+        "sku": "RJ-COS-024",
+        "name": "PERSONI",
+        "price": 249,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791460798480",
+        "sku": "RJ-KRT-079",
+        "name": "Long Kuri 2",
+        "price": 399,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791621635642",
+        "sku": "RJ-BAG-077",
+        "name": "lip balm ultra",
+        "price": 55,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T08:37:21.449+00:00"
+  },
+  {
+    "id": "128b2ba1-6cc7-481b-9dbd-790930b61b9f",
+    "invoice_number": "RJN-2026-0258",
+    "customer_name": "INDU DEVI",
+    "customer_phone": "8102960290",
+    "subtotal": 2145,
+    "discount": 245,
+    "tax": 0,
+    "total": 1900,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790700336937",
+        "sku": "RJ-SAR-140",
+        "name": "A DISCO -19",
+        "price": 1049,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791467812077",
+        "sku": "RJ-SAR-260",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791468909668",
+        "sku": "RJ-SAR-261",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790758189656",
+        "sku": "RJ-SAR-150",
+        "name": "A Puspika",
+        "price": 810,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T09:05:56.599+00:00"
+  },
+  {
+    "id": "ee177a28-3020-4faa-a13b-0c1316f5169a",
+    "invoice_number": "RJN-2026-0259",
+    "customer_name": "DILIP TIWARI",
+    "customer_phone": "9759003272",
+    "subtotal": 2789,
+    "discount": 289,
+    "tax": 0,
+    "total": 2500,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791570555184",
+        "sku": "RJ-KRT-126",
+        "name": "navyz neel j j",
+        "price": 1230,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791568297481",
+        "sku": "RJ-KRT-108",
+        "name": "nirya amit",
+        "price": 900,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790698551896",
+        "sku": "RJ-SAR-131",
+        "name": "A MADHUNADAN DEV GURU",
+        "price": 659,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T09:42:41.629+00:00"
+  },
+  {
+    "id": "afffa8b0-50a8-4fcb-a004-1d72076db103",
+    "invoice_number": "RJN-2026-0260",
+    "customer_name": "KAUSAM",
+    "customer_phone": "8445745358",
+    "subtotal": 699,
+    "discount": 99,
+    "tax": 0,
+    "total": 600,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791460222261",
+        "sku": "RJ-KRT-076",
+        "name": "Courset fancy",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T10:43:07.851+00:00"
+  },
+  {
+    "id": "f45277d6-90e5-4943-be03-5074795fa1d3",
+    "invoice_number": "RJN-2026-0261",
+    "customer_name": "RUBI",
+    "customer_phone": "8936924940",
+    "subtotal": 1396,
+    "discount": 146,
+    "tax": 0,
+    "total": 1250,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1253,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791468909668",
+        "sku": "RJ-SAR-261",
+        "name": "paticote",
+        "price": 143,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T11:17:42.52+00:00"
+  },
+  {
+    "id": "ea356e45-a919-4d00-9f14-422e31d60178",
+    "invoice_number": "RJN-2026-0262",
+    "customer_name": "SEEMA",
+    "customer_phone": "9117636307",
+    "subtotal": 3900,
+    "discount": 0,
+    "tax": 0,
+    "total": 3900,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790700865572",
+        "sku": "RJ-SAR-142",
+        "name": "A BRAMPUTRA",
+        "price": 1200,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790768181228",
+        "sku": "RJ-SAR-171",
+        "name": "J.J K 69",
+        "price": 1500,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791645843315",
+        "sku": "RJ-SAR-284",
+        "name": "Sufiyana",
+        "price": 1200,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T11:29:06.582+00:00"
+  },
+  {
+    "id": "299697c8-c426-4517-8475-9abf67470212",
+    "invoice_number": "RJN-2026-0263",
+    "customer_name": "SHANTI",
+    "customer_phone": "8791671499",
+    "subtotal": 950,
+    "discount": 100,
+    "tax": 0,
+    "total": 850,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791285274811",
+        "sku": "RJ-KRT-070",
+        "name": "ROMAN",
+        "price": 650,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792928342006",
+        "sku": "MANUAL-2006",
+        "name": "PAIN SHIRTS",
+        "price": 300,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T11:43:44.531+00:00"
+  },
+  {
+    "id": "5d6873f0-2468-4ab7-be10-8af2887ee12b",
+    "invoice_number": "RJN-2026-0264",
+    "customer_name": "RUCHI",
+    "customer_phone": "9084876307",
+    "subtotal": 1313,
+    "discount": 133,
+    "tax": 0,
+    "total": 1180,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790757610743",
+        "sku": "RJ-SAR-146",
+        "name": "A Paridhan",
+        "price": 1313,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T11:46:06.36+00:00"
+  },
+  {
+    "id": "6b53c9b7-0efa-4ef0-9c79-085af646f202",
+    "invoice_number": "RJN-2026-0265",
+    "customer_name": "OMIT",
+    "customer_phone": "7351005145",
+    "subtotal": 70,
+    "discount": 20,
+    "tax": 0,
+    "total": 50,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791287303466",
+        "sku": "RJ-JWL-049",
+        "name": "BANGAELS",
+        "price": 70,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T12:03:15.748+00:00"
+  },
+  {
+    "id": "dc24cfa3-4c4b-47b1-a711-67869cd11568",
+    "invoice_number": "RJN-2026-0266",
+    "customer_name": "SHALINDR",
+    "customer_phone": "9410370585",
+    "subtotal": 900,
+    "discount": 0,
+    "tax": 0,
+    "total": 900,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1792679324091",
+        "sku": "RJ-KRT-179",
+        "name": "JJ PRIYA AMIT",
+        "price": 900,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T13:12:45.235+00:00"
+  },
+  {
+    "id": "ae43fb55-628a-4515-b8e8-90ee43b62739",
+    "invoice_number": "RJN-2026-0267",
+    "customer_name": "OMIT",
+    "customer_phone": "7351005145",
+    "subtotal": 1500,
+    "discount": 0,
+    "tax": 0,
+    "total": 1500,
+    "payment_mode": "khata",
+    "items": [
+      {
+        "id": "prod-1790701092959",
+        "sku": "RJ-BAG-051",
+        "name": "A 1540",
+        "price": 1500,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T13:22:41.683+00:00"
+  },
+  {
+    "id": "a8d40169-0cd9-4413-8068-abfe1854b2a2",
+    "invoice_number": "RJN-2026-0268",
+    "customer_name": "ABDUL KAREEM",
+    "customer_phone": "9452037880",
+    "subtotal": 1200,
+    "discount": 0,
+    "tax": 0,
+    "total": 1200,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791566219867",
+        "sku": "RJ-KRT-091",
+        "name": "sweetdreams",
+        "price": 1200,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T13:35:02.428+00:00"
+  },
+  {
+    "id": "909c68f3-a6b2-460c-b0de-3aa9ed1ff08a",
+    "invoice_number": "RJN-2026-0269",
+    "customer_name": "VEENA",
+    "customer_phone": "9927824655",
+    "subtotal": 225,
+    "discount": 0,
+    "tax": 0,
+    "total": 225,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791622425102",
+        "sku": "RJ-COS-009",
+        "name": "nail paint",
+        "price": 95,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1792935348354",
+        "sku": "MANUAL-8354",
+        "name": "JHUMKA",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-25T13:37:40.719+00:00"
+  },
+  {
+    "id": "ac769941-e7c8-4048-ac37-e6e29cad0801",
+    "invoice_number": "RJN-2026-0270",
+    "customer_name": "LALIT SAINI",
+    "customer_phone": "9720010444",
+    "subtotal": 4253,
+    "discount": 653,
+    "tax": 0,
+    "total": 3600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790863755409",
+        "sku": "RJ-SAR-194",
+        "name": "l h vetro",
+        "price": 1950,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T09:22:01.602+00:00"
+  },
+  {
+    "id": "05c7b769-c878-4c02-9f99-db465962969b",
+    "invoice_number": "RJN-2026-0271",
+    "customer_name": "LALIT",
+    "customer_phone": "9720010444",
+    "subtotal": 543,
+    "discount": 3,
+    "tax": 0,
+    "total": 540,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1792597236967",
+        "sku": "RJ-COS-030",
+        "name": "TOOTI FROOTI",
+        "price": 99,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792597717989",
+        "sku": "RJ-COS-034",
+        "name": "ROOP NIKHA BINDI",
+        "price": 15,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792597717989",
+        "sku": "RJ-COS-034",
+        "name": "ROOP NIKHA BINDI",
+        "price": 15,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792596782274",
+        "sku": "RJ-COS-028",
+        "name": "FAB 18 SUHAG",
+        "price": 49,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791622425102",
+        "sku": "RJ-COS-009",
+        "name": "nail paint",
+        "price": 95,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792600859043",
+        "sku": "RJ-COS-049",
+        "name": "PLAN RUBBERY",
+        "price": 10,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792600859043",
+        "sku": "RJ-COS-049",
+        "name": "PLAN RUBBERY",
+        "price": 10,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791546799828",
+        "sku": "RJ-JWL-099",
+        "name": "regal ring",
+        "price": 41,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1793007086161",
+        "sku": "MANUAL-6161",
+        "name": "HD BEAUTY KAJAL KIP",
+        "price": 209,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T09:32:37.256+00:00"
+  },
+  {
+    "id": "40174e87-a45e-4972-9a80-c05b736126f8",
+    "invoice_number": "RJN-2026-0272",
+    "customer_name": "POONAM KI SAAS",
+    "customer_phone": "NA",
+    "subtotal": 645,
+    "discount": 0,
+    "tax": 0,
+    "total": 645,
+    "payment_mode": "khata",
+    "items": [
+      {
+        "id": "prod-1791575770251",
+        "sku": "RJ-HDL-005",
+        "name": "spring summer sheet",
+        "price": 645,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T10:05:13.485+00:00"
+  },
+  {
+    "id": "adc4a538-4fce-4770-8760-e30ee7a2ec44",
+    "invoice_number": "RJN-2026-0273",
+    "customer_name": "SUNANDA",
+    "customer_phone": "9675889705",
+    "subtotal": 699,
+    "discount": 99,
+    "tax": 0,
+    "total": 600,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790697870759",
+        "sku": "RJ-SAR-126",
+        "name": "A SCORPIO",
+        "price": 699,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T10:47:43.691+00:00"
+  },
+  {
+    "id": "632030a5-df1b-44d3-89db-fd6660f40b1f",
+    "invoice_number": "RJN-2026-0274",
+    "customer_name": "MINA DUTT",
+    "customer_phone": "9897073392",
+    "subtotal": 850,
+    "discount": 0,
+    "tax": 0,
+    "total": 850,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791575189949",
+        "sku": "RJ-KRT-143",
+        "name": "1579 makhijha jj",
+        "price": 850,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T11:15:47.436+00:00"
+  },
+  {
+    "id": "6b6d9cd9-e82c-4a25-9edb-9e5028a87a94",
+    "invoice_number": "RJN-2026-0275",
+    "customer_name": "PALAK",
+    "customer_phone": "8958522435",
+    "subtotal": 2100,
+    "discount": 300,
+    "tax": 0,
+    "total": 1800,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790774657929",
+        "sku": "RJ-SAR-178",
+        "name": "pepsi",
+        "price": 2100,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T11:37:01.823+00:00"
+  },
+  {
+    "id": "e537af46-f662-4e19-ade2-c83884408e6b",
+    "invoice_number": "RJN-2026-0276",
+    "customer_name": "PALAK",
+    "customer_phone": "8958522435",
+    "subtotal": 400,
+    "discount": 50,
+    "tax": 0,
+    "total": 350,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790611771788",
+        "sku": "RJ-BAG-005",
+        "name": "19- Sider Bag",
+        "price": 330,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1793014835471",
+        "sku": "MANUAL-5471",
+        "name": "JHUMKA",
+        "price": 70,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T11:40:42.053+00:00"
+  },
+  {
+    "id": "5db7b817-9ee5-4a83-a679-16514b423a7b",
+    "invoice_number": "RJN-2026-0277",
+    "customer_name": "DESHRAJ",
+    "customer_phone": "9837372658",
+    "subtotal": 1845,
+    "discount": 245,
+    "tax": 0,
+    "total": 1600,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790780195297",
+        "sku": "RJ-BAG-063",
+        "name": "patlu satin",
+        "price": 1845,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T11:56:37.146+00:00"
+  },
+  {
+    "id": "e6a93540-7e53-4d1f-8fab-e5e9e5e4ae7b",
+    "invoice_number": "RJN-2026-0278",
+    "customer_name": "NEELAM YADAV",
+    "customer_phone": "8887768705",
+    "subtotal": 520,
+    "discount": 20,
+    "tax": 0,
+    "total": 500,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1791469197388",
+        "sku": "RJ-SAR-262",
+        "name": "paticoat",
+        "price": 120,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791469197388",
+        "sku": "RJ-SAR-262",
+        "name": "paticoat",
+        "price": 120,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791186089813",
+        "sku": "RJ-SAR-222",
+        "name": "Banarasi BAJU",
+        "price": 280,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T12:17:42.462+00:00"
+  },
+  {
+    "id": "9169e237-f9fb-4359-bbb9-7c520ef55ee0",
+    "invoice_number": "RJN-2026-0279",
+    "customer_name": "JANVI",
+    "customer_phone": "8979389108",
+    "subtotal": 1163,
+    "discount": 0,
+    "tax": 0,
+    "total": 1163,
+    "payment_mode": "cash",
+    "items": [
+      {
+        "id": "prod-1790698329375",
+        "sku": "RJ-SAR-129",
+        "name": "A ONCE TIME",
+        "price": 899,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791287219731",
+        "sku": "RJ-JWL-048",
+        "name": "BANGALES",
+        "price": 130,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792596782274",
+        "sku": "RJ-COS-028",
+        "name": "FAB 18 SUHAG",
+        "price": 49,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1792597717989",
+        "sku": "RJ-COS-034",
+        "name": "ROOP NIKHA BINDI",
+        "price": 15,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791619765233",
+        "sku": "RJ-COS-005",
+        "name": "nail paint red mehroom",
+        "price": 60,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "manual-1793017450885",
+        "sku": "MANUAL-0885",
+        "name": "KEEP",
+        "price": 10,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T12:25:48.257+00:00"
+  },
+  {
+    "id": "7653ccc5-efd2-417f-a32e-b267e425a1ae",
+    "invoice_number": "RJN-2026-0280",
+    "customer_name": "VEENA DEVI",
+    "customer_phone": "8816031138",
+    "subtotal": 2249,
+    "discount": 549,
+    "tax": 0,
+    "total": 1700,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1790699083925",
+        "sku": "RJ-SAR-135",
+        "name": "A AANCHAL",
+        "price": 2249,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T12:54:22.261+00:00"
+  },
+  {
+    "id": "4b7e7a36-a1f9-4fd8-8ca6-7cb549a83ae7",
+    "invoice_number": "RJN-2026-0281",
+    "customer_name": "NEELAM",
+    "customer_phone": "7500067797",
+    "subtotal": 510,
+    "discount": 0,
+    "tax": 0,
+    "total": 510,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791288219029",
+        "sku": "RJ-JWL-054",
+        "name": "BANGALES",
+        "price": 210,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790612830337",
+        "sku": "RJ-BAG-012",
+        "name": "19 - Party Handbag",
+        "price": 300,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T12:58:10.565+00:00"
+  },
+  {
+    "id": "4399bc48-f0fe-44a2-861e-f6d0170ff188",
+    "invoice_number": "RJN-2026-0282",
+    "customer_name": "NEELAM",
+    "customer_phone": "7500067797",
+    "subtotal": 1790,
+    "discount": 240,
+    "tax": 0,
+    "total": 1550,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1792909023392",
+        "sku": "RJ-KRT-194",
+        "name": "710039 pink",
+        "price": 1790,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T13:00:50.512+00:00"
+  },
+  {
+    "id": "1c402970-a380-4284-9c95-2aa61abe93b5",
+    "invoice_number": "RJN-2026-0283",
+    "customer_name": "MINTU",
+    "customer_phone": "8445817093",
+    "subtotal": 8851,
+    "discount": 885,
+    "tax": 0,
+    "total": 7966,
+    "payment_mode": "khata",
+    "items": [
+      {
+        "id": "prod-1790769744650",
+        "sku": "RJ-SAR-173",
+        "name": "Barashu King k 69 J.j",
+        "price": 2303,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1790780726507",
+        "sku": "RJ-BAG-066",
+        "name": "rubal silk",
+        "price": 2370,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791097559583",
+        "sku": "RJ-KRT-054",
+        "name": "D.NO.9358",
+        "price": 1991,
+        "quantity": 1,
+        "isService": false
+      },
+      {
+        "id": "prod-1791095878896",
+        "sku": "RJ-KRT-048",
+        "name": "D.NO.K4172",
+        "price": 2187,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T13:10:17.354+00:00"
+  },
+  {
+    "id": "e35be586-ae93-4978-99c1-0f36f09d236c",
+    "invoice_number": "RJN-2026-0284",
+    "customer_name": "ANKITA",
+    "customer_phone": "6395217518",
+    "subtotal": 1395,
+    "discount": 145,
+    "tax": 0,
+    "total": 1250,
+    "payment_mode": "upi",
+    "items": [
+      {
+        "id": "prod-1791574463835",
+        "sku": "RJ-KRT-137",
+        "name": "317 RS JJ",
+        "price": 1395,
+        "quantity": 1,
+        "isService": false
+      }
+    ],
+    "created_at": "2026-10-26T13:11:59.45+00:00"
+  }
+]
