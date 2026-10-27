@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rajnandini Boutique POS</string>
+    <string name="title_activity_main">Rajnandini Boutique POS</string>
+    <string name="package_name">com.rajnandni.pos</string>
+    <string name="custom_url_scheme">com.rajnandni.pos</string>
+</resources>
