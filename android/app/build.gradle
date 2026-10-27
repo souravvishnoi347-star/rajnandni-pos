@@ -16,26 +16,6 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    buildFeatures {
-        buildConfig = true
-    }
-    flavorDimensions = ["appType"]
-    productFlavors {
-        owner {
-            dimension "appType"
-            applicationId "com.rajnandni.owner"
-            versionName "1.0-owner"
-            manifestPlaceholders = [appName: "Rajnandini Owner"]
-            buildConfigField "String", "DEFAULT_URL", "\"https://rajnandni-pos.vercel.app/owner\""
-        }
-        staff {
-            dimension "appType"
-            applicationId "com.rajnandni.staff"
-            versionName "1.0-staff"
-            manifestPlaceholders = [appName: "Rajnandini Staff"]
-            buildConfigField "String", "DEFAULT_URL", "\"https://rajnandni-pos.vercel.app/staff\""
-        }
-    }
     buildTypes {
         release {
             minifyEnabled false

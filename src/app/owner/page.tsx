@@ -676,6 +676,22 @@ export default function MobileOwnerApp() {
           </form>
 
           <p className="text-[11px] text-slate-400 mt-5 font-mono">Default PIN: 7898 or Indu@123</p>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <Link href="/staff" className="text-blue-600 font-semibold hover:underline">
+              Switch to Staff App →
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("rajnandni_device_role");
+                window.location.href = "/app";
+              }}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              Change Phone Role
+            </button>
+          </div>
         </div>
       </div>
     );
