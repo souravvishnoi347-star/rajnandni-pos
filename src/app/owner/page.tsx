@@ -423,12 +423,8 @@ export default function MobileOwnerApp() {
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       // Category filter
-      if (selectedCategory !== "all") {
-        if (selectedCategory === "services") {
-          if (!isServiceItem(p)) return false;
-        } else if (p.category !== selectedCategory) {
-          return false;
-        }
+      if (selectedCategory !== "all" && p.category !== selectedCategory) {
+        return false;
       }
 
       // Stock status filter
@@ -980,13 +976,16 @@ export default function MobileOwnerApp() {
                   "all",
                   "sarees",
                   "kurtis",
-                  "handbags",
                   "lehengas",
                   "jewellery",
-                  "kidswear",
+                  "handbags",
                   "footwear",
                   "cosmetics",
-                  "services",
+                  "bangles",
+                  "earrings",
+                  "handloom",
+                  "kidswear",
+                  "undergarments",
                 ].map((cat) => (
                   <button
                     key={cat}
@@ -1012,7 +1011,6 @@ export default function MobileOwnerApp() {
               {filteredProducts.slice(0, 50).map((p) => {
                 const isOutOfStock = p.stock <= 0;
                 const isLowStock = p.stock > 0 && p.stock <= 2;
-                const isService = isServiceItem(p);
 
                 return (
                   <div
@@ -1042,16 +1040,14 @@ export default function MobileOwnerApp() {
                       {/* Stock Quantity Badge */}
                       <span
                         className={`text-[11px] font-bold font-mono px-2.5 py-1 rounded-xl shrink-0 shadow-sm ${
-                          isService
-                            ? "bg-slate-100 text-slate-600 border border-slate-200"
-                            : isOutOfStock
+                          isOutOfStock
                             ? "bg-rose-50 text-rose-700 border border-rose-200"
                             : isLowStock
                             ? "bg-amber-50 text-amber-800 border border-amber-200"
                             : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                         }`}
                       >
-                        {isService ? "Service" : `${p.stock} pcs`}
+                        {p.stock} pcs
                       </span>
                     </div>
 
