@@ -40,6 +40,7 @@ import {
   Percent,
   BadgePercent,
   ArrowUpRight,
+  Info,
 } from "lucide-react";
 import {
   getCurrentOwnerOtp,
@@ -56,7 +57,7 @@ import {
 import { ProductItem, CompletedBill, ProductCategory } from "@/types/pos";
 import { SupabaseService } from "@/lib/supabaseClient";
 
-// Helper for Indian currency compact representation (e.g. ₹2.04 Cr, ₹28.05 Lakh)
+// Helper for Indian currency compact representation (e.g. ₹44.57 Lakh, ₹28.04 Lakh)
 function formatIndianCompact(val: number): string {
   if (!val || isNaN(val)) return "₹0";
   const abs = Math.abs(val);
@@ -71,6 +72,23 @@ function formatIndianCompact(val: number): string {
     return `${sign}₹${(abs / 1000).toFixed(1)}k`;
   }
   return `${sign}₹${abs.toLocaleString("en-IN")}`;
+}
+
+// Helper to identify salon/parlor services (labor/services with 999 dummy stock)
+function isServiceItem(p: { sku?: string; category?: string; stock?: number; purchaseCost?: number }): boolean {
+  const sku = (p.sku || "").toUpperCase();
+  const category = (p.category || "").toLowerCase();
+  const stock = Number(p.stock) || 0;
+  const cost = Number(p.purchaseCost) || 0;
+
+  if (sku.startsWith("SRV-") || category === "services") {
+    return true;
+  }
+  // Dummy high stock services with no purchase cost
+  if (stock >= 900 && cost === 0) {
+    return true;
+  }
+  return false;
 }
 
 export default function MobileOwnerApp() {
@@ -358,19 +376,28 @@ export default function MobileOwnerApp() {
       .slice(0, 10);
   }, [timeFilteredBills]);
 
-  // Inventory Analytics
+  // Accurate Physical Inventory Analytics (Filtering out 999 dummy stock services)
   const inventoryStats = useMemo(() => {
     let totalPcs = 0;
     let totalRetail = 0;
     let totalCost = 0;
     let outOfStock = 0;
     let lowStock = 0;
+    let physicalItemsCount = 0;
+    let servicesCount = 0;
 
     products.forEach((p) => {
-      const s = p.stock || 0;
+      if (isServiceItem(p)) {
+        servicesCount++;
+        return; // Exclude salon dummy 999 stock from showroom physical stock valuation
+      }
+
+      physicalItemsCount++;
+      const s = Number(p.stock) || 0;
       totalPcs += s;
-      totalRetail += s * (p.price || 0);
-      totalCost += s * (p.purchaseCost || 0);
+      totalRetail += s * (Number(p.price) || 0);
+      totalCost += s * (Number(p.purchaseCost) || 0);
+
       if (s <= 0) outOfStock++;
       else if (s <= 2) lowStock++;
     });
@@ -379,7 +406,8 @@ export default function MobileOwnerApp() {
     const potentialMarginPct = totalRetail > 0 ? ((potentialMargin / totalRetail) * 100).toFixed(1) : "0.0";
 
     return {
-      totalItems: products.length,
+      totalItems: physicalItemsCount,
+      servicesCount,
       totalPcs,
       totalRetail,
       totalCost,
@@ -387,7 +415,7 @@ export default function MobileOwnerApp() {
       potentialMarginPct,
       outOfStock,
       lowStock,
-      goodStock: Math.max(0, products.length - outOfStock - lowStock),
+      goodStock: Math.max(0, physicalItemsCount - outOfStock - lowStock),
     };
   }, [products]);
 
@@ -395,13 +423,19 @@ export default function MobileOwnerApp() {
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       // Category filter
-      if (selectedCategory !== "all" && p.category !== selectedCategory) {
-        return false;
+      if (selectedCategory !== "all") {
+        if (selectedCategory === "services") {
+          if (!isServiceItem(p)) return false;
+        } else if (p.category !== selectedCategory) {
+          return false;
+        }
       }
+
       // Stock status filter
       if (stockStatusFilter === "out" && p.stock > 0) return false;
       if (stockStatusFilter === "low" && (p.stock <= 0 || p.stock > 2)) return false;
       if (stockStatusFilter === "good" && p.stock < 3) return false;
+
       // Search filter
       if (stockSearch.trim()) {
         const q = stockSearch.toLowerCase().trim();
@@ -458,31 +492,28 @@ export default function MobileOwnerApp() {
   };
 
   // =========================================================================
-  // VIEW 0: PIN LOCK SCREEN (If not unlocked on device)
+  // VIEW 0: PIN LOCK SCREEN (CLEAN LUXURY WHITE THEME)
   // =========================================================================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#070503] text-stone-100 flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden">
-        {/* Ambient Warm Golden Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="w-full max-w-sm bg-gradient-to-b from-[#18120e] via-[#120d09] to-[#0c0806] border border-amber-500/30 rounded-3xl p-6 shadow-2xl shadow-black/80 relative overflow-hidden text-center backdrop-blur-xl">
-          {/* Top Royal Crest */}
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-amber-600/30 via-amber-500/20 to-amber-400/10 border border-amber-400/40 flex items-center justify-center text-amber-300 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-            <Crown className="w-8 h-8 drop-shadow-[0_2px_8px_rgba(251,191,36,0.6)]" />
+      <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
+        <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
+          {/* Top Royal Blue Insignia */}
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
+            <Crown className="w-8 h-8 text-blue-600" />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-amber-300">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-blue-700">
               Rajnandini Boutique
             </span>
           </div>
 
-          <h1 className="text-xl font-black text-white mt-1 font-serif tracking-wide bg-gradient-to-r from-amber-200 via-amber-400 to-amber-100 bg-clip-text text-transparent">
+          <h1 className="text-xl font-black text-slate-900 mt-1 tracking-tight">
             Owner Executive Suite
           </h1>
-          <p className="text-xs text-stone-400 mt-1 font-medium">Haridwar Showroom Realtime Portal</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Haridwar Showroom Realtime Portal</p>
 
           <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
             <div>
@@ -497,56 +528,56 @@ export default function MobileOwnerApp() {
                 }}
                 placeholder="Enter Quick PIN (7898)"
                 autoFocus
-                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-[#0d0906] text-amber-300 border-2 border-amber-500/40 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 rounded-2xl py-3 px-4 outline-none placeholder:tracking-normal placeholder:text-xs placeholder:text-stone-500 transition"
+                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-slate-50 text-blue-700 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-2xl py-3 px-4 outline-none placeholder:tracking-normal placeholder:text-xs placeholder:text-slate-400 transition"
               />
-              {pinError && <p className="text-rose-400 text-xs font-semibold mt-2">{pinError}</p>}
+              {pinError && <p className="text-rose-600 text-xs font-semibold mt-2">{pinError}</p>}
             </div>
 
-            <label className="flex items-center justify-center gap-2 text-xs text-stone-300 cursor-pointer select-none">
+            <label className="flex items-center justify-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={rememberDevice}
                 onChange={(e) => setRememberDevice(e.target.checked)}
-                className="rounded border-amber-500/40 accent-amber-500 w-4 h-4"
+                className="rounded border-slate-300 accent-blue-600 w-4 h-4"
               />
               <span>Remember this phone (Direct Unlock)</span>
             </label>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-stone-950 font-black rounded-2xl shadow-lg shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.98] transition font-sans text-sm tracking-wide"
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md shadow-blue-600/25 active:scale-[0.98] transition text-sm tracking-wide"
             >
               Open Owner Dashboard →
             </button>
           </form>
 
-          <p className="text-[11px] text-stone-500 mt-5 font-mono">Default PIN: 7898 or Indu@123</p>
+          <p className="text-[11px] text-slate-400 mt-5 font-mono">Default PIN: 7898 or Indu@123</p>
         </div>
       </div>
     );
   }
 
   // =========================================================================
-  // MAIN MOBILE APPLICATION VIEW (AUTHENTICATED)
+  // MAIN MOBILE APPLICATION VIEW (CLEAN WHITE & ROYAL SAPPHIRE BLUE THEME)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#080503] text-stone-100 font-sans pb-28 selection:bg-amber-500 selection:text-black">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans pb-28 selection:bg-blue-600 selection:text-white">
       {/* Top Mobile App Header */}
-      <header className="sticky top-0 z-40 bg-[#120d09]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 shadow-xl">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-400 to-amber-500 flex items-center justify-center text-stone-950 shadow-md font-black shadow-amber-500/20">
-              <Crown className="w-5 h-5 text-stone-950 drop-shadow-sm" />
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 font-black">
+              <Crown className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+                <span className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-700">
                   Rajnandini
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-bold text-emerald-400 font-mono tracking-tight">LIVE SYNC</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-bold text-emerald-600 font-mono tracking-tight">LIVE SYNC</span>
               </div>
-              <h1 className="text-xs font-bold text-stone-200">Owner Executive Suite</h1>
+              <h1 className="text-xs font-bold text-slate-900">Owner Executive Suite</h1>
             </div>
           </div>
 
@@ -554,15 +585,15 @@ export default function MobileOwnerApp() {
             <button
               onClick={() => loadAllData(true)}
               disabled={isRefreshing}
-              className="p-2 rounded-xl bg-[#1a130e] border border-amber-500/20 text-stone-300 hover:text-amber-400 active:scale-95 transition shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-blue-50 active:scale-95 transition shadow-sm"
               title="Refresh Live Data"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-amber-400" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
             </button>
 
             <button
               onClick={handleLock}
-              className="p-2 rounded-xl bg-[#1a130e] border border-amber-500/20 text-stone-400 hover:text-rose-400 active:scale-95 transition shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition shadow-sm"
               title="Lock App"
             >
               <Lock className="w-4 h-4" />
@@ -585,8 +616,8 @@ export default function MobileOwnerApp() {
                 onClick={() => setTimeFilter(tab.id as any)}
                 className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition text-xs shrink-0 ${
                   timeFilter === tab.id
-                    ? "bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-black shadow-md shadow-amber-500/20"
-                    : "bg-[#18120e] text-stone-400 border border-amber-500/20 hover:text-stone-200"
+                    ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-600/30"
+                    : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
                 }`}
               >
                 {tab.label}
@@ -603,14 +634,12 @@ export default function MobileOwnerApp() {
             ========================================================================= */}
         {activeNav === "sales" && (
           <div className="space-y-4">
-            {/* Primary Gold Hero Card: Revenue & Profit */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#22170f] via-[#17100b] to-[#0f0b08] border border-amber-500/35 p-5 shadow-2xl shadow-black/80">
-              <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
+            {/* Primary Executive Sales Card */}
+            <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
                     {timeFilter === "today"
                       ? "Aaj Ki Showroom Sales"
                       : timeFilter === "yesterday"
@@ -622,133 +651,141 @@ export default function MobileOwnerApp() {
                       : "All Time Showroom Sales"}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono">
+                <span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-mono">
                   {salesStats.count} Invoices
                 </span>
               </div>
 
               {/* Total Revenue in tabular bold numbers */}
-              <div className="mt-3">
-                <span className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight tabular-nums block">
+              <div className="mt-1">
+                <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight tabular-nums block">
                   ₹{salesStats.revenue.toLocaleString("en-IN")}
                 </span>
-                <span className="text-xs text-amber-400/90 font-medium mt-0.5 block">
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
                   {formatIndianCompact(salesStats.revenue)} Total Collection • {salesStats.itemsCount} Pcs Sold
                 </span>
               </div>
 
               {/* Profit & Margin Row with clean separate boxes */}
-              <div className="mt-4 pt-3.5 border-t border-amber-500/20 grid grid-cols-2 gap-3">
-                <div className="bg-[#120d09]/80 border border-amber-500/20 rounded-2xl p-2.5">
-                  <span className="text-[10px] text-stone-400 uppercase font-semibold block">
+              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-2.5">
+                  <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
                     Gross Profit (शुद्ध मुनाफा)
                   </span>
-                  <span className="text-base sm:text-lg font-black text-emerald-400 font-mono tabular-nums block mt-0.5">
+                  <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
                     +₹{salesStats.grossProfit.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-[10px] text-emerald-400/80 font-mono">
+                  <span className="text-[10px] text-emerald-600 font-mono">
                     {formatIndianCompact(salesStats.grossProfit)} Net
                   </span>
                 </div>
 
-                <div className="bg-[#120d09]/80 border border-amber-500/20 rounded-2xl p-2.5 text-right">
-                  <span className="text-[10px] text-stone-400 uppercase font-semibold block">
+                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-2.5 text-right">
+                  <span className="text-[10px] text-blue-800 uppercase font-semibold block">
                     Profit Margin (मार्जिन)
                   </span>
-                  <span className="text-base sm:text-lg font-black text-amber-300 font-mono tabular-nums block mt-0.5">
+                  <span className="text-base sm:text-lg font-black text-blue-700 font-mono tabular-nums block mt-0.5">
                     {salesStats.marginPct}%
                   </span>
-                  <span className="text-[10px] text-stone-400 font-mono">
-                    Wholesale: {formatIndianCompact(salesStats.wholesaleCost)}
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Cost: {formatIndianCompact(salesStats.wholesaleCost)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* 4 Quick Stat Metric Cards (Cleanly separated, tabular numbers, no overflow) */}
+            {/* 4 Quick Stat Metric Cards (Crisp White & Distinct Accents) */}
             <div className="grid grid-cols-2 gap-3">
               {/* Cash Collection */}
-              <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 shadow-md">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase">Cash In Hand</span>
-                  <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cash In Hand</span>
+                  <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <Wallet className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
                 </div>
-                <p className="text-base sm:text-lg font-black text-stone-100 font-mono mt-1.5 tabular-nums truncate">
+                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
                   ₹{salesStats.cashTotal.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-emerald-400 font-semibold">Galla Cash</span>
-                  <span className="text-stone-400 font-mono">{formatIndianCompact(salesStats.cashTotal)}</span>
+                  <span className="text-emerald-700 font-semibold">Galla Cash</span>
+                  <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.cashTotal)}</span>
                 </div>
               </div>
 
               {/* UPI / Online */}
-              <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 shadow-md">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase">UPI / Online</span>
-                  <CreditCard className="w-4 h-4 text-sky-400 shrink-0" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">UPI / Online</span>
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
                 </div>
-                <p className="text-base sm:text-lg font-black text-stone-100 font-mono mt-1.5 tabular-nums truncate">
+                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
                   ₹{salesStats.upiTotal.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-sky-400 font-semibold">PhonePe / QR</span>
-                  <span className="text-stone-400 font-mono">{formatIndianCompact(salesStats.upiTotal)}</span>
+                  <span className="text-blue-700 font-semibold">PhonePe / QR</span>
+                  <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.upiTotal)}</span>
                 </div>
               </div>
 
               {/* Total Discount Given */}
-              <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 shadow-md">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase">Discount Given</span>
-                  <TrendingDown className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Discount Given</span>
+                  <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center">
+                    <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
+                  </div>
                 </div>
-                <p className="text-base sm:text-lg font-black text-rose-400 font-mono mt-1.5 tabular-nums truncate">
+                <p className="text-base sm:text-lg font-black text-rose-600 font-mono mt-1.5 tabular-nums truncate">
                   -₹{salesStats.discount.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-stone-400 font-semibold">Bargain Given</span>
-                  <span className="text-rose-400/80 font-mono">
+                  <span className="text-slate-500 font-semibold">Bargain Given</span>
+                  <span className="text-rose-600 font-mono">
                     {salesStats.revenue > 0 ? ((salesStats.discount / (salesStats.revenue + salesStats.discount)) * 100).toFixed(1) : 0}%
                   </span>
                 </div>
               </div>
 
               {/* Average Bill Value */}
-              <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 shadow-md">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase">Avg Bill Value</span>
-                  <DollarSign className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Avg Bill Value</span>
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
+                    <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
                 </div>
-                <p className="text-base sm:text-lg font-black text-amber-300 font-mono mt-1.5 tabular-nums truncate">
+                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
                   ₹{salesStats.avgBill.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-stone-400 font-semibold">Per Customer</span>
-                  <span className="text-amber-400/80 font-mono">{salesStats.count} bills</span>
+                  <span className="text-slate-500 font-semibold">Per Customer</span>
+                  <span className="text-blue-600 font-mono">{salesStats.count} bills</span>
                 </div>
               </div>
             </div>
 
             {/* Payment Mode Visual Split Bar */}
-            <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 shadow-md">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-stone-200">Payment Breakdown</span>
-                <span className="text-stone-400 text-[11px] font-mono">
+                <span className="font-bold text-slate-800">Payment Breakdown</span>
+                <span className="text-slate-500 text-[11px] font-mono">
                   Cash: {salesStats.revenue > 0 ? Math.round((salesStats.cashTotal / salesStats.revenue) * 100) : 0}% | UPI:{" "}
                   {salesStats.revenue > 0 ? Math.round((salesStats.upiTotal / salesStats.revenue) * 100) : 0}%
                 </span>
               </div>
-              <div className="h-2.5 w-full bg-stone-900 rounded-full overflow-hidden flex border border-stone-800">
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
                 <div
-                  className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all"
+                  className="bg-emerald-500 h-full transition-all"
                   style={{
                     width: `${salesStats.revenue > 0 ? (salesStats.cashTotal / salesStats.revenue) * 100 : 50}%`,
                   }}
                   title="Cash"
                 />
                 <div
-                  className="bg-gradient-to-r from-sky-600 to-sky-400 h-full transition-all"
+                  className="bg-blue-600 h-full transition-all"
                   style={{
                     width: `${salesStats.revenue > 0 ? (salesStats.upiTotal / salesStats.revenue) * 100 : 50}%`,
                   }}
@@ -758,42 +795,42 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Top 10 Fast-Selling Items */}
-            <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-3xl p-4 space-y-3 shadow-md">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-4 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-xs font-black uppercase tracking-wider text-amber-300">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                     Fast-Selling Showroom Items
                   </h2>
                 </div>
-                <span className="text-[10px] text-stone-400 font-mono">Ranked by Revenue</span>
+                <span className="text-[10px] text-slate-400 font-mono">Ranked by Revenue</span>
               </div>
 
               {topSellingItems.length === 0 ? (
-                <p className="text-xs text-stone-500 py-3 text-center">Is samay me koi sale record nahi hui</p>
+                <p className="text-xs text-slate-400 py-3 text-center">Is samay me koi sale record nahi hui</p>
               ) : (
                 <div className="space-y-2">
                   {topSellingItems.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between bg-[#120d09] p-3 rounded-2xl border border-amber-500/15 hover:border-amber-500/30 transition"
+                      className="flex items-center justify-between bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80 hover:border-blue-300 transition"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-3">
-                        <span className="w-5 h-5 rounded-lg bg-amber-500/10 text-amber-400 text-[10px] font-black flex items-center justify-center shrink-0 border border-amber-500/20 font-mono">
+                        <span className="w-5 h-5 rounded-lg bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0 font-mono">
                           {idx + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-stone-200 truncate">{item.name}</p>
-                          <p className="text-[10px] text-stone-400 font-mono">
-                            {item.sku} • <span className="text-amber-400 font-bold">{item.qty} pcs</span> sold
+                          <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            {item.sku} • <span className="text-blue-600 font-bold">{item.qty} pcs</span> sold
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-amber-300 font-mono tabular-nums block">
+                        <span className="text-xs font-black text-slate-900 font-mono tabular-nums block">
                           ₹{item.revenue.toLocaleString("en-IN")}
                         </span>
-                        <span className="text-[9px] text-stone-500 font-mono">
+                        <span className="text-[9px] text-slate-500 font-mono">
                           {formatIndianCompact(item.revenue)}
                         </span>
                       </div>
@@ -806,90 +843,88 @@ export default function MobileOwnerApp() {
         )}
 
         {/* =========================================================================
-            TAB 2: 📦 FULL STOCK & INVENTORY STATUS (CLEAN SPACING & ZERO SQUISHING)
+            TAB 2: 📦 FULL STOCK & INVENTORY STATUS (ACCURATE ~₹44.57 LAKH PHYSICAL VALUATION)
             ========================================================================= */}
         {activeNav === "stock" && (
           <div className="space-y-4">
-            {/* Stock Overview Hero Card with luxury layout */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#22170f] via-[#17100b] to-[#0f0b08] border border-amber-500/35 p-5 shadow-2xl shadow-black/80 space-y-4">
-              <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
+            {/* Stock Overview Hero Card with Clean White Layout */}
+            <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-4">
               {/* Title & Total Pcs Badge */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Package className="w-4 h-4 text-amber-400" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
-                    Showroom Inventory Valuation
+                  <Package className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Showroom Physical Stock Valuation
                   </span>
                 </div>
-                <span className="text-xs font-black font-mono bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/40 shadow-sm">
-                  {inventoryStats.totalPcs.toLocaleString("en-IN")} Total Pcs
+                <span className="text-xs font-bold font-mono bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 shadow-sm">
+                  {inventoryStats.totalPcs.toLocaleString("en-IN")} Physical Pcs
                 </span>
               </div>
 
-              {/* Primary Metric: Total Retail Value (Large, Uncramped, Ultra-Crisp) */}
-              <div className="bg-[#120d09]/90 border border-amber-500/25 rounded-2xl p-4 shadow-inner">
-                <span className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider block">
-                  Total Showroom Retail Value (शोरूम बिक्री मूल्य)
+              {/* Primary Metric: Total Physical Retail Value (Accurate ~₹44.57 Lakhs, No Services dummy) */}
+              <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/50 border border-blue-100 rounded-2xl p-4">
+                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
+                  Total Showroom Stock Retail Value (दुकान का कुल स्टॉक बिक्री मूल्य)
                 </span>
                 <div className="flex items-baseline gap-2 flex-wrap mt-1">
-                  <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight tabular-nums">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
                     ₹{inventoryStats.totalRetail.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-xs font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30 font-mono">
-                    {formatIndianCompact(inventoryStats.totalRetail)} Valuation
+                  <span className="text-xs font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-md border border-blue-200 font-mono">
+                    {formatIndianCompact(inventoryStats.totalRetail)} Physical Stock
                   </span>
                 </div>
-                <span className="text-[11px] text-stone-400 block mt-1 font-medium">
-                  {products.length} registered products • {inventoryStats.totalPcs} units in showroom
+                <span className="text-[11px] text-slate-500 block mt-1 font-medium">
+                  {inventoryStats.totalItems} physical products • {inventoryStats.totalPcs} total items on hangers/shelves
                 </span>
               </div>
 
               {/* Wholesale Cost & Profit Potential in distinct cards */}
               <div className="grid grid-cols-2 gap-3">
                 {/* Wholesale Cost */}
-                <div className="bg-[#120d09]/80 border border-stone-800 rounded-2xl p-3 shadow-sm">
-                  <span className="text-[10px] text-stone-400 uppercase font-semibold block">
-                    Wholesale Cost (खरीद)
+                <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+                    Wholesale Cost (खरीद लागत)
                   </span>
-                  <span className="text-base sm:text-lg font-black text-stone-200 font-mono tabular-nums block mt-0.5">
+                  <span className="text-base sm:text-lg font-black text-slate-900 font-mono tabular-nums block mt-0.5">
                     ₹{inventoryStats.totalCost.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-[10px] text-stone-400 font-mono mt-0.5 block">
+                  <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
                     {formatIndianCompact(inventoryStats.totalCost)}
                   </span>
                 </div>
 
                 {/* Potential Margin */}
-                <div className="bg-[#120d09]/80 border border-emerald-500/25 rounded-2xl p-3 shadow-sm">
-                  <span className="text-[10px] text-emerald-400 uppercase font-semibold block">
-                    Estimated Profit (मुनाफा)
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 shadow-sm">
+                  <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
+                    Estimated Profit (संभावित मुनाफा)
                   </span>
-                  <span className="text-base sm:text-lg font-black text-emerald-400 font-mono tabular-nums block mt-0.5">
+                  <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
                     +₹{inventoryStats.potentialMargin.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-[10px] text-emerald-400/80 font-mono mt-0.5 block">
+                  <span className="text-[10px] text-emerald-700 font-mono mt-0.5 block">
                     {formatIndianCompact(inventoryStats.potentialMargin)} ({inventoryStats.potentialMarginPct}%)
                   </span>
                 </div>
               </div>
 
-              {/* Stock Status Badges (Clearly spaced, no text overlapping) */}
-              <div className="pt-2 border-t border-amber-500/15 flex items-center justify-between gap-2 text-xs flex-wrap">
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 font-semibold shadow-sm">
+              {/* Stock Status Badges */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs flex-wrap">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                   <span className="font-mono font-black">{inventoryStats.outOfStock}</span>
                   <span className="text-[11px]">Khatam (0 pcs)</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 font-semibold shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                   <span className="font-mono font-black">{inventoryStats.lowStock}</span>
                   <span className="text-[11px]">Low Stock (&le; 2 pcs)</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                   <span className="font-mono font-black">{inventoryStats.goodStock}</span>
                   <span className="text-[11px]">Good Stock</span>
                 </div>
@@ -899,18 +934,18 @@ export default function MobileOwnerApp() {
             {/* Search & Stock Filter Bar */}
             <div className="space-y-2.5">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-stone-500" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
                   value={stockSearch}
                   onChange={(e) => setStockSearch(e.target.value)}
                   placeholder="Search item name, SKU, or Barcode..."
-                  className="w-full bg-[#140e0a] border border-amber-500/20 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-stone-200 placeholder:text-stone-500 outline-none focus:border-amber-400 transition"
+                  className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 shadow-sm transition"
                 />
                 {stockSearch && (
                   <button
                     onClick={() => setStockSearch("")}
-                    className="absolute right-3 top-2.5 text-stone-500 hover:text-stone-300"
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -920,7 +955,7 @@ export default function MobileOwnerApp() {
               {/* Stock Health Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
                 {[
-                  { id: "all", label: `Sabhi (${products.length})` },
+                  { id: "all", label: `Sabhi Items (${inventoryStats.totalItems})` },
                   { id: "low", label: `⚠️ Low Stock (${inventoryStats.lowStock})` },
                   { id: "out", label: `🔴 Khatam (${inventoryStats.outOfStock})` },
                   { id: "good", label: `🟢 Good Stock (${inventoryStats.goodStock})` },
@@ -930,8 +965,8 @@ export default function MobileOwnerApp() {
                     onClick={() => setStockStatusFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition ${
                       stockStatusFilter === f.id
-                        ? "bg-amber-400 text-stone-950 font-black shadow-md shadow-amber-400/20"
-                        : "bg-[#140e0a] text-stone-400 border border-stone-800"
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     {f.label}
@@ -951,14 +986,15 @@ export default function MobileOwnerApp() {
                   "kidswear",
                   "footwear",
                   "cosmetics",
+                  "services",
                 ].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition ${
                       selectedCategory === cat
-                        ? "bg-stone-200 text-stone-950 font-black"
-                        : "bg-[#140e0a] text-stone-400 border border-stone-800"
+                        ? "bg-slate-800 text-white font-bold"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     {cat}
@@ -967,73 +1003,77 @@ export default function MobileOwnerApp() {
               </div>
             </div>
 
-            {/* Product Item Cards List (Crisp Luxury Boutique Layout) */}
+            {/* Product Item Cards List (Clean White Cards with Zero Squishing) */}
             <div className="space-y-2.5">
-              <span className="text-[11px] text-stone-400 font-semibold block px-1">
+              <span className="text-[11px] text-slate-500 font-semibold block px-1">
                 Showing {filteredProducts.length} items
               </span>
 
               {filteredProducts.slice(0, 50).map((p) => {
                 const isOutOfStock = p.stock <= 0;
                 const isLowStock = p.stock > 0 && p.stock <= 2;
+                const isService = isServiceItem(p);
+
                 return (
                   <div
                     key={p.id}
-                    className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 shadow-md hover:border-amber-500/40 transition"
+                    className="bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 shadow-sm hover:border-blue-300 transition"
                   >
                     {/* Top Row: Category, SKU, and Stock Badge */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/20 tracking-wider">
+                          <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 tracking-wider">
                             {p.category}
                           </span>
-                          <span className="text-[9px] font-mono text-stone-400 bg-stone-900 px-1.5 py-0.5 rounded border border-stone-800">
+                          <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {p.sku}
                           </span>
                           {p.badge && (
-                            <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                            <span className="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-200">
                               {p.badge}
                             </span>
                           )}
                         </div>
-                        <h3 className="text-xs font-bold text-stone-100 mt-1.5 leading-snug">{p.name}</h3>
-                        <p className="text-[10px] text-stone-500 font-mono mt-0.5">Barcode: {p.barcode}</p>
+                        <h3 className="text-xs font-bold text-slate-900 mt-1.5 leading-snug">{p.name}</h3>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">Barcode: {p.barcode}</p>
                       </div>
 
                       {/* Stock Quantity Badge */}
                       <span
-                        className={`text-[11px] font-black font-mono px-2.5 py-1 rounded-xl shrink-0 shadow-sm ${
-                          isOutOfStock
-                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                        className={`text-[11px] font-bold font-mono px-2.5 py-1 rounded-xl shrink-0 shadow-sm ${
+                          isService
+                            ? "bg-slate-100 text-slate-600 border border-slate-200"
+                            : isOutOfStock
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
                             : isLowStock
-                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                            : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                            ? "bg-amber-50 text-amber-800 border border-amber-200"
+                            : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                         }`}
                       >
-                        {p.stock} pcs
+                        {isService ? "Service" : `${p.stock} pcs`}
                       </span>
                     </div>
 
                     {/* Price & Cost Row with clear spacing and zero overlap */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-amber-500/10 text-xs">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-black text-amber-300 font-mono tabular-nums">
+                        <span className="text-sm font-black text-blue-700 font-mono tabular-nums">
                           ₹{p.price.toLocaleString("en-IN")}
                         </span>
                         {p.mrp > p.price && (
-                          <span className="text-[10px] text-stone-500 line-through font-mono">
+                          <span className="text-[10px] text-slate-400 line-through font-mono">
                             ₹{p.mrp.toLocaleString("en-IN")}
                           </span>
                         )}
                       </div>
 
                       <div className="text-right">
-                        <span className="text-[10px] text-stone-400">
-                          Cost: <span className="font-mono text-stone-300 font-bold">₹{p.purchaseCost || 0}</span>
+                        <span className="text-[10px] text-slate-500">
+                          Cost: <span className="font-mono text-slate-700 font-bold">₹{p.purchaseCost || 0}</span>
                         </span>
                         {p.price > p.purchaseCost && (
-                          <span className="text-[10px] text-emerald-400 font-bold ml-1.5 font-mono">
+                          <span className="text-[10px] text-emerald-600 font-bold ml-1.5 font-mono">
                             (+₹{p.price - (p.purchaseCost || 0)})
                           </span>
                         )}
@@ -1044,7 +1084,7 @@ export default function MobileOwnerApp() {
               })}
 
               {filteredProducts.length > 50 && (
-                <p className="text-center text-xs text-stone-500 py-3 font-mono">
+                <p className="text-center text-xs text-slate-400 py-3 font-mono">
                   Showing first 50 items. Use search bar to find specific products.
                 </p>
               )}
@@ -1060,18 +1100,18 @@ export default function MobileOwnerApp() {
             {/* Search & Payment Filter */}
             <div className="space-y-2.5">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-stone-500" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
                   value={billsSearch}
                   onChange={(e) => setBillsSearch(e.target.value)}
                   placeholder="Search Bill #, Customer Name, or Phone..."
-                  className="w-full bg-[#140e0a] border border-amber-500/20 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-stone-200 placeholder:text-stone-500 outline-none focus:border-amber-400 transition"
+                  className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-sm transition"
                 />
                 {billsSearch && (
                   <button
                     onClick={() => setBillsSearch("")}
-                    className="absolute right-3 top-2.5 text-stone-500 hover:text-stone-300"
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1090,8 +1130,8 @@ export default function MobileOwnerApp() {
                     onClick={() => setBillsPaymentFilter(pm.id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
                       billsPaymentFilter === pm.id
-                        ? "bg-amber-400 text-stone-950 font-black shadow-md shadow-amber-400/20"
-                        : "bg-[#140e0a] text-stone-400 border border-stone-800"
+                        ? "bg-blue-600 text-white font-bold shadow-sm"
+                        : "bg-white text-slate-600 border border-slate-200"
                     }`}
                   >
                     {pm.label}
@@ -1106,15 +1146,15 @@ export default function MobileOwnerApp() {
                 <div
                   key={bill.id || bill.billNo}
                   onClick={() => setViewingBill(bill)}
-                  className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 hover:border-amber-400/60 rounded-2xl p-3.5 space-y-2 transition cursor-pointer active:scale-[0.99] shadow-md"
+                  className="bg-white border border-slate-200 hover:border-blue-400 rounded-2xl p-3.5 space-y-2 transition cursor-pointer active:scale-[0.99] shadow-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-black text-xs text-amber-300">{bill.billNo}</span>
+                    <span className="font-mono font-bold text-xs text-blue-700">{bill.billNo}</span>
                     <span
                       className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-md font-mono ${
                         bill.paymentMode === "cash"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-blue-50 text-blue-700 border border-blue-200"
                       }`}
                     >
                       {bill.paymentMode}
@@ -1123,28 +1163,28 @@ export default function MobileOwnerApp() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold text-white">{bill.customer?.name || "Walk-in Guest"}</p>
-                      <p className="text-[10px] text-stone-400 font-mono">
+                      <p className="text-xs font-bold text-slate-900">{bill.customer?.name || "Walk-in Guest"}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">
                         {bill.customer?.phone && bill.customer.phone !== "NA" ? bill.customer.phone : "No Phone"}
                       </p>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-base font-black text-amber-300 font-mono tabular-nums">
+                      <p className="text-base font-black text-slate-900 font-mono tabular-nums">
                         ₹{bill.grandTotal.toLocaleString("en-IN")}
                       </p>
-                      <span className="text-[10px] text-stone-500">{bill.createdAt}</span>
+                      <span className="text-[10px] text-slate-400">{bill.createdAt}</span>
                     </div>
                   </div>
 
                   {/* Items summary */}
-                  <div className="pt-2 border-t border-amber-500/10 flex items-center justify-between text-[11px] text-stone-400">
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="truncate max-w-[220px]">
                       {bill.items?.length || 0} items:{" "}
                       {bill.items?.map((it) => it.product?.name).filter(Boolean).slice(0, 2).join(", ")}
                       {(bill.items?.length || 0) > 2 ? "..." : ""}
                     </span>
-                    <span className="text-amber-400 text-[10px] font-bold flex items-center gap-0.5 shrink-0">
+                    <span className="text-blue-600 text-[10px] font-bold flex items-center gap-0.5 shrink-0">
                       View Slip →
                     </span>
                   </div>
@@ -1160,29 +1200,29 @@ export default function MobileOwnerApp() {
         {activeNav === "security" && (
           <div className="space-y-4">
             {/* Live 30-Sec OTP Card */}
-            <div className="bg-gradient-to-b from-[#22170f] via-[#17100b] to-[#0f0b08] border border-amber-500/35 rounded-3xl p-5 text-center shadow-2xl shadow-black/80">
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 text-center shadow-sm">
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
                   Staff Override Dynamic OTP
                 </span>
               </div>
-              <h2 className="text-xs text-stone-400 mt-0.5">Tell this code to counter staff for price override</h2>
+              <h2 className="text-xs text-slate-500 mt-0.5">Tell this code to counter staff for price override</h2>
 
               <div className="my-5">
-                <span className="font-mono text-4xl sm:text-5xl font-black text-amber-300 tracking-[0.25em] drop-shadow-[0_2px_12px_rgba(251,191,36,0.3)] tabular-nums">
+                <span className="font-mono text-4xl sm:text-5xl font-black text-blue-700 tracking-[0.25em] tabular-nums">
                   {otpData.otp}
                 </span>
               </div>
 
               {/* Progress Bar & Timer */}
-              <div className="w-full bg-stone-900 h-2 rounded-full overflow-hidden mb-2 border border-stone-800">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-2 border border-slate-200">
                 <div
-                  className="bg-gradient-to-r from-amber-500 to-amber-400 h-full transition-all duration-1000"
+                  className="bg-blue-600 h-full transition-all duration-1000"
                   style={{ width: `${(otpData.secondsRemaining / otpData.totalSeconds) * 100}%` }}
                 />
               </div>
-              <span className="text-[11px] text-stone-400 font-mono">
+              <span className="text-[11px] text-slate-500 font-mono">
                 Changes in {otpData.secondsRemaining} seconds
               </span>
 
@@ -1193,9 +1233,9 @@ export default function MobileOwnerApp() {
                     setCopiedOtp(true);
                     setTimeout(() => setCopiedOtp(false), 2000);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-[#140e0a] border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-500/10 transition"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-slate-100 transition"
                 >
-                  {copiedOtp ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedOtp ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
                   <span>{copiedOtp ? "Copied!" : "Copy Code"}</span>
                 </button>
 
@@ -1205,7 +1245,7 @@ export default function MobileOwnerApp() {
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition"
+                  className="py-2.5 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>WhatsApp</span>
@@ -1214,45 +1254,45 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Pending Requests */}
-            <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-3xl p-4 space-y-3 shadow-md">
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase text-amber-300 tracking-wider">
+                <h3 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
                   Pending Staff Price Requests ({pendingRequests.length})
                 </h3>
               </div>
 
               {pendingRequests.length === 0 ? (
-                <p className="text-xs text-stone-500 py-3 text-center">Koi pending request nahi hai</p>
+                <p className="text-xs text-slate-400 py-3 text-center">Koi pending request nahi hai</p>
               ) : (
                 <div className="space-y-3">
                   {pendingRequests.map((req) => (
                     <div
                       key={req.id}
-                      className="bg-[#120d09] p-3 rounded-2xl border border-amber-500/25 space-y-2"
+                      className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">{req.productName}</span>
-                        <span className="text-[10px] text-amber-400 font-mono">{req.sku}</span>
+                        <span className="text-xs font-bold text-slate-900">{req.productName}</span>
+                        <span className="text-[10px] text-blue-700 font-mono">{req.sku}</span>
                       </div>
 
                       <div className="flex items-center gap-3 text-xs">
-                        <span className="text-stone-400 line-through">₹{req.oldValue}</span>
-                        <span className="text-emerald-400 font-bold">New: ₹{req.newValue}</span>
-                        <span className="text-stone-500 text-[10px]">Reason: {req.reason}</span>
+                        <span className="text-slate-400 line-through">₹{req.oldValue}</span>
+                        <span className="text-emerald-700 font-bold">New: ₹{req.newValue}</span>
+                        <span className="text-slate-500 text-[10px]">Reason: {req.reason}</span>
                       </div>
 
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={() => handleResolveRequest(req, "approved")}
                           disabled={isProcessingId === req.id}
-                          className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                          className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-sm"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => handleResolveRequest(req, "rejected")}
                           disabled={isProcessingId === req.id}
-                          className="flex-1 py-1.5 rounded-lg bg-rose-600/80 text-white text-xs font-bold"
+                          className="flex-1 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold shadow-sm"
                         >
                           Reject
                         </button>
@@ -1264,17 +1304,17 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Audit Log */}
-            <div className="bg-gradient-to-b from-[#18120e] to-[#110c08] border border-amber-500/20 rounded-3xl p-4 space-y-3 shadow-md">
-              <h3 className="text-xs font-black uppercase text-stone-400 tracking-wider">
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-sm">
+              <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider">
                 Recent Audit History
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {auditLogs.slice(0, 10).map((log) => (
-                  <div key={log.id} className="text-xs border-b border-stone-800/60 pb-2">
-                    <p className="font-bold text-stone-300">
+                  <div key={log.id} className="text-xs border-b border-slate-100 pb-2">
+                    <p className="font-bold text-slate-800">
                       {log.productName} ({log.sku})
                     </p>
-                    <p className="text-[10px] text-stone-500">
+                    <p className="text-[10px] text-slate-500">
                       ₹{log.oldValue} &rarr; ₹{log.newValue} • {log.reason} • by {log.staffName}
                     </p>
                   </div>
@@ -1289,48 +1329,48 @@ export default function MobileOwnerApp() {
           VIEW BILL MODAL POPUP
           ========================================================================= */}
       {viewingBill && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#18120e] to-[#0f0b08] border border-amber-500/40 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider">
-                  Tax Invoice
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Tax Invoice Slip
                 </span>
-                <h3 className="text-base font-black font-mono text-white">{viewingBill.billNo}</h3>
+                <h3 className="text-base font-bold font-mono text-slate-900">{viewingBill.billNo}</h3>
               </div>
               <button
                 onClick={() => setViewingBill(null)}
-                className="p-1.5 rounded-full bg-stone-900 border border-stone-800 text-stone-400 hover:text-white"
+                className="p-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Customer Details */}
-            <div className="text-xs bg-[#120d09] p-3 rounded-2xl border border-stone-800 space-y-1">
-              <p className="font-bold text-white">Customer: {viewingBill.customer?.name}</p>
-              <p className="text-stone-400 font-mono">Mobile: {viewingBill.customer?.phone || "NA"}</p>
-              <p className="text-[10px] text-stone-500">Date: {viewingBill.createdAt}</p>
-              <p className="text-[10px] text-emerald-400 font-bold uppercase font-mono">
-                Payment: {viewingBill.paymentMode}
+            <div className="text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1">
+              <p className="font-bold text-slate-900">Customer: {viewingBill.customer?.name}</p>
+              <p className="text-slate-600 font-mono">Mobile: {viewingBill.customer?.phone || "NA"}</p>
+              <p className="text-[10px] text-slate-400">Date: {viewingBill.createdAt}</p>
+              <p className="text-[10px] text-emerald-700 font-bold uppercase font-mono">
+                Payment Mode: {viewingBill.paymentMode}
               </p>
             </div>
 
             {/* Items List */}
             <div className="space-y-2">
-              <span className="text-[10px] uppercase font-bold text-stone-400">Items Purchased</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Items Purchased</span>
               {viewingBill.items?.map((it, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between text-xs py-1.5 border-b border-stone-800/60"
+                  className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100"
                 >
                   <div className="min-w-0 flex-1 pr-2">
-                    <p className="font-semibold text-stone-200 truncate">{it.product?.name}</p>
-                    <p className="text-[10px] text-stone-500 font-mono">
+                    <p className="font-semibold text-slate-800 truncate">{it.product?.name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">
                       {it.quantity} pc @ ₹{it.price}
                     </p>
                   </div>
-                  <span className="font-mono font-bold text-stone-100 tabular-nums">
+                  <span className="font-mono font-bold text-slate-900 tabular-nums">
                     ₹{(it.price * it.quantity).toLocaleString("en-IN")}
                   </span>
                 </div>
@@ -1338,19 +1378,19 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Total Math */}
-            <div className="pt-2 border-t border-stone-800 space-y-1 text-xs font-mono">
-              <div className="flex justify-between text-stone-400">
+            <div className="pt-2 border-t border-slate-100 space-y-1 text-xs font-mono">
+              <div className="flex justify-between text-slate-500">
                 <span>Subtotal:</span>
                 <span>₹{viewingBill.subtotal.toLocaleString("en-IN")}</span>
               </div>
               {viewingBill.discount > 0 && (
-                <div className="flex justify-between text-rose-400">
+                <div className="flex justify-between text-rose-600">
                   <span>Discount:</span>
                   <span>-₹{viewingBill.discount.toLocaleString("en-IN")}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-black text-amber-300 pt-1 border-t border-amber-500/20">
-                <span className="font-sans">Grand Total:</span>
+              <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-100">
+                <span className="font-sans font-bold">Grand Total:</span>
                 <span className="tabular-nums">₹{viewingBill.grandTotal.toLocaleString("en-IN")}</span>
               </div>
             </div>
@@ -1359,7 +1399,7 @@ export default function MobileOwnerApp() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setViewingBill(null)}
-                className="flex-1 py-2.5 rounded-xl bg-stone-900 border border-stone-800 text-stone-300 text-xs font-bold"
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold"
               >
                 Close
               </button>
@@ -1370,7 +1410,7 @@ export default function MobileOwnerApp() {
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>WhatsApp</span>
@@ -1382,9 +1422,9 @@ export default function MobileOwnerApp() {
       )}
 
       {/* =========================================================================
-          FIXED BOTTOM MOBILE NAVIGATION BAR (Luxury App Dock)
+          FIXED BOTTOM MOBILE NAVIGATION BAR (CLEAN WHITE DOCK)
           ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#100b08]/95 backdrop-blur-xl border-t border-amber-500/25 px-3 py-2 shadow-2xl">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-3 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
         <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
           {[
             { id: "sales", label: "Daily Sales", icon: TrendingUp },
@@ -1399,12 +1439,12 @@ export default function MobileOwnerApp() {
                 key={tab.id}
                 onClick={() => setActiveNav(tab.id as any)}
                 className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition active:scale-95 ${
-                  isActive ? "text-amber-300 font-black" : "text-stone-400 hover:text-stone-200"
+                  isActive ? "text-blue-600 font-bold" : "text-slate-400 hover:text-slate-700"
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-xl transition ${
-                    isActive ? "bg-amber-500/20 text-amber-300 shadow-sm shadow-amber-500/30 border border-amber-500/30" : ""
+                    isActive ? "bg-blue-50 text-blue-600 shadow-sm border border-blue-100" : ""
                   }`}
                 >
                   <Icon className="w-5 h-5" />
