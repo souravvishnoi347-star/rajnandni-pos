@@ -3879,20 +3879,6 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <span className="hidden sm:inline">Export Backup</span>
                   </button>
 
-                  {completedBills.length > 0 && (
-                    <button 
-                      onClick={() => {
-                        if (confirm("Are you sure you want to clear all sales data? This will reset all bills to zero.")) {
-                          setCompletedBills([]);
-                          localStorage.removeItem("rajnandni_bills");
-                        }
-                      }}
-                      className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 hover:text-rose-700 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Reset Bills</span>
-                    </button>
-                  )}
                   <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
                     <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Filtered Net Revenue</span>
                     <span className="text-lg font-black text-stone-900 font-mono">
