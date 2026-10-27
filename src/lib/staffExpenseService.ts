@@ -222,6 +222,60 @@ export const StaffExpenseService = {
     return true;
   },
 
+  async updateExpense(id: string, tokenNumber: string, updates: Partial<StoreExpense>): Promise<boolean> {
+    if (supabase) {
+      try {
+        const payload: any = {};
+        if (updates.title !== undefined) payload.item_name = updates.title.trim();
+        if (updates.paidBy !== undefined) payload.customer_phone = updates.paidBy;
+        if (updates.date !== undefined) payload.delivery_date = updates.date;
+        if (updates.status !== undefined) payload.status = updates.status;
+
+        let instructions: any = {};
+        if (id && !id.startsWith("local-")) {
+          const { data } = await supabase.from("alterations").select("instructions").eq("id", id).maybeSingle();
+          if (data?.instructions) {
+            try { instructions = JSON.parse(data.instructions); } catch {}
+          }
+        }
+        const mergedInstructions = {
+          ...instructions,
+          title: updates.title !== undefined ? updates.title.trim() : instructions.title,
+          amount: updates.amount !== undefined ? updates.amount : instructions.amount,
+          category: updates.category !== undefined ? updates.category : instructions.category,
+          paidBy: updates.paidBy !== undefined ? updates.paidBy : instructions.paidBy,
+          staffName: updates.staffName !== undefined ? updates.staffName : instructions.staffName,
+          date: updates.date !== undefined ? updates.date : instructions.date,
+          note: updates.note !== undefined ? updates.note : instructions.note,
+          status: updates.status !== undefined ? updates.status : instructions.status,
+        };
+        payload.instructions = JSON.stringify(mergedInstructions);
+
+        if (id && !id.startsWith("local-")) {
+          await supabase.from("alterations").update(payload).eq("id", id);
+        } else if (tokenNumber) {
+          await supabase.from("alterations").update(payload).eq("token_number", tokenNumber);
+        }
+      } catch (e) {
+        console.warn("Update expense Supabase error:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.EXPENSES);
+        if (raw) {
+          const list: StoreExpense[] = JSON.parse(raw);
+          const updated = list.map((x) =>
+            x.id === id || (tokenNumber && x.tokenNumber === tokenNumber) ? { ...x, ...updates } : x
+          );
+          localStorage.setItem(LOCAL_STORAGE_KEYS.EXPENSES, JSON.stringify(updated));
+        }
+      } catch {}
+    }
+    return true;
+  },
+
   async updateExpenseStatus(id: string, tokenNumber: string, status: StoreExpense["status"]): Promise<boolean> {
     if (supabase) {
       try {
@@ -376,6 +430,60 @@ export const StaffExpenseService = {
     return true;
   },
 
+  async updateAdvance(id: string, tokenNumber: string, updates: Partial<StaffAdvance>): Promise<boolean> {
+    if (supabase) {
+      try {
+        const payload: any = {};
+        if (updates.staffName !== undefined) payload.item_name = updates.staffName.trim();
+        if (updates.paidBy !== undefined) payload.customer_phone = updates.paidBy;
+        if (updates.date !== undefined) payload.delivery_date = updates.date;
+        if (updates.status !== undefined) payload.status = updates.status;
+
+        let instructions: any = {};
+        if (id && !id.startsWith("local-")) {
+          const { data } = await supabase.from("alterations").select("instructions").eq("id", id).maybeSingle();
+          if (data?.instructions) {
+            try { instructions = JSON.parse(data.instructions); } catch {}
+          }
+        }
+        const mergedInstructions = {
+          ...instructions,
+          staffId: updates.staffId !== undefined ? updates.staffId : instructions.staffId,
+          staffName: updates.staffName !== undefined ? updates.staffName : instructions.staffName,
+          amount: updates.amount !== undefined ? updates.amount : instructions.amount,
+          paidBy: updates.paidBy !== undefined ? updates.paidBy : instructions.paidBy,
+          reason: updates.reason !== undefined ? updates.reason : instructions.reason,
+          date: updates.date !== undefined ? updates.date : instructions.date,
+          note: updates.note !== undefined ? updates.note : instructions.note,
+          status: updates.status !== undefined ? updates.status : instructions.status,
+        };
+        payload.instructions = JSON.stringify(mergedInstructions);
+
+        if (id && !id.startsWith("local-")) {
+          await supabase.from("alterations").update(payload).eq("id", id);
+        } else if (tokenNumber) {
+          await supabase.from("alterations").update(payload).eq("token_number", tokenNumber);
+        }
+      } catch (e) {
+        console.warn("Update advance Supabase error:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.ADVANCES);
+        if (raw) {
+          const list: StaffAdvance[] = JSON.parse(raw);
+          const updated = list.map((x) =>
+            x.id === id || (tokenNumber && x.tokenNumber === tokenNumber) ? { ...x, ...updates } : x
+          );
+          localStorage.setItem(LOCAL_STORAGE_KEYS.ADVANCES, JSON.stringify(updated));
+        }
+      } catch {}
+    }
+    return true;
+  },
+
   async deleteAdvance(id: string, tokenNumber?: string): Promise<boolean> {
     if (supabase) {
       try {
@@ -523,7 +631,7 @@ export const StaffExpenseService = {
           .from("alterations")
           .select("*")
           .eq("customer_name", "STAFF_MEMBER")
-          .eq("status", "active");
+          .order("created_at", { ascending: true });
 
         if (!error && Array.isArray(data) && data.length > 0) {
           cloudList = data.map((row: any) => {
@@ -541,12 +649,21 @@ export const StaffExpenseService = {
             };
           });
         }
-      } catch {}
+      } catch (err) {
+        console.warn("fetchStaffMembers cloud error:", err);
+      }
     }
 
-    if (cloudList.length > 0) return cloudList;
+    if (cloudList.length > 0) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(cloudList));
+        } catch {}
+      }
+      return cloudList;
+    }
 
-    // Check localStorage or return defaults
+    // Check localStorage or seed defaults
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.STAFF);
@@ -580,7 +697,9 @@ export const StaffExpenseService = {
           tailor_name: member.role.trim(),
           status: "active",
         });
-      } catch {}
+      } catch (e) {
+        console.warn("Error adding staff to cloud:", e);
+      }
     }
 
     if (typeof window !== "undefined") {
@@ -591,5 +710,74 @@ export const StaffExpenseService = {
       } catch {}
     }
     return newStaff;
+  },
+
+  async updateStaffMember(id: string, updates: Partial<Omit<StaffMember, "id">>): Promise<boolean> {
+    const token = "STAFF-" + id;
+    if (supabase) {
+      try {
+        const payload: any = {};
+        if (updates.name !== undefined) payload.item_name = updates.name.trim();
+        if (updates.phone !== undefined) payload.customer_phone = updates.phone.trim();
+        if (updates.role !== undefined) payload.tailor_name = updates.role.trim();
+        if (updates.monthlySalary !== undefined) {
+          payload.instructions = JSON.stringify({ monthlySalary: updates.monthlySalary });
+        }
+        if (updates.isActive !== undefined) {
+          payload.status = updates.isActive ? "active" : "inactive";
+        }
+
+        const { error } = await supabase
+          .from("alterations")
+          .update(payload)
+          .eq("customer_name", "STAFF_MEMBER")
+          .or(`token_number.eq.${token},token_number.eq.${id},id.eq.${id}`);
+
+        if (error) {
+          console.warn("Update staff in Supabase error:", error);
+        }
+      } catch (e) {
+        console.warn("Failed updating staff in cloud:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.STAFF);
+        const list: StaffMember[] = raw ? JSON.parse(raw) : DEFAULT_STAFF_MEMBERS;
+        const updated = list.map((s) => (s.id === id ? { ...s, ...updates } : s));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(updated));
+      } catch {}
+    }
+    return true;
+  },
+
+  async deleteStaffMember(id: string): Promise<boolean> {
+    const token = "STAFF-" + id;
+    if (supabase) {
+      try {
+        await supabase
+          .from("alterations")
+          .delete()
+          .eq("customer_name", "STAFF_MEMBER")
+          .or(`token_number.eq.${token},token_number.eq.${id},id.eq.${id}`);
+      } catch (e) {
+        console.warn("Delete staff error:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.STAFF);
+        const list: StaffMember[] = raw ? JSON.parse(raw) : DEFAULT_STAFF_MEMBERS;
+        const updated = list.filter((s) => s.id !== id);
+        localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(updated));
+      } catch {}
+    }
+    return true;
+  },
+
+  async toggleStaffStatus(id: string, isActive: boolean): Promise<boolean> {
+    return this.updateStaffMember(id, { isActive });
   },
 };

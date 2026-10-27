@@ -242,9 +242,13 @@ export default function HeadStaffApp() {
     await loadData();
   };
 
+  const activeStaffMembers = useMemo(() => {
+    return staffMembers.filter((s) => s.isActive !== false);
+  }, [staffMembers]);
+
   // Quick Mark All Present
   const handleMarkAllPresent = async () => {
-    for (const s of staffMembers) {
+    for (const s of activeStaffMembers) {
       await StaffExpenseService.markAttendance({
         staffId: s.id,
         staffName: s.name,
@@ -300,9 +304,9 @@ export default function HeadStaffApp() {
       absent,
       leave,
       totalMarked: attendance.length,
-      totalStaff: staffMembers.length,
+      totalStaff: activeStaffMembers.length,
     };
-  }, [attendance, staffMembers]);
+  }, [attendance, activeStaffMembers]);
 
   // =========================================================================
   // VIEW 0: STAFF PIN LOCK SCREEN
@@ -646,10 +650,10 @@ export default function HeadStaffApp() {
             {/* Staff Directory with Advance Totals */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
               <span className="text-xs font-bold text-slate-800 block">
-                Showroom Staff Members ({staffMembers.length})
+                Showroom Staff Members ({activeStaffMembers.length})
               </span>
               <div className="space-y-2">
-                {staffMembers.map((staff) => {
+                {activeStaffMembers.map((staff) => {
                   const staffAdvTotal = advances
                     .filter((a) => a.staffId === staff.id && a.status === "active")
                     .reduce((sum, a) => sum + a.amount, 0);
@@ -785,7 +789,7 @@ export default function HeadStaffApp() {
                 Mark Staff Attendance
               </span>
 
-              {staffMembers.map((staff) => {
+              {activeStaffMembers.map((staff) => {
                 const record = attendance.find((a) => a.staffId === staff.id);
                 const currentStatus = record?.status || "present";
 
@@ -996,7 +1000,7 @@ export default function HeadStaffApp() {
                   onChange={(e) => setAdvStaffId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold outline-none"
                 >
-                  {staffMembers.map((s) => (
+                  {activeStaffMembers.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.role}) - Salary ₹{s.monthlySalary}
                     </option>

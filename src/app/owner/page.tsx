@@ -45,6 +45,7 @@ import {
   Coffee,
   Trash2,
   Plus,
+  Pencil,
   UserCheck,
   UserX,
 } from "lucide-react";
@@ -154,6 +155,37 @@ export default function MobileOwnerApp() {
   const [newMemberRole, setNewMemberRole] = useState<string>("Sales Executive");
   const [newMemberSalary, setNewMemberSalary] = useState<string>("15000");
 
+  // Editing Staff Member State
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [editStaffName, setEditStaffName] = useState<string>("");
+  const [editStaffPhone, setEditStaffPhone] = useState<string>("");
+  const [editStaffRole, setEditStaffRole] = useState<string>("");
+  const [editStaffSalary, setEditStaffSalary] = useState<string>("");
+  const [editStaffActive, setEditStaffActive] = useState<boolean>(true);
+
+  // Editing Store Expense State
+  const [editingExpense, setEditingExpense] = useState<StoreExpense | null>(null);
+  const [editExpTitle, setEditExpTitle] = useState<string>("");
+  const [editExpAmount, setEditExpAmount] = useState<string>("");
+  const [editExpCategory, setEditExpCategory] = useState<StoreExpense["category"]>("chai_nashta");
+  const [editExpPaidBy, setEditExpPaidBy] = useState<StoreExpense["paidBy"]>("cash_galla");
+  const [editExpDate, setEditExpDate] = useState<string>("");
+  const [editExpNote, setEditExpNote] = useState<string>("");
+
+  // Editing Staff Advance State
+  const [editingAdvance, setEditingAdvance] = useState<StaffAdvance | null>(null);
+  const [editAdvAmount, setEditAdvAmount] = useState<string>("");
+  const [editAdvReason, setEditAdvReason] = useState<StaffAdvance["reason"]>("salary_advance");
+  const [editAdvPaidBy, setEditAdvPaidBy] = useState<StaffAdvance["paidBy"]>("cash_galla");
+  const [editAdvStatus, setEditAdvStatus] = useState<StaffAdvance["status"]>("active");
+  const [editAdvDate, setEditAdvDate] = useState<string>("");
+  const [editAdvNote, setEditAdvNote] = useState<string>("");
+
+  // Selected Attendance Date for Owner View (defaults to today)
+  const [ownerAttendanceDate, setOwnerAttendanceDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+
   // Modal State for Viewing Full Bill
   const [viewingBill, setViewingBill] = useState<CompletedBill | null>(null);
 
@@ -195,7 +227,7 @@ export default function MobileOwnerApp() {
         OwnerSecurityService.fetchAuditLogs().catch(() => []),
         StaffExpenseService.fetchExpenses().catch(() => []),
         StaffExpenseService.fetchAdvances().catch(() => []),
-        StaffExpenseService.fetchAttendance().catch(() => []),
+        StaffExpenseService.fetchAttendance(ownerAttendanceDate).catch(() => []),
         StaffExpenseService.fetchStaffMembers().catch(() => []),
       ]);
 
@@ -272,7 +304,7 @@ export default function MobileOwnerApp() {
       }, 15000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ownerAttendanceDate]);
 
   // Handle PIN Unlock
   const handlePinSubmit = (e?: React.FormEvent) => {
@@ -613,6 +645,109 @@ export default function MobileOwnerApp() {
     setShowAddMemberModal(false);
     setNewMemberName("");
     setNewMemberPhone("");
+    await loadAllData();
+  };
+
+  // Edit Staff Member Handlers
+  const handleOpenEditStaff = (staff: StaffMember) => {
+    setEditingStaff(staff);
+    setEditStaffName(staff.name);
+    setEditStaffPhone(staff.phone || "");
+    setEditStaffRole(staff.role || "Sales Executive");
+    setEditStaffSalary(String(staff.monthlySalary || 15000));
+    setEditStaffActive(staff.isActive !== false);
+  };
+
+  const handleSaveEditStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStaff) return;
+    if (!editStaffName.trim()) {
+      alert("Staff member ka naam zaroori hai");
+      return;
+    }
+    await StaffExpenseService.updateStaffMember(editingStaff.id, {
+      name: editStaffName.trim(),
+      phone: editStaffPhone.trim(),
+      role: editStaffRole.trim(),
+      monthlySalary: Number(editStaffSalary) || 15000,
+      isActive: editStaffActive,
+    });
+    setEditingStaff(null);
+    await loadAllData();
+  };
+
+  const handleDeleteStaff = async (staff: StaffMember) => {
+    if (confirm(`Kya aap "${staff.name}" ko staff list se hatana chahte hain?`)) {
+      await StaffExpenseService.deleteStaffMember(staff.id);
+      await loadAllData();
+    }
+  };
+
+  const handleToggleStaffActive = async (staff: StaffMember) => {
+    const nextState = !staff.isActive;
+    await StaffExpenseService.toggleStaffStatus(staff.id, nextState);
+    await loadAllData();
+  };
+
+  // Edit Expense Handlers
+  const handleOpenEditExpense = (exp: StoreExpense) => {
+    setEditingExpense(exp);
+    setEditExpTitle(exp.title);
+    setEditExpAmount(String(exp.amount));
+    setEditExpCategory(exp.category);
+    setEditExpPaidBy(exp.paidBy);
+    setEditExpDate(exp.date);
+    setEditExpNote(exp.note || "");
+  };
+
+  const handleSaveEditExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+    const amt = Number(editExpAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Kripya sahi amount dalein");
+      return;
+    }
+    await StaffExpenseService.updateExpense(editingExpense.id, editingExpense.tokenNumber, {
+      title: editExpTitle.trim(),
+      amount: amt,
+      category: editExpCategory,
+      paidBy: editExpPaidBy,
+      date: editExpDate,
+      note: editExpNote.trim(),
+    });
+    setEditingExpense(null);
+    await loadAllData();
+  };
+
+  // Edit Advance Handlers
+  const handleOpenEditAdvance = (adv: StaffAdvance) => {
+    setEditingAdvance(adv);
+    setEditAdvAmount(String(adv.amount));
+    setEditAdvReason(adv.reason);
+    setEditAdvPaidBy(adv.paidBy);
+    setEditAdvStatus(adv.status);
+    setEditAdvDate(adv.date);
+    setEditAdvNote(adv.note || "");
+  };
+
+  const handleSaveEditAdvance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdvance) return;
+    const amt = Number(editAdvAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Kripya sahi advance amount dalein");
+      return;
+    }
+    await StaffExpenseService.updateAdvance(editingAdvance.id, editingAdvance.tokenNumber, {
+      amount: amt,
+      reason: editAdvReason,
+      paidBy: editAdvPaidBy,
+      status: editAdvStatus,
+      date: editAdvDate,
+      note: editAdvNote.trim(),
+    });
+    setEditingAdvance(null);
     await loadAllData();
   };
 
@@ -1477,10 +1612,17 @@ export default function MobileOwnerApp() {
                           </p>
                         </div>
 
-                        <div className="text-right shrink-0 flex items-center gap-2">
-                          <span className="text-base font-black text-rose-600 font-mono tabular-nums">
+                        <div className="text-right shrink-0 flex items-center gap-1.5">
+                          <span className="text-base font-black text-rose-600 font-mono tabular-nums mr-1">
                             -₹{exp.amount}
                           </span>
+                          <button
+                            onClick={() => handleOpenEditExpense(exp)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                            title="Edit Kharcha"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={async () => {
                               if (confirm(`Kya aap "${exp.title}" ko delete karna chahte hain?`)) {
@@ -1533,8 +1675,8 @@ export default function MobileOwnerApp() {
                           </p>
                         </div>
 
-                        <div className="text-right shrink-0 flex items-center gap-2">
-                          <span className="text-base font-black text-rose-600 font-mono tabular-nums">
+                        <div className="text-right shrink-0 flex items-center gap-1.5">
+                          <span className="text-base font-black text-rose-600 font-mono tabular-nums mr-1">
                             ₹{adv.amount}
                           </span>
                           {adv.status === "active" ? (
@@ -1559,6 +1701,13 @@ export default function MobileOwnerApp() {
                             </button>
                           )}
                           <button
+                            onClick={() => handleOpenEditAdvance(adv)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                            title="Edit Advance"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={async () => {
                               if (confirm(`Delete advance record for ${adv.staffName}?`)) {
                                 await StaffExpenseService.deleteAdvance(adv.id, adv.tokenNumber);
@@ -1566,6 +1715,7 @@ export default function MobileOwnerApp() {
                               }
                             }}
                             className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
+                            title="Delete Advance"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1580,6 +1730,41 @@ export default function MobileOwnerApp() {
             {/* Sub-Tab 3: Attendance Feed */}
             {staffSubTab === "attendance" && (
               <div className="space-y-3">
+                {/* Attendance Date Selector */}
+                <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-2.5 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(ownerAttendanceDate);
+                      d.setDate(d.getDate() - 1);
+                      setOwnerAttendanceDate(d.toISOString().split("T")[0]);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition"
+                  >
+                    ← Kal (Prev)
+                  </button>
+                  <div className="text-center">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Haajiri Tareeq</span>
+                    <input
+                      type="date"
+                      value={ownerAttendanceDate}
+                      onChange={(e) => setOwnerAttendanceDate(e.target.value)}
+                      className="text-xs font-bold text-slate-800 bg-transparent outline-none cursor-pointer text-center font-mono"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOwnerAttendanceDate(todayStr)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                      ownerAttendanceDate === todayStr
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Aaj (Today)
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
                     <span className="text-[10px] text-emerald-800 font-bold uppercase block">Present</span>
@@ -1610,9 +1795,14 @@ export default function MobileOwnerApp() {
                         className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2"
                       >
                         <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
-                            <p className="text-[10px] text-slate-500">{staff.role}</p>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                              {staff.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                              <p className="text-[10px] text-slate-500">{staff.role}</p>
+                            </div>
                           </div>
                           <span
                             className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md uppercase font-mono ${
@@ -1645,7 +1835,7 @@ export default function MobileOwnerApp() {
                                   await StaffExpenseService.markAttendance({
                                     staffId: staff.id,
                                     staffName: staff.name,
-                                    date: todayStr,
+                                    date: ownerAttendanceDate,
                                     status: s.id as any,
                                     markedBy: "Showroom Owner",
                                   });
@@ -1667,37 +1857,148 @@ export default function MobileOwnerApp() {
               </div>
             )}
 
-            {/* Sub-Tab 4: Staff Directory & Salary Setup */}
+            {/* Sub-Tab 4: Staff Directory & Full Edit Controls */}
             {staffSubTab === "members" && (
               <div className="space-y-3">
-                <div className="space-y-2">
+                {/* Staff Summary Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                      Active Staff Members
+                    </span>
+                    <span className="text-xl font-black text-slate-900 font-mono">
+                      {staffMembers.filter((s) => s.isActive !== false).length} / {staffMembers.length}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                      Total Monthly Payroll
+                    </span>
+                    <span className="text-xl font-black text-blue-700 font-mono">
+                      ₹
+                      {staffMembers
+                        .filter((s) => s.isActive !== false)
+                        .reduce((sum, s) => sum + s.monthlySalary, 0)
+                        .toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-xs font-bold text-slate-700">Staff List &amp; Profile Edit</span>
+                  <button
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Naya Staff Jodein</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
                   {staffMembers.map((staff) => {
                     const activeAdv = advances
                       .filter((a) => a.staffId === staff.id && a.status === "active")
                       .reduce((sum, a) => sum + a.amount, 0);
 
+                    const isActive = staff.isActive !== false;
+
                     return (
                       <div
                         key={staff.id}
-                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between shadow-sm"
+                        className={`bg-white border rounded-2xl p-4 shadow-sm space-y-3 transition ${
+                          isActive ? "border-slate-200" : "border-slate-200 bg-slate-50/70 opacity-75"
+                        }`}
                       >
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
-                          <p className="text-[10px] text-slate-500">
-                            {staff.role} • Ph: {staff.phone}
-                          </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 ${
+                                isActive
+                                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                                  : "bg-slate-200 text-slate-500"
+                              }`}
+                            >
+                              {staff.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold text-slate-900">{staff.name}</h4>
+                                <span
+                                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                    isActive
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                      : "bg-slate-100 text-slate-600 border border-slate-200"
+                                  }`}
+                                >
+                                  {isActive ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                              <p className="text-xs text-blue-700 font-semibold mt-0.5">{staff.role}</p>
+                              {staff.phone && (
+                                <a
+                                  href={`tel:${staff.phone}`}
+                                  className="text-[11px] text-slate-500 hover:text-blue-600 font-mono mt-0.5 inline-block"
+                                >
+                                  📞 {staff.phone}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-sm font-black font-mono text-slate-900 block">
+                              ₹{staff.monthlySalary.toLocaleString("en-IN")}
+                              <span className="text-[10px] text-slate-400 font-normal">/mo</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono block">
+                              ~₹{Math.round(staff.monthlySalary / 30)}/day
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-1 ${
+                                activeAdv > 0
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}
+                            >
+                              {activeAdv > 0 ? `Adv: ₹${activeAdv}` : "No Advance"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className="text-xs font-black font-mono text-slate-900 block">
-                            Salary: ₹{staff.monthlySalary.toLocaleString("en-IN")}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold ${
-                              activeAdv > 0 ? "text-rose-600" : "text-emerald-600"
+
+                        {/* Staff Action Buttons (Edit, Active Toggle, Delete) */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStaffActive(staff)}
+                            className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
+                              isActive
+                                ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
                             }`}
                           >
-                            {activeAdv > 0 ? `Advance: ₹${activeAdv}` : "No Advance"}
-                          </span>
+                            <span>{isActive ? "⏸ Mark Inactive" : "▶ Re-Activate"}</span>
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditStaff(staff)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold flex items-center gap-1 transition"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Edit Details</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStaff(staff)}
+                              className="p-1.5 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                              title="Delete Staff Member"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2030,6 +2331,370 @@ export default function MobileOwnerApp() {
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
                 >
                   Save Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: EDIT EXISTING STAFF MEMBER BY OWNER
+          ========================================================================= */}
+      {editingStaff && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Owner Staff Management
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Edit Staff Details</h3>
+              </div>
+              <button
+                onClick={() => setEditingStaff(null)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditStaff} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Staff Member Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editStaffName}
+                  onChange={(e) => setEditStaffName(e.target.value)}
+                  placeholder="e.g. Ramesh Kumar"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Mobile Phone (Calling / WhatsApp)</label>
+                <input
+                  type="tel"
+                  value={editStaffPhone}
+                  onChange={(e) => setEditStaffPhone(e.target.value)}
+                  placeholder="98XXXXXXXX"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Role / Designation</label>
+                <input
+                  type="text"
+                  value={editStaffRole}
+                  onChange={(e) => setEditStaffRole(e.target.value)}
+                  placeholder="e.g. Head Staff / Store Manager"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                />
+                <div className="flex gap-1.5 flex-wrap mt-1.5">
+                  {["Head Staff", "Sales Executive", "Saree Specialist", "Lehenga Expert", "Tailor / Master", "Helper"].map((rolePreset) => (
+                    <button
+                      key={rolePreset}
+                      type="button"
+                      onClick={() => setEditStaffRole(rolePreset)}
+                      className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200"
+                    >
+                      {rolePreset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Monthly Salary (₹ Rupaye)</label>
+                <input
+                  type="number"
+                  value={editStaffSalary}
+                  onChange={(e) => setEditStaffSalary(e.target.value)}
+                  placeholder="20000"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold font-mono text-base outline-none"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Daily wage approx: ~₹{Math.round((Number(editStaffSalary) || 0) / 30)} / day
+                </span>
+              </div>
+
+              {/* Status Toggle */}
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="font-bold text-slate-800 block">Employment Status</span>
+                    <span className="text-[11px] text-slate-500">
+                      {editStaffActive ? "Active (Currently Working)" : "Inactive / Left (Hata diya gaya)"}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editStaffActive}
+                    onChange={(e) => setEditStaffActive(e.target.checked)}
+                    className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                  />
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteStaff(editingStaff)}
+                  className="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-bold hover:bg-rose-100 transition"
+                  title="Delete Staff"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingStaff(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700 transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: EDIT EXISTING STORE EXPENSE BY OWNER
+          ========================================================================= */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Owner Audit
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Edit Kharcha Entry</h3>
+              </div>
+              <button
+                onClick={() => setEditingExpense(null)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditExpense} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Kharcha Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editExpTitle}
+                  onChange={(e) => setEditExpTitle(e.target.value)}
+                  placeholder="e.g. Chai & Samosa"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Amount (₹ Rupaye)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={editExpAmount}
+                  onChange={(e) => setEditExpAmount(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Category</label>
+                  <select
+                    value={editExpCategory}
+                    onChange={(e) => setEditExpCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                  >
+                    <option value="chai_nashta">Chai &amp; Nashta</option>
+                    <option value="refreshments">Cold Drinks / Water</option>
+                    <option value="cleaning_pooja">Cleaning &amp; Pooja</option>
+                    <option value="stationery_packing">Packing Tape / Bags</option>
+                    <option value="transport_fuel">Transport / Auto</option>
+                    <option value="other">Other Misc</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Paid From</label>
+                  <select
+                    value={editExpPaidBy}
+                    onChange={(e) => setEditExpPaidBy(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                  >
+                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="online_upi">📱 Online UPI</option>
+                    <option value="owner_personal">👑 Owner Personal</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={editExpDate}
+                  onChange={(e) => setEditExpDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
+                <input
+                  type="text"
+                  value={editExpNote}
+                  onChange={(e) => setEditExpNote(e.target.value)}
+                  placeholder="e.g. Verified by Owner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                >
+                  Update Kharcha
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: EDIT EXISTING STAFF ADVANCE BY OWNER
+          ========================================================================= */}
+      {editingAdvance && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                  Owner Audit
+                </span>
+                <h3 className="text-base font-bold text-slate-900">
+                  Edit Advance: {editingAdvance.staffName}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingAdvance(null)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditAdvance} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Advance Amount (₹ Rupaye)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={editAdvAmount}
+                  onChange={(e) => setEditAdvAmount(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Reason</label>
+                  <select
+                    value={editAdvReason}
+                    onChange={(e) => setEditAdvReason(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                  >
+                    <option value="salary_advance">Salary Advance</option>
+                    <option value="daily_wages">Daily Wages</option>
+                    <option value="emergency">Emergency Medical</option>
+                    <option value="travel_incentive">Travel / Fuel</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Paid Mode</label>
+                  <select
+                    value={editAdvPaidBy}
+                    onChange={(e) => setEditAdvPaidBy(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                  >
+                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="online_upi">📱 Online UPI</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Status</label>
+                <select
+                  value={editAdvStatus}
+                  onChange={(e) => setEditAdvStatus(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                >
+                  <option value="active">🔴 Pending Advance (Salary me se katega)</option>
+                  <option value="cleared">🟢 Cleared / Deducted (Salary se kat chuka hai)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={editAdvDate}
+                  onChange={(e) => setEditAdvDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
+                <input
+                  type="text"
+                  value={editAdvNote}
+                  onChange={(e) => setEditAdvNote(e.target.value)}
+                  placeholder="e.g. Diye gaye cash se"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAdvance(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                >
+                  Update Advance
                 </button>
               </div>
             </form>
