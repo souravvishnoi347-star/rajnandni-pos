@@ -16,10 +16,55 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
+    flavorDimensions = ["appType"]
+    productFlavors {
+        owner {
+            dimension "appType"
+            applicationId "com.rajnandni.owner"
+            versionName "1.0-owner"
+            manifestPlaceholders = [
+                appName: "Rajnandini Owner",
+                customScheme: "com.rajnandni.owner"
+            ]
+            buildConfigField "String", "TARGET_URL", "\"https://rajnandni-pos.vercel.app/owner\""
+        }
+        staff {
+            dimension "appType"
+            applicationId "com.rajnandni.staff"
+            versionName "1.0-staff"
+            manifestPlaceholders = [
+                appName: "Rajnandini Staff",
+                customScheme: "com.rajnandni.staff"
+            ]
+            buildConfigField "String", "TARGET_URL", "\"https://rajnandni-pos.vercel.app/staff\""
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Fallback anchor tasks to satisfy Android Studio default configurations
+afterEvaluate {
+    if (tasks.findByName("assembleDebug") == null) {
+        tasks.register("assembleDebug") {
+            dependsOn("assembleOwnerDebug", "assembleStaffDebug")
+        }
+    }
+    if (tasks.findByName("assembleDebugUnitTest") == null) {
+        tasks.register("assembleDebugUnitTest") {
+            dependsOn("assembleOwnerDebugUnitTest", "assembleStaffDebugUnitTest")
+        }
+    }
+    if (tasks.findByName("assembleRelease") == null) {
+        tasks.register("assembleRelease") {
+            dependsOn("assembleOwnerRelease", "assembleStaffRelease")
         }
     }
 }
