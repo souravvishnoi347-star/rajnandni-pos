@@ -259,17 +259,51 @@ export default function RajnandiniPosPage() {
       const savedProdsRaw = localStorage.getItem("rajnandni_products");
       const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
 
+      const PURGED_PRODUCT_IDS = new Set([
+        "manual-1792225948451",
+        "prod-par-1",
+        "prod-par-2",
+        "prod-par-3",
+        "prod-par-4",
+        "prod-par-5",
+        "prod-par-6",
+        "prod-par-7"
+      ]);
+      const PURGED_PRODUCT_SKUS = new Set([
+        "MANUAL-8451",
+        "SRV-HD-BR01",
+        "SRV-PTY-MK02",
+        "SRV-SPA-HR03",
+        "SRV-MHN-BD04",
+        "SRV-WAX-RC05",
+        "SRV-BLS-ST06",
+        "SRV-FL-PCO07"
+      ]);
+
+      const filterPurgedProducts = (list: ProductItem[]) => (list || []).filter(p => {
+        if (!p) return false;
+        if (PURGED_PRODUCT_IDS.has(p.id)) return false;
+        if (p.sku && PURGED_PRODUCT_SKUS.has(p.sku.toUpperCase().trim())) return false;
+        if (p.isService && p.category === "parlour") return false;
+        if (p.name && (p.name.toLowerCase().includes("hd beauity") || p.name.toLowerCase().includes("airbrush makeup"))) return false;
+        return true;
+      });
+
       const savedProds: ProductItem[] = savedProdsRaw ? JSON.parse(savedProdsRaw) : [];
       const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
 
+      const cleanSavedProds = filterPurgedProducts(savedProds);
+      const cleanSavedCustom = filterPurgedProducts(savedCustom);
+
       // Always keep user's custom added items at the top + existing saved products + initial 159 products
-      const localMerged = mergeProductLists(
-        [...savedCustom, ...(Array.isArray(savedProds) ? savedProds : [])],
+      const localMerged = filterPurgedProducts(mergeProductLists(
+        [...cleanSavedCustom, ...(Array.isArray(cleanSavedProds) ? cleanSavedProds : [])],
         INITIAL_PRODUCTS
-      );
+      ));
 
       setProducts(localMerged);
       localStorage.setItem("rajnandni_products", JSON.stringify(localMerged));
+      localStorage.setItem("rajnandni_custom_items", JSON.stringify(cleanSavedCustom));
       localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
 
       // Deleted fake/test bills to permanently purge from cache (only dummy test numbers 0101-0110)
@@ -328,20 +362,22 @@ export default function RajnandiniPosPage() {
         setSupabaseConnected(true);
         SupabaseService.fetchProducts().then((remoteProds) => {
           if (remoteProds && remoteProds.length > 0) {
+            const cleanRemote = filterPurgedProducts(remoteProds);
             // Read latest localStorage in case user added items while fetch was running
             const latestLocalRaw = localStorage.getItem("rajnandni_products");
             const latestCustomRaw = localStorage.getItem("rajnandni_custom_items");
-            const latestLocal: ProductItem[] = latestLocalRaw ? JSON.parse(latestLocalRaw) : localMerged;
-            const latestCustom: ProductItem[] = latestCustomRaw ? JSON.parse(latestCustomRaw) : savedCustom;
+            const latestLocal: ProductItem[] = filterPurgedProducts(latestLocalRaw ? JSON.parse(latestLocalRaw) : localMerged);
+            const latestCustom: ProductItem[] = filterPurgedProducts(latestCustomRaw ? JSON.parse(latestCustomRaw) : cleanSavedCustom);
 
             // Keep all custom/local items + merge remote items
-            const finalMerged = mergeProductLists([...latestCustom, ...latestLocal], remoteProds);
+            const finalMerged = filterPurgedProducts(mergeProductLists([...latestCustom, ...latestLocal], cleanRemote));
             setProducts(finalMerged);
             localStorage.setItem("rajnandni_products", JSON.stringify(finalMerged));
+            localStorage.setItem("rajnandni_custom_items", JSON.stringify(filterPurgedProducts(latestCustom)));
 
-            // Push any local items that are missing in Supabase up to the cloud automatically
-            const remoteSkus = new Set(remoteProds.map(r => r.sku));
-            const unsyncedLocal = finalMerged.filter(p => !remoteSkus.has(p.sku));
+            // Push any legitimate local items that are missing in Supabase up to the cloud automatically
+            const remoteSkus = new Set(cleanRemote.map(r => r.sku));
+            const unsyncedLocal = filterPurgedProducts(finalMerged.filter(p => !remoteSkus.has(p.sku)));
             if (unsyncedLocal.length > 0) {
               SupabaseService.syncInitialProducts(unsyncedLocal).catch(() => {});
             }
@@ -2139,7 +2175,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   // =========================================================================
   const duplicateGroups = useMemo(() => {
     const normalize = (name: string) => {
-      return name
+      return (name || "")
         .toLowerCase()
         .replace(/^(a|the|rj|d\.no|dno)[\s\.\-_]+/i, "")
         .replace(/[^a-z0-9]/g, "")
@@ -2148,9 +2184,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     const groupMap = new Map<string, ProductItem[]>();
 
-    products.filter(p => !p.isService).forEach(p => {
+    products.filter(p => !p.isService).forEach((p, idx) => {
       const normName = normalize(p.name);
-      const groupKey = normName.length >= 3 ? normName : `barcode:${p.barcode}`;
+      const rawBarcode = (p.barcode || "").trim();
+      const hasBarcode = rawBarcode && rawBarcode !== "NO-BARCODE" && rawBarcode !== "8901001";
+      const groupKey = normName.length >= 3 ? normName : (hasBarcode ? `barcode:${rawBarcode}` : `single:${p.id || idx}`);
       if (!groupMap.has(groupKey)) {
         groupMap.set(groupKey, []);
       }
@@ -2162,7 +2200,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       if (items.length > 1) {
         clusters.push({
           key,
-          displayName: items[0].name,
+          displayName: items[0]?.name || "Unnamed Item",
           items: [...items].sort((a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0))
         });
       }
@@ -2175,8 +2213,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     if (!duplicateSearch.trim()) return duplicateGroups;
     const q = duplicateSearch.toLowerCase().trim();
     return duplicateGroups.filter(g =>
-      g.displayName.toLowerCase().includes(q) ||
-      g.items.some(it => it.sku.toLowerCase().includes(q) || it.barcode.toLowerCase().includes(q))
+      (g.displayName || "").toLowerCase().includes(q) ||
+      g.items.some(it =>
+        (it.sku || "").toLowerCase().includes(q) ||
+        (it.barcode || "").toLowerCase().includes(q) ||
+        (it.name || "").toLowerCase().includes(q)
+      )
     );
   }, [duplicateGroups, duplicateSearch]);
 
@@ -4499,11 +4541,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredDuplicateGroups.map(group => {
-                    const [primary] = group.items;
+                  {filteredDuplicateGroups.map((group, gIdx) => {
+                    const primary = group.items[0];
                     return (
                       <div
-                        key={group.key}
+                        key={`${group.key}-${gIdx}`}
                         className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-xs hover:border-indigo-300 transition"
                       >
                         {/* Group Title Header */}
@@ -4511,7 +4553,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           <div className="flex items-center gap-2.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                             <h4 className="font-extrabold text-stone-900 text-sm">
-                              {group.displayName}
+                              {group.displayName || "Item Group"}
                             </h4>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-stone-100 text-stone-700 border border-stone-200">
                               {group.items.length} records
@@ -4527,9 +4569,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           {group.items.map((it, idx) => {
                             const isPrimary = idx === 0;
                             const stock = Number(it.stock) || 0;
+                            const price = Number(it.price || 0);
                             return (
                               <div
-                                key={it.id}
+                                key={`${it.id || idx}-${idx}`}
                                 className={`p-3.5 rounded-xl border flex flex-col justify-between transition ${
                                   isPrimary
                                     ? "bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-400/20"
@@ -4549,18 +4592,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                       </span>
                                     )}
                                     <span className="text-[10px] font-mono text-stone-500 font-bold uppercase">
-                                      {it.category}
+                                      {it.category || "General"}
                                     </span>
                                   </div>
 
                                   {/* Product Info */}
-                                  <p className="font-bold text-stone-900 text-xs line-clamp-1">{it.name}</p>
+                                  <p className="font-bold text-stone-900 text-xs line-clamp-1">{it.name || "Unnamed"}</p>
                                   
                                   <div className="mt-2 space-y-1 text-xs">
                                     <div className="flex items-center justify-between font-mono text-[11px]">
                                       <span className="text-stone-400">SKU:</span>
                                       <span className="font-black text-stone-900 bg-white px-1.5 py-0.2 rounded border border-stone-200">
-                                        {it.sku}
+                                        {it.sku || "NO-SKU"}
                                       </span>
                                     </div>
                                     <div className="flex items-center justify-between text-[11px]">
@@ -4572,12 +4615,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                     <div className="flex items-center justify-between text-[11px]">
                                       <span className="text-stone-400">Selling Price:</span>
                                       <span className="font-bold text-stone-900">
-                                        ₹{it.price.toLocaleString("en-IN")}
+                                        ₹{price.toLocaleString("en-IN")}
                                       </span>
                                     </div>
                                     <div className="flex items-center justify-between font-mono text-[10px] text-stone-400">
                                       <span>Barcode:</span>
-                                      <span>{it.barcode}</span>
+                                      <span>{it.barcode || "NO-BARCODE"}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -4586,7 +4629,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                 <div className="mt-3.5 pt-3 border-t border-stone-200/70 flex items-center gap-2">
                                   {isPrimary ? (
                                     <button
-                                      onClick={() => openNewProductModal(it.category, it)}
+                                      type="button"
+                                      onClick={() => {
+                                        setNewProductForm({ ...it });
+                                        setShowNewProductModal(true);
+                                      }}
                                       className="w-full py-1.5 bg-stone-900 hover:bg-stone-800 text-amber-200 font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                                     >
                                       <Edit className="w-3 h-3 text-amber-400" />
@@ -4595,6 +4642,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   ) : (
                                     <>
                                       <button
+                                        type="button"
                                         onClick={() => handleMergeDuplicate(primary, it)}
                                         className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-xs"
                                         title="Merge stock into Primary and remove this duplicate"
@@ -4603,6 +4651,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                         <span>Merge Stock</span>
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() => handleDeleteDuplicateItem(it.id, it.name, it.sku)}
                                         className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs transition cursor-pointer flex items-center justify-center"
                                         title="Permanently delete this duplicate"
