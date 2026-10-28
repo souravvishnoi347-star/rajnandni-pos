@@ -2051,7 +2051,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         const itName = it.product?.name || (it as any).name || "";
         const itNorm = norm(itName);
         const qty = Number(it.quantity) || 1;
-        const price = Number(it.price || it.negotiatedPrice || it.product?.price || 0);
+        const price = Number(it.price || (it as any).negotiatedPrice || it.product?.price || 0);
 
         // Match priority: 1. Exact ID, 2. Exact SKU, 3. Exact Barcode, 4. Exact Name
         let matchedProdId: string | null = null;
@@ -4636,7 +4636,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                       }}
                                       className="w-full py-1.5 bg-stone-900 hover:bg-stone-800 text-amber-200 font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                                     >
-                                      <Edit className="w-3 h-3 text-amber-400" />
+                                      <Edit3 className="w-3 h-3 text-amber-400" />
                                       <span>Edit Primary</span>
                                     </button>
                                   ) : (

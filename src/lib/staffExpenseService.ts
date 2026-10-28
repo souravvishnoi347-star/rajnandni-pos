@@ -130,9 +130,10 @@ export const StaffExpenseService = {
     amount: number;
     paidBy: StoreExpense["paidBy"];
     staffName: string;
+    date?: string;
     note?: string;
   }): Promise<StoreExpense | null> {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = exp.date || new Date().toISOString().split("T")[0];
     const token = "EXP-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
 
     const payload = {
