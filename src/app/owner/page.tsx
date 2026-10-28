@@ -424,7 +424,7 @@ export default function MobileOwnerApp() {
     };
   }, [timeFilteredBills, productCostMap]);
 
-  // Expenses & Advances Calculation for Galla Reconciliation
+  // Expenses & Advances Calculation for Cash Drawer Reconciliation
   const todayExpenses = useMemo(() => {
     return expenses.filter((e) => e.date === todayStr);
   }, [expenses, todayStr]);
@@ -449,7 +449,7 @@ export default function MobileOwnerApp() {
     return todayAdvances.filter((a) => a.paidBy === "cash_galla").reduce((sum, a) => sum + a.amount, 0);
   }, [todayAdvances]);
 
-  // Real Galla Cash in Hand (Cash Sales - Cash Expenses - Cash Advances)
+  // Real Drawer Cash in Hand (Cash Sales - Cash Expenses - Cash Advances)
   const netGallaCashInHand = useMemo(() => {
     return salesStats.cashTotal - todayCashExpense - todayCashAdvance;
   }, [salesStats.cashTotal, todayCashExpense, todayCashAdvance]);
@@ -677,7 +677,7 @@ export default function MobileOwnerApp() {
   };
 
   const handleDeleteStaff = async (staff: StaffMember) => {
-    if (confirm(`Kya aap "${staff.name}" ko staff list se hatana chahte hain?`)) {
+    if (confirm(`Are you sure you want to deactivate "${staff.name}" from the staff roster?`)) {
       await StaffExpenseService.deleteStaffMember(staff.id);
       await loadAllData();
     }
@@ -864,16 +864,16 @@ export default function MobileOwnerApp() {
         {activeNav === "sales" && (
           <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1 no-scrollbar text-xs">
             {[
-              { id: "today", label: "⚡ Aaj (Today)" },
-              { id: "yesterday", label: "Kal (Yesterday)" },
-              { id: "week", label: "7 Din (Week)" },
-              { id: "month", label: "Is Mahine (Oct)" },
+              { id: "today", label: "Today" },
+              { id: "yesterday", label: "Yesterday" },
+              { id: "week", label: "This Week" },
+              { id: "month", label: "This Month" },
               { id: "all", label: "All Time" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setTimeFilter(tab.id as any)}
-                className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition text-xs shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-full font-bold whitespace-nowrap transition text-xs shrink-0 ${
                   timeFilter === tab.id
                     ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-600/30"
                     : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
@@ -900,13 +900,13 @@ export default function MobileOwnerApp() {
                   <Sparkles className="w-4 h-4 text-blue-600" />
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
                     {timeFilter === "today"
-                      ? "Aaj Ki Showroom Sales"
+                      ? "Today's Showroom Sales"
                       : timeFilter === "yesterday"
-                      ? "Kal Ki Sales"
+                      ? "Yesterday's Sales"
                       : timeFilter === "week"
-                      ? "Pichhle 7 Din Ki Sales"
+                      ? "Past 7 Days Sales"
                       : timeFilter === "month"
-                      ? "October Mahine Ki Sales"
+                      ? "This Month's Sales"
                       : "All Time Showroom Sales"}
                   </span>
                 </div>
@@ -929,7 +929,7 @@ export default function MobileOwnerApp() {
               <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-2.5">
                   <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
-                    Gross Profit (शुद्ध मुनाफा)
+                    Gross Profit (Net Margin)
                   </span>
                   <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
                     +₹{salesStats.grossProfit.toLocaleString("en-IN")}
@@ -941,7 +941,7 @@ export default function MobileOwnerApp() {
 
                 <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-2.5 text-right">
                   <span className="text-[10px] text-blue-800 uppercase font-semibold block">
-                    Profit Margin (मार्जिन)
+                    Profit Margin (%)
                   </span>
                   <span className="text-base sm:text-lg font-black text-blue-700 font-mono tabular-nums block mt-0.5">
                     {salesStats.marginPct}%
@@ -953,7 +953,7 @@ export default function MobileOwnerApp() {
               </div>
             </div>
 
-            {/* REAL NET GALLA CASH IN HAND RECONCILIATION CARD */}
+            {/* REAL NET DRAWER CASH IN HAND RECONCILIATION CARD */}
             <div className="bg-gradient-to-br from-emerald-50 via-slate-50 to-blue-50/40 border border-emerald-200 rounded-3xl p-4 shadow-sm space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -1100,7 +1100,7 @@ export default function MobileOwnerApp() {
               </div>
 
               {topSellingItems.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">Is samay me koi sale record nahi hui</p>
+                <p className="text-xs text-slate-400 py-3 text-center">No sales transactions recorded for this period</p>
               ) : (
                 <div className="space-y-2">
                   {topSellingItems.map((item, idx) => (
@@ -1157,7 +1157,7 @@ export default function MobileOwnerApp() {
               {/* Primary Metric: Total Physical Retail Value (Accurate ~₹44.57 Lakhs) */}
               <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/50 border border-blue-100 rounded-2xl p-4">
                 <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
-                  Total Showroom Stock Retail Value (दुकान का कुल स्टॉक बिक्री मूल्य)
+                  Total Showroom Stock Retail Value
                 </span>
                 <div className="flex items-baseline gap-2 flex-wrap mt-1">
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
@@ -1176,7 +1176,7 @@ export default function MobileOwnerApp() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
                   <span className="text-[10px] text-slate-500 uppercase font-semibold block">
-                    Wholesale Cost (खरीद लागत)
+                    Wholesale Cost (Investment)
                   </span>
                   <span className="text-base sm:text-lg font-black text-slate-900 font-mono tabular-nums block mt-0.5">
                     ₹{inventoryStats.totalCost.toLocaleString("en-IN")}
@@ -1188,7 +1188,7 @@ export default function MobileOwnerApp() {
 
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 shadow-sm">
                   <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
-                    Estimated Profit (संभावित मुनाफा)
+                    Estimated Gross Margin
                   </span>
                   <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
                     +₹{inventoryStats.potentialMargin.toLocaleString("en-IN")}
@@ -1204,7 +1204,7 @@ export default function MobileOwnerApp() {
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                   <span className="font-mono font-black">{inventoryStats.outOfStock}</span>
-                  <span className="text-[11px]">Khatam (0 pcs)</span>
+                  <span className="text-[11px]">Out of Stock (0 pcs)</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 font-semibold shadow-sm">
@@ -1216,7 +1216,7 @@ export default function MobileOwnerApp() {
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                   <span className="font-mono font-black">{inventoryStats.goodStock}</span>
-                  <span className="text-[11px]">Good Stock</span>
+                  <span className="text-[11px]">Healthy Stock</span>
                 </div>
               </div>
             </div>
@@ -1245,10 +1245,10 @@ export default function MobileOwnerApp() {
               {/* Stock Health Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
                 {[
-                  { id: "all", label: `Sabhi Items (${inventoryStats.totalItems})` },
+                  { id: "all", label: `All Items (${inventoryStats.totalItems})` },
                   { id: "low", label: `⚠️ Low Stock (${inventoryStats.lowStock})` },
-                  { id: "out", label: `🔴 Khatam (${inventoryStats.outOfStock})` },
-                  { id: "good", label: `🟢 Good Stock (${inventoryStats.goodStock})` },
+                  { id: "out", label: `🔴 Out of Stock (${inventoryStats.outOfStock})` },
+                  { id: "good", label: `🟢 Healthy Stock (${inventoryStats.goodStock})` },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -2053,7 +2053,7 @@ export default function MobileOwnerApp() {
               </div>
 
               {pendingRequests.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">Koi pending request nahi hai</p>
+                <p className="text-xs text-slate-400 py-3 text-center">No pending authorization requests</p>
               ) : (
                 <div className="space-y-3">
                   {pendingRequests.map((req) => (
@@ -2402,7 +2402,7 @@ export default function MobileOwnerApp() {
                   <div>
                     <span className="font-bold text-slate-800 block">Employment Status</span>
                     <span className="text-[11px] text-slate-500">
-                      {editStaffActive ? "Active (Currently Working)" : "Inactive / Left (Hata diya gaya)"}
+                      {editStaffActive ? "Active (Currently Employed)" : "Inactive / Relieved"}
                     </span>
                   </div>
                   <input
@@ -2759,7 +2759,7 @@ export default function MobileOwnerApp() {
               {viewingBill.customer?.phone && viewingBill.customer.phone !== "NA" && (
                 <a
                   href={`https://wa.me/91${viewingBill.customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                    `Namaste ${viewingBill.customer.name}! Thank you for shopping with Rajnandini Boutique. Your Invoice #${viewingBill.billNo} of ₹${viewingBill.grandTotal} is confirmed.`
+                    `Dear ${viewingBill.customer.name}, Thank you for shopping with Rajnandini Boutique. Your Invoice #${viewingBill.billNo} of ₹${viewingBill.grandTotal} is confirmed.`
                   )}`}
                   target="_blank"
                   rel="noreferrer"
