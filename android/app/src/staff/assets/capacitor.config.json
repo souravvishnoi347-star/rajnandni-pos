@@ -1,0 +1,12 @@
+{
+	"appId": "com.rajnandni.staff",
+	"appName": "Rajnandini Staff",
+	"webDir": "out",
+	"server": {
+		"url": "https://rajnandni-pos.vercel.app/staff",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true
+	}
+}

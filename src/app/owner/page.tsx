@@ -811,22 +811,6 @@ export default function MobileOwnerApp() {
           </form>
 
           <p className="text-[11px] text-slate-400 mt-5 font-mono">Default PIN: 7898 or Indu@123</p>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <Link href="/staff" className="text-blue-600 font-semibold hover:underline">
-              Switch to Staff App →
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem("rajnandni_device_role");
-                window.location.href = "/app";
-              }}
-              className="text-slate-400 hover:text-slate-600"
-            >
-              Change Phone Role
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -857,14 +841,6 @@ export default function MobileOwnerApp() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/staff"
-              className="text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition flex items-center gap-1"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Staff App</span>
-            </Link>
-
             <button
               onClick={() => loadAllData(true)}
               disabled={isRefreshing}

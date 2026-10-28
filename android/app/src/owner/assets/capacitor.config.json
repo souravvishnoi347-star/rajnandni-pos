@@ -1,0 +1,12 @@
+{
+	"appId": "com.rajnandni.owner",
+	"appName": "Rajnandini Owner",
+	"webDir": "out",
+	"server": {
+		"url": "https://rajnandni-pos.vercel.app/owner",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true
+	}
+}
