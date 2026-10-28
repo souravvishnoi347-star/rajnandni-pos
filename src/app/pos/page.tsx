@@ -76,7 +76,7 @@ import {
   OWNER_NAME,
 } from "@/lib/ownerSecurity";
 
-const INVENTORY_DATA_VERSION = "rajnandni_inventory_v3_wholesale_bills";
+const INVENTORY_DATA_VERSION = "rajnandni_inventory_v5_live_stock_6416";
 const POS_ACCESS_PASSWORD = "Indu@123";
 const POS_AUTH_STORAGE_KEY = "rajnandni_pos_auth_v1";
 
@@ -286,6 +286,13 @@ export default function RajnandiniPosPage() {
       }
       setAuthChecked(true);
 
+      // Automatic Cache Invalidation: if user's browser has old v3/v4 cache with 6,793 pcs, clear it so fresh live stock (6,416 pcs) loads
+      const currentVersion = localStorage.getItem("rajnandni_data_version");
+      if (currentVersion !== INVENTORY_DATA_VERSION) {
+        localStorage.removeItem("rajnandni_products");
+        localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
+      }
+
       const savedProdsRaw = localStorage.getItem("rajnandni_products");
       const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
 
@@ -370,10 +377,10 @@ export default function RajnandiniPosPage() {
             const latestCustom: ProductItem[] = filterPurgedProducts(latestCustomRaw ? JSON.parse(latestCustomRaw) : cleanSavedCustom);
 
             // Authoritative remote catalog: Supabase is single source of truth for stock, cost & price
-            const remoteSkuSet = new Set(cleanRemote.map(r => (r.sku || "").toUpperCase().trim()).filter(Boolean));
+            const remoteSkuSet = new Set(cleanRemote.map((r: ProductItem) => (r.sku || "").toUpperCase().trim()).filter(Boolean));
             // Keep only user-added local custom items that have not yet been synced to Supabase
             const unsyncedCustom = filterPurgedProducts(
-              [...latestCustom, ...latestLocal].filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
+              latestCustom.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
             );
 
             // Authoritative merge: local custom items first + clean remote master products
