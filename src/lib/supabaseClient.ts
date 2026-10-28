@@ -111,6 +111,19 @@ export const SupabaseService = {
     }
   },
 
+  async updateProductStock(id: string, newStock: number): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ stock: newStock, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   async deleteProduct(id: string): Promise<boolean> {
     if (!supabase) return false;
     try {

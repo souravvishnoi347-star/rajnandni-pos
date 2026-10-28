@@ -52,7 +52,14 @@ import {
   UserCheck,
   MessageSquare,
   KeyRound,
-  Send
+  Send,
+  Flame,
+  Copy,
+  Split,
+  Zap,
+  AlertTriangle,
+  ArrowUpDown,
+  SlidersHorizontal
 } from "lucide-react";
 import Link from "next/link";
 import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory, CustomerProfile } from "@/types/pos";
@@ -98,6 +105,15 @@ export default function RajnandiniPosPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [inventorySearch, setInventorySearch] = useState<string>("");
   const [inventoryCategory, setInventoryCategory] = useState<ProductCategory>("all");
+
+  // Inventory Sub-Tabs (Catalog, Bestsellers Velocity, Duplicate Cleaner)
+  const [inventorySubTab, setInventorySubTab] = useState<"catalog" | "bestsellers" | "duplicates">("catalog");
+  const [velocityFilter, setVelocityFilter] = useState<"all" | "out_of_stock" | "critical" | "fast_movers">("all");
+  const [velocitySort, setVelocitySort] = useState<"sold_desc" | "revenue_desc" | "speed_asc" | "stock_asc">("sold_desc");
+  const [velocitySearch, setVelocitySearch] = useState<string>("");
+  const [duplicateSearch, setDuplicateSearch] = useState<string>("");
+  const [quickRestockProduct, setQuickRestockProduct] = useState<ProductItem | null>(null);
+  const [quickRestockQty, setQuickRestockQty] = useState<number>(5);
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1944,6 +1960,316 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     }, 0);
   }, [productCostMap]);
 
+  // =========================================================================
+  // BESTSELLER & VELOCITY ANALYTICS ENGINE
+  // =========================================================================
+  const productVelocityAnalytics = useMemo(() => {
+    // Build sales map by matching product id, sku, barcode, and normalized name
+    type SalesRec = { qty: number; revenue: number; firstDate: number; lastDate: number; count: number };
+    const salesMap = new Map<string, SalesRec>();
+
+    completedBills.forEach(bill => {
+      const billDateStr = getBillDateString(bill);
+      const billTime = billDateStr ? new Date(billDateStr).getTime() : 0;
+      (bill.items || []).forEach(it => {
+        const qty = Number(it.quantity) || 1;
+        const price = Number(it.negotiatedPrice ?? it.product?.price ?? 0);
+        const keys: string[] = [];
+        if (it.product?.id) keys.push(`id:${it.product.id}`);
+        if (it.product?.sku) keys.push(`sku:${it.product.sku.trim().toUpperCase()}`);
+        if (it.product?.barcode) keys.push(`barcode:${it.product.barcode.trim()}`);
+        if (it.product?.name) {
+          const norm = it.product.name.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+          if (norm.length > 2) keys.push(`name:${norm}`);
+        }
+        keys.forEach(k => {
+          if (!salesMap.has(k)) {
+            salesMap.set(k, { qty: 0, revenue: 0, firstDate: billTime || Date.now(), lastDate: billTime || Date.now(), count: 0 });
+          }
+          const curr = salesMap.get(k)!;
+          curr.qty += qty;
+          curr.revenue += qty * price;
+          curr.count += 1;
+          if (billTime > 0) {
+            if (billTime < curr.firstDate) curr.firstDate = billTime;
+            if (billTime > curr.lastDate) curr.lastDate = billTime;
+          }
+        });
+      });
+    });
+
+    const now = Date.now();
+    return products.filter(p => !p.isService).map(p => {
+      const keys: string[] = [];
+      if (p.id) keys.push(`id:${p.id}`);
+      if (p.sku) keys.push(`sku:${p.sku.trim().toUpperCase()}`);
+      if (p.barcode) keys.push(`barcode:${p.barcode.trim()}`);
+      const norm = p.name.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+      if (norm.length > 2) keys.push(`name:${norm}`);
+
+      let totalQtySold = 0;
+      let totalRevenue = 0;
+      let firstDate = now;
+      let lastDate = 0;
+      let billCount = 0;
+
+      const matched = new Set<SalesRec>();
+      for (const k of keys) {
+        const rec = salesMap.get(k);
+        if (rec && !matched.has(rec)) {
+          matched.add(rec);
+          if (rec.qty > totalQtySold) {
+            totalQtySold = rec.qty;
+            totalRevenue = rec.revenue;
+            firstDate = rec.firstDate;
+            lastDate = rec.lastDate;
+            billCount = rec.count;
+          }
+        }
+      }
+
+      const stock = Number(p.stock) || 0;
+      const isOutOfStock = stock <= 0;
+      const isCritical = stock > 0 && stock <= 3;
+
+      let daysSpan = 1;
+      if (totalQtySold > 0 && lastDate > 0) {
+        daysSpan = Math.max(1, Math.round((Math.max(lastDate, now) - firstDate) / (1000 * 60 * 60 * 24)));
+      }
+      const unitsPerDay = totalQtySold > 0 ? Number((totalQtySold / daysSpan).toFixed(2)) : 0;
+
+      let selloutSpeedText = "No sales yet";
+      if (isOutOfStock && totalQtySold > 0) {
+        selloutSpeedText = daysSpan <= 1 ? "Sold out in 24 Hours!" : `Sold out in ~${daysSpan} days`;
+      } else if (stock > 0 && totalQtySold > 0) {
+        const estDays = Math.max(1, Math.round(stock / Math.max(0.1, unitsPerDay)));
+        selloutSpeedText = estDays <= 3 ? `Urgent: Runout in ~${estDays} days!` : `~${estDays} days stock remaining`;
+      } else if (stock > 0) {
+        selloutSpeedText = "In Stock (Ready)";
+      }
+
+      return {
+        product: p,
+        totalQtySold,
+        totalRevenue,
+        unitsPerDay,
+        daysSpan,
+        isOutOfStock,
+        isCritical,
+        selloutSpeedText,
+        billCount
+      };
+    });
+  }, [products, completedBills, getBillDateString]);
+
+  // Velocity KPI Counts
+  const soldOutBestsellerCount = useMemo(() => {
+    return productVelocityAnalytics.filter(v => v.isOutOfStock && v.totalQtySold > 0).length;
+  }, [productVelocityAnalytics]);
+
+  const highVelocityCount = useMemo(() => {
+    return productVelocityAnalytics.filter(v => v.unitsPerDay >= 0.5 || v.totalQtySold >= 5).length;
+  }, [productVelocityAnalytics]);
+
+  const criticalStockCount = useMemo(() => {
+    return productVelocityAnalytics.filter(v => v.isCritical).length;
+  }, [productVelocityAnalytics]);
+
+  const topMoversTotalRevenue = useMemo(() => {
+    return productVelocityAnalytics.reduce((sum, v) => sum + v.totalRevenue, 0);
+  }, [productVelocityAnalytics]);
+
+  // Filtered & Sorted Velocity Products
+  const filteredVelocityProducts = useMemo(() => {
+    let list = [...productVelocityAnalytics];
+
+    if (velocityFilter === "out_of_stock") {
+      list = list.filter(v => v.isOutOfStock && v.totalQtySold > 0);
+    } else if (velocityFilter === "critical") {
+      list = list.filter(v => v.isCritical);
+    } else if (velocityFilter === "fast_movers") {
+      list = list.filter(v => v.unitsPerDay >= 0.5 || v.totalQtySold >= 3);
+    }
+
+    if (velocitySearch.trim()) {
+      const q = velocitySearch.toLowerCase().trim();
+      list = list.filter(v =>
+        v.product.name.toLowerCase().includes(q) ||
+        v.product.sku.toLowerCase().includes(q) ||
+        v.product.category.toLowerCase().includes(q) ||
+        v.product.barcode.toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a, b) => {
+      if (velocitySort === "sold_desc") return b.totalQtySold - a.totalQtySold;
+      if (velocitySort === "revenue_desc") return b.totalRevenue - a.totalRevenue;
+      if (velocitySort === "speed_asc") return b.unitsPerDay - a.unitsPerDay;
+      if (velocitySort === "stock_asc") return (Number(a.product.stock) || 0) - (Number(b.product.stock) || 0);
+      return b.totalQtySold - a.totalQtySold;
+    });
+
+    return list;
+  }, [productVelocityAnalytics, velocityFilter, velocitySearch, velocitySort]);
+
+  // =========================================================================
+  // DUPLICATE PRODUCTS DETECTOR & RESOLUTION ENGINE
+  // =========================================================================
+  const duplicateGroups = useMemo(() => {
+    const normalize = (name: string) => {
+      return name
+        .toLowerCase()
+        .replace(/^(a|the|rj|d\.no|dno)[\s\.\-_]+/i, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+    };
+
+    const groupMap = new Map<string, ProductItem[]>();
+
+    products.filter(p => !p.isService).forEach(p => {
+      const normName = normalize(p.name);
+      const groupKey = normName.length >= 3 ? normName : `barcode:${p.barcode}`;
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, []);
+      }
+      groupMap.get(groupKey)!.push(p);
+    });
+
+    const clusters: { key: string; displayName: string; items: ProductItem[] }[] = [];
+    groupMap.forEach((items, key) => {
+      if (items.length > 1) {
+        clusters.push({
+          key,
+          displayName: items[0].name,
+          items: [...items].sort((a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0))
+        });
+      }
+    });
+
+    return clusters.sort((a, b) => b.items.length - a.items.length);
+  }, [products]);
+
+  const filteredDuplicateGroups = useMemo(() => {
+    if (!duplicateSearch.trim()) return duplicateGroups;
+    const q = duplicateSearch.toLowerCase().trim();
+    return duplicateGroups.filter(g =>
+      g.displayName.toLowerCase().includes(q) ||
+      g.items.some(it => it.sku.toLowerCase().includes(q) || it.barcode.toLowerCase().includes(q))
+    );
+  }, [duplicateGroups, duplicateSearch]);
+
+  // Quick Restock Handlers
+  const handleOpenQuickRestock = (prod: ProductItem) => {
+    setQuickRestockProduct(prod);
+    setQuickRestockQty(5);
+  };
+
+  const handleQuickRestockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickRestockProduct) return;
+    const addQty = Math.max(1, Number(quickRestockQty) || 1);
+    const newStock = (Number(quickRestockProduct.stock) || 0) + addQty;
+
+    const updated = products.map(p => p.id === quickRestockProduct.id ? { ...p, stock: newStock } : p);
+    saveProductsLocally(updated);
+
+    if (isSupabaseConfigured()) {
+      SupabaseService.updateProductStock(quickRestockProduct.id, newStock).catch(err => {
+        console.warn("Supabase restock update warning:", err);
+      });
+    }
+
+    alert(`✅ Restocked! Added ${addQty} pcs to ${quickRestockProduct.sku} (${quickRestockProduct.name}). New stock is ${newStock} pcs.`);
+    setQuickRestockProduct(null);
+  };
+
+  // Duplicate Cleaner Handlers
+  const handleDeleteDuplicateItem = async (prodId: string, prodName: string, sku: string) => {
+    const ok = window.confirm(`Permanently delete duplicate "${prodName}" (SKU: ${sku})? This cannot be undone.`);
+    if (!ok) return;
+
+    const updated = products.filter(p => p.id !== prodId);
+    saveProductsLocally(updated);
+
+    if (isSupabaseConfigured()) {
+      SupabaseService.deleteProduct(prodId).catch(err => {
+        console.warn("Supabase delete product warning:", err);
+      });
+    }
+
+    alert(`🗑️ Removed duplicate item "${prodName}" (${sku}).`);
+  };
+
+  const handleMergeDuplicate = async (primary: ProductItem, duplicate: ProductItem) => {
+    const primaryStock = Number(primary.stock) || 0;
+    const dupStock = Number(duplicate.stock) || 0;
+    const combinedStock = primaryStock + dupStock;
+
+    const ok = window.confirm(
+      `Merge "${duplicate.sku}" into "${primary.sku}"?\n\n` +
+      `• "${primary.sku}" stock will increase from ${primaryStock} to ${combinedStock} pcs.\n` +
+      `• Duplicate "${duplicate.sku}" will be deleted permanently.`
+    );
+    if (!ok) return;
+
+    const updated = products
+      .filter(p => p.id !== duplicate.id)
+      .map(p => p.id === primary.id ? { ...p, stock: combinedStock } : p);
+
+    saveProductsLocally(updated);
+
+    if (isSupabaseConfigured()) {
+      SupabaseService.updateProductStock(primary.id, combinedStock).catch(err => {
+        console.warn("Supabase stock update warning:", err);
+      });
+      SupabaseService.deleteProduct(duplicate.id).catch(err => {
+        console.warn("Supabase delete duplicate warning:", err);
+      });
+    }
+
+    alert(`✅ Merged successfully!\n\nAdded ${dupStock} pcs to ${primary.sku}. New stock: ${combinedStock} pcs.\nDuplicate ${duplicate.sku} has been removed.`);
+  };
+
+  const handleAutoCleanZeroStockDuplicates = async () => {
+    const toDelete: ProductItem[] = [];
+
+    duplicateGroups.forEach(group => {
+      if (group.items.length <= 1) return;
+      const [primary, ...others] = group.items;
+      others.forEach(other => {
+        const stock = Number(other.stock) || 0;
+        if (stock === 0) {
+          toDelete.push(other);
+        }
+      });
+    });
+
+    if (toDelete.length === 0) {
+      alert("No 0-stock redundant duplicates found to clean!");
+      return;
+    }
+
+    const ok = window.confirm(
+      `Found ${toDelete.length} redundant duplicate product(s) with 0 stock.\n\n` +
+      toDelete.slice(0, 5).map(p => `• ${p.sku}: ${p.name}`).join("\n") +
+      (toDelete.length > 5 ? `\n...and ${toDelete.length - 5} more` : "") +
+      `\n\nDelete these 0-stock duplicates now?`
+    );
+    if (!ok) return;
+
+    const deleteIds = new Set(toDelete.map(p => p.id));
+    const nextProducts = products.filter(p => !deleteIds.has(p.id));
+    saveProductsLocally(nextProducts);
+
+    if (isSupabaseConfigured()) {
+      for (const p of toDelete) {
+        SupabaseService.deleteProduct(p.id).catch(err => console.warn(err));
+      }
+    }
+
+    alert(`🎉 Successfully cleaned ${toDelete.length} redundant 0-stock duplicate items!`);
+  };
+
   // Advanced Filtered Completed Bills for Sales Report Tab
   const filteredReportBills = useMemo(() => {
     const q = reportSearch.trim().toLowerCase();
@@ -3452,7 +3778,61 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
               </div>
 
-              {/* 4 Executive Stockroom KPI Cards */}
+              {/* Inventory Sub-Navigation Bar */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
+                <button
+                  onClick={() => setInventorySubTab("catalog")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    inventorySubTab === "catalog"
+                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                  }`}
+                >
+                  <Layers className="w-4 h-4 text-amber-600" />
+                  <span>Catalog &amp; Barcode Tags</span>
+                  <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-100 text-stone-700 border border-stone-200">
+                    {products.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setInventorySubTab("bestsellers")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    inventorySubTab === "bestsellers"
+                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                  }`}
+                >
+                  <Flame className="w-4 h-4 text-rose-500 animate-pulse" />
+                  <span>Bestseller &amp; Velocity Studio</span>
+                  {soldOutBestsellerCount > 0 && (
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs">
+                      {soldOutBestsellerCount} Sold Out
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setInventorySubTab("duplicates")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    inventorySubTab === "duplicates"
+                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                  }`}
+                >
+                  <Copy className="w-4 h-4 text-indigo-600" />
+                  <span>Duplicate Finder &amp; Cleaner</span>
+                  {duplicateGroups.length > 0 && (
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-stone-950 shadow-xs">
+                      {duplicateGroups.length} Clusters
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {inventorySubTab === "catalog" && (
+                <>
+                  {/* 4 Executive Stockroom KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
                   <div>
@@ -3730,6 +4110,497 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </table>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* =========================================================
+              SUB-VIEW: BESTSELLER & VELOCITY STUDIO
+              ========================================================= */}
+          {inventorySubTab === "bestsellers" && (
+            <>
+              {/* 4 Velocity Hero KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-2xl border border-rose-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-rose-500 uppercase tracking-wider">Sold Out Bestsellers</span>
+                    <p className="text-2xl font-black text-rose-700 font-mono mt-0.5">{soldOutBestsellerCount}</p>
+                    <span className="text-[10px] text-rose-600 font-semibold">0 stock — urgent restock</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                    <AlertTriangle className="w-5 h-5 animate-pulse" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-amber-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-amber-600 uppercase tracking-wider">High Velocity Winners</span>
+                    <p className="text-2xl font-black text-amber-800 font-mono mt-0.5">{highVelocityCount}</p>
+                    <span className="text-[10px] text-amber-700 font-semibold">&gt; 0.5 pcs/day or 5+ sold</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                    <Flame className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-orange-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-orange-500 uppercase tracking-wider">Critical Stock</span>
+                    <p className="text-2xl font-black text-orange-700 font-mono mt-0.5">{criticalStockCount}</p>
+                    <span className="text-[10px] text-orange-600 font-semibold">1 to 3 pieces remaining</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-emerald-200/90 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10.5px] font-bold text-emerald-600 uppercase tracking-wider">Top Movers Revenue</span>
+                    <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">₹{topMoversTotalRevenue.toLocaleString("en-IN")}</p>
+                    <span className="text-[10px] text-stone-500 font-semibold">From completed bill history</span>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-xs space-y-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  {/* Filter Chips */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setVelocityFilter("all")}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        velocityFilter === "all"
+                          ? "bg-stone-900 text-white shadow-xs"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      All Products ({productVelocityAnalytics.length})
+                    </button>
+                    <button
+                      onClick={() => setVelocityFilter("out_of_stock")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        velocityFilter === "out_of_stock"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
+                      }`}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Sold Out / Stock 0 ({soldOutBestsellerCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setVelocityFilter("critical")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        velocityFilter === "critical"
+                          ? "bg-orange-600 text-white shadow-xs"
+                          : "bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100"
+                      }`}
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Critical &lt; 3 pcs ({criticalStockCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setVelocityFilter("fast_movers")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        velocityFilter === "fast_movers"
+                          ? "bg-amber-500 text-stone-950 shadow-xs"
+                          : "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                      }`}
+                    >
+                      <Flame className="w-3.5 h-3.5" />
+                      <span>Fast Movers ({highVelocityCount})</span>
+                    </button>
+                  </div>
+
+                  {/* Sort Selector */}
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-stone-400" />
+                    <span className="text-xs font-bold text-stone-500">Sort by:</span>
+                    <select
+                      value={velocitySort}
+                      onChange={e => setVelocitySort(e.target.value as any)}
+                      aria-label="Sort bestsellers by"
+                      className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+                    >
+                      <option value="sold_desc">Units Sold (High to Low)</option>
+                      <option value="revenue_desc">Revenue Generated (High to Low)</option>
+                      <option value="speed_asc">Velocity Speed (Fastest First)</option>
+                      <option value="stock_asc">Current Stock (Lowest First)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={velocitySearch}
+                    onChange={e => setVelocitySearch(e.target.value)}
+                    placeholder="Search fast movers by name, SKU, category, or barcode..."
+                    className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-medium text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white transition"
+                  />
+                  {velocitySearch && (
+                    <button
+                      onClick={() => setVelocitySearch("")}
+                      className="absolute right-3 top-2.5 text-xs text-stone-400 hover:text-stone-700"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Bestseller Velocity Table */}
+              <div className="bg-white rounded-2xl border border-stone-200/90 shadow-xs overflow-hidden">
+                <div className="px-5 py-3.5 bg-stone-50/80 border-b border-stone-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-black text-stone-900 uppercase tracking-wider">
+                      Sales Velocity &amp; Stockout Analysis ({filteredVelocityProducts.length} items)
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-semibold">
+                    Calculated from real POS bill transactions
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-stone-100/75 border-b border-stone-200 text-stone-600 uppercase text-[10px] font-black tracking-wider">
+                        <th className="px-4 py-3">Product / SKU</th>
+                        <th className="px-4 py-3">Stock Status</th>
+                        <th className="px-4 py-3">Units Sold &amp; Velocity</th>
+                        <th className="px-4 py-3">Sell-Out Speed / Pace</th>
+                        <th className="px-4 py-3 text-right">Revenue</th>
+                        <th className="px-4 py-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {filteredVelocityProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-12 text-center text-stone-400">
+                            <Flame className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                            <p className="font-bold text-sm text-stone-600">No matching products found</p>
+                            <p className="text-xs text-stone-400 mt-1">Try clearing your search or switching the filter.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredVelocityProducts.map(v => {
+                          const p = v.product;
+                          const stock = Number(p.stock) || 0;
+                          return (
+                            <tr key={p.id} className="hover:bg-amber-50/30 transition">
+                              {/* Product / SKU */}
+                              <td className="px-4 py-3.5">
+                                <div className="flex items-start gap-2.5">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-mono font-black text-stone-950 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                                        {p.sku}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-50 border border-stone-200 text-stone-700 capitalize">
+                                        {p.category}
+                                      </span>
+                                    </div>
+                                    <p className="font-extrabold text-stone-900 text-xs mt-1">{p.name}</p>
+                                    <p className="text-[10px] text-stone-400 font-mono mt-0.5">Barcode: {p.barcode}</p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Stock Status */}
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                {v.isOutOfStock ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">
+                                    <AlertTriangle className="w-3 h-3 text-rose-700" />
+                                    <span>OUT OF STOCK (0)</span>
+                                  </span>
+                                ) : v.isCritical ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                    <Zap className="w-3 h-3 text-amber-700" />
+                                    <span>CRITICAL ({stock} left)</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    <span>In Stock ({stock} pcs)</span>
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Units Sold & Velocity */}
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <div className="flex flex-col">
+                                  <span className="font-mono font-black text-stone-950 text-sm">
+                                    {v.totalQtySold} sold
+                                  </span>
+                                  {v.totalQtySold > 0 ? (
+                                    <span className="text-[10.5px] font-bold text-amber-700 flex items-center gap-1 mt-0.5">
+                                      <Flame className="w-3 h-3 text-amber-600" />
+                                      <span>{v.unitsPerDay} pcs / day</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-stone-400">0 bill transactions</span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Sell-Out Speed / Pace */}
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                {v.isOutOfStock && v.totalQtySold > 0 ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 inline-block w-fit">
+                                      ⚡ {v.selloutSpeedText}
+                                    </span>
+                                    <span className="text-[10px] text-rose-600 font-semibold mt-0.5">Urgent restock needed!</span>
+                                  </div>
+                                ) : v.totalQtySold > 0 ? (
+                                  <div className="flex flex-col">
+                                    <span className={`text-xs font-extrabold ${v.isCritical ? "text-amber-800" : "text-stone-700"}`}>
+                                      {v.selloutSpeedText}
+                                    </span>
+                                    <span className="text-[10px] text-stone-400">Over {v.daysSpan} days period</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-stone-400 italic">No sales recorded yet</span>
+                                )}
+                              </td>
+
+                              {/* Revenue */}
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                <p className="font-mono font-black text-stone-900 text-sm">
+                                  ₹{v.totalRevenue.toLocaleString("en-IN")}
+                                </p>
+                                <p className="text-[10px] text-stone-400">₹{p.price.toLocaleString("en-IN")} / pc</p>
+                              </td>
+
+                              {/* Actions */}
+                              <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleOpenQuickRestock(p)}
+                                    className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                    title="Instantly add restock pieces"
+                                  >
+                                    <Plus className="w-3 h-3 text-stone-950" />
+                                    <span>+ Restock</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProductForBarcode(p);
+                                      setBarcodeStickerCount(4);
+                                    }}
+                                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 font-bold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1"
+                                    title="Print Thermal Barcode Stickers"
+                                  >
+                                    <Tag className="w-3 h-3 text-stone-600" />
+                                    <span>Tags</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =========================================================
+              SUB-VIEW: DUPLICATE FINDER & CLEANER STUDIO
+              ========================================================= */}
+          {inventorySubTab === "duplicates" && (
+            <>
+              {/* Duplicate Finder Header & Action Bar */}
+              <div className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-xs space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Copy className="w-5 h-5 text-indigo-600" />
+                      <h3 className="text-base font-black text-stone-900">
+                        Duplicate Product Resolution Studio
+                      </h3>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Found <strong className="text-stone-900">{duplicateGroups.length} duplicate clusters</strong> ({duplicateGroups.reduce((s, g) => s + g.items.length, 0)} total duplicate variations). Review side-by-side to merge stock or delete redundant clones.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={handleAutoCleanZeroStockDuplicates}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-600/20 cursor-pointer transition"
+                      title="Instantly delete redundant clones that have 0 stock"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+                      <span>Auto-Clean 0-Stock Clones</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Duplicate Groups */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={duplicateSearch}
+                    onChange={e => setDuplicateSearch(e.target.value)}
+                    placeholder="Filter duplicate groups by product title, SKU, or barcode..."
+                    className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-medium text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition"
+                  />
+                  {duplicateSearch && (
+                    <button
+                      onClick={() => setDuplicateSearch("")}
+                      className="absolute right-3 top-2.5 text-xs text-stone-400 hover:text-stone-700"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Duplicate Clusters List */}
+              {filteredDuplicateGroups.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
+                  <PackageCheck className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                  <h4 className="text-base font-black text-stone-900">No Duplicate Products Found!</h4>
+                  <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
+                    Your inventory catalog is clean with no duplicate names or barcodes.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredDuplicateGroups.map(group => {
+                    const [primary] = group.items;
+                    return (
+                      <div
+                        key={group.key}
+                        className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-xs hover:border-indigo-300 transition"
+                      >
+                        {/* Group Title Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-stone-100 gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                            <h4 className="font-extrabold text-stone-900 text-sm">
+                              {group.displayName}
+                            </h4>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-stone-100 text-stone-700 border border-stone-200">
+                              {group.items.length} records
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-stone-400 font-mono">
+                            Total Cluster Stock: {group.items.reduce((s, it) => s + (Number(it.stock) || 0), 0)} pcs
+                          </span>
+                        </div>
+
+                        {/* Side-by-Side Comparison Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-3.5">
+                          {group.items.map((it, idx) => {
+                            const isPrimary = idx === 0;
+                            const stock = Number(it.stock) || 0;
+                            return (
+                              <div
+                                key={it.id}
+                                className={`p-3.5 rounded-xl border flex flex-col justify-between transition ${
+                                  isPrimary
+                                    ? "bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-400/20"
+                                    : "bg-stone-50/70 border-stone-200"
+                                }`}
+                              >
+                                <div>
+                                  {/* Top Badge */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    {isPrimary ? (
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white">
+                                        Primary Item (Keep)
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-200 text-stone-700">
+                                        Duplicate Variation #{idx}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-mono text-stone-500 font-bold uppercase">
+                                      {it.category}
+                                    </span>
+                                  </div>
+
+                                  {/* Product Info */}
+                                  <p className="font-bold text-stone-900 text-xs line-clamp-1">{it.name}</p>
+                                  
+                                  <div className="mt-2 space-y-1 text-xs">
+                                    <div className="flex items-center justify-between font-mono text-[11px]">
+                                      <span className="text-stone-400">SKU:</span>
+                                      <span className="font-black text-stone-900 bg-white px-1.5 py-0.2 rounded border border-stone-200">
+                                        {it.sku}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-stone-400">Current Stock:</span>
+                                      <span className={`font-black ${stock === 0 ? "text-rose-600 font-extrabold" : "text-stone-900"}`}>
+                                        {stock} pcs
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-stone-400">Selling Price:</span>
+                                      <span className="font-bold text-stone-900">
+                                        ₹{it.price.toLocaleString("en-IN")}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between font-mono text-[10px] text-stone-400">
+                                      <span>Barcode:</span>
+                                      <span>{it.barcode}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="mt-3.5 pt-3 border-t border-stone-200/70 flex items-center gap-2">
+                                  {isPrimary ? (
+                                    <button
+                                      onClick={() => openNewProductModal(it.category, it)}
+                                      className="w-full py-1.5 bg-stone-900 hover:bg-stone-800 text-amber-200 font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                                    >
+                                      <Edit className="w-3 h-3 text-amber-400" />
+                                      <span>Edit Primary</span>
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => handleMergeDuplicate(primary, it)}
+                                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+                                        title="Merge stock into Primary and remove this duplicate"
+                                      >
+                                        <Split className="w-3 h-3" />
+                                        <span>Merge Stock</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteDuplicateItem(it.id, it.name, it.sku)}
+                                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs transition cursor-pointer flex items-center justify-center"
+                                        title="Permanently delete this duplicate"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
             </div>
           </div>
         )}
@@ -5840,8 +6711,108 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
       )}
 
       {/* =========================================================
-          MODAL: EDIT PRODUCT PRICE & FESTIVAL OFFER
+          MODAL: QUICK RESTOCK PRODUCT
           ========================================================= */}
+      {quickRestockProduct && (
+        <div className="no-print fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                  <Flame className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-stone-900 text-base">
+                    Quick Restock Inventory
+                  </h3>
+                  <p className="text-[11px] text-stone-500 font-mono">
+                    SKU: {quickRestockProduct.sku}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuickRestockProduct(null)}
+                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer rounded-lg hover:bg-stone-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Product Summary */}
+            <div className="mt-4 p-3 bg-stone-50 rounded-2xl border border-stone-200/80">
+              <p className="font-extrabold text-stone-900 text-xs line-clamp-1">{quickRestockProduct.name}</p>
+              <div className="flex items-center justify-between text-xs mt-2">
+                <span className="text-stone-500">Current Stock:</span>
+                <span className={`font-mono font-black ${Number(quickRestockProduct.stock) <= 0 ? "text-rose-600" : "text-stone-900"}`}>
+                  {quickRestockProduct.stock} pcs
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleQuickRestockSubmit} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                  Quantity to Add (+ pcs)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={quickRestockQty}
+                    onChange={e => setQuickRestockQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-base font-black text-stone-900 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Preset quick buttons */}
+                <div className="flex items-center gap-2 mt-2">
+                  {[2, 5, 10, 20, 50].map(qty => (
+                    <button
+                      key={qty}
+                      type="button"
+                      onClick={() => setQuickRestockQty(qty)}
+                      className={`flex-1 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                        quickRestockQty === qty
+                          ? "bg-amber-500 text-stone-950 border-amber-600 shadow-xs"
+                          : "bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200"
+                      }`}
+                    >
+                      +{qty}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stock Preview */}
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
+                <span className="font-bold text-emerald-800">New Total Stock Preview:</span>
+                <span className="font-mono font-black text-emerald-900 text-base">
+                  {(Number(quickRestockProduct.stock) || 0) + (Number(quickRestockQty) || 0)} pcs
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setQuickRestockProduct(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-stone-600 hover:bg-stone-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 rounded-xl text-xs font-black shadow-lg shadow-amber-500/20 cursor-pointer transition uppercase tracking-wider"
+                >
+                  Confirm &amp; Restock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {editingPriceProduct && (
         <div className="no-print fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
