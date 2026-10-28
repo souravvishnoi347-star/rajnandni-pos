@@ -319,7 +319,7 @@ export default function MobileOwnerApp() {
       setPinError("");
       setPinInput("");
     } else {
-      setPinError("Galat PIN! Kripya sahi PIN dalein (Quick PIN: 7898)");
+      setPinError("Incorrect Security PIN. Please enter the valid PIN (Master PIN: 7898)");
     }
   };
 
@@ -611,7 +611,7 @@ export default function MobileOwnerApp() {
     e.preventDefault();
     const amt = Number(newExpAmount);
     if (!newExpTitle.trim() || isNaN(amt) || amt <= 0) {
-      alert("Sahi amount aur kharche ka naam enter karein");
+      alert("Please enter a valid expense title and amount.");
       return;
     }
     await StaffExpenseService.recordExpense({
@@ -705,7 +705,7 @@ export default function MobileOwnerApp() {
     if (!editingExpense) return;
     const amt = Number(editExpAmount);
     if (isNaN(amt) || amt <= 0) {
-      alert("Kripya sahi amount dalein");
+      alert("Please enter a valid amount.");
       return;
     }
     await StaffExpenseService.updateExpense(editingExpense.id, editingExpense.tokenNumber, {
@@ -736,7 +736,7 @@ export default function MobileOwnerApp() {
     if (!editingAdvance) return;
     const amt = Number(editAdvAmount);
     if (isNaN(amt) || amt <= 0) {
-      alert("Kripya sahi advance amount dalein");
+      alert("Please enter a valid advance amount.");
       return;
     }
     await StaffExpenseService.updateAdvance(editingAdvance.id, editingAdvance.tokenNumber, {
@@ -959,7 +959,7 @@ export default function MobileOwnerApp() {
                 <div className="flex items-center gap-1.5">
                   <Wallet className="w-4 h-4 text-emerald-700" />
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                    Galla Cash In Hand (दुकान का शुद्ध नकद)
+                    Net Drawer Cash in Hand (Cash Reconciliation)
                   </span>
                 </div>
                 <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
@@ -973,7 +973,7 @@ export default function MobileOwnerApp() {
                     ₹{netGallaCashInHand.toLocaleString("en-IN")}
                   </span>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Counter Cash: ₹{salesStats.cashTotal.toLocaleString("en-IN")} | Chai Kharch: -₹{todayCashExpense} | Advances: -₹{todayCashAdvance}
+                    Counter Cash: ₹{salesStats.cashTotal.toLocaleString("en-IN")} | Store Expenses: -₹{todayCashExpense} | Advances: -₹{todayCashAdvance}
                   </p>
                 </div>
 
@@ -1001,7 +1001,7 @@ export default function MobileOwnerApp() {
                   ₹{salesStats.cashTotal.toLocaleString("en-IN")}
                 </p>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-emerald-700 font-semibold">Galla Sales</span>
+                  <span className="text-emerald-700 font-semibold">Counter Cash</span>
                   <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.cashTotal)}</span>
                 </div>
               </div>
@@ -1504,7 +1504,7 @@ export default function MobileOwnerApp() {
                     className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Kharcha</span>
+                    <span>+ Expense</span>
                   </button>
                   <button
                     onClick={() => setShowAddMemberModal(true)}
@@ -1519,9 +1519,9 @@ export default function MobileOwnerApp() {
               {/* Sub-tab Navigation */}
               <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-xs">
                 {[
-                  { id: "expenses", label: "☕ Kharch", count: todayExpenses.length },
-                  { id: "advances", label: "👥 Advance", count: advances.length },
-                  { id: "attendance", label: "📅 Haajiri", count: `${attendanceStats.present}/${attendanceStats.totalStaff}` },
+                  { id: "expenses", label: "☕ Expenses", count: todayExpenses.length },
+                  { id: "advances", label: "👥 Advances", count: advances.length },
+                  { id: "attendance", label: "📅 Attendance", count: `${attendanceStats.present}/${attendanceStats.totalStaff}` },
                   { id: "members", label: "👔 Staff", count: staffMembers.length },
                 ].map((st) => (
                   <button
@@ -1547,11 +1547,11 @@ export default function MobileOwnerApp() {
               <div className="space-y-3">
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Today's Store Kharch</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Today's Store Expenses</span>
                     <span className="text-xl font-black text-slate-900 font-mono">₹{todayExpenseTotal}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Cash Galla Se Diya</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Paid From Cash Drawer</span>
                     <span className="text-xl font-black text-rose-600 font-mono">₹{todayCashExpense}</span>
                   </div>
                 </div>
@@ -1559,7 +1559,7 @@ export default function MobileOwnerApp() {
                 <div className="space-y-2">
                   {expenses.length === 0 ? (
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
-                      Koi kharcha record nahi hai.
+                      No expenses recorded today.
                     </div>
                   ) : (
                     expenses.map((exp) => (
@@ -1579,7 +1579,7 @@ export default function MobileOwnerApp() {
                                   : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               }`}
                             >
-                              {exp.paidBy === "cash_galla" ? "Cash Galla" : "Online UPI"}
+                              {exp.paidBy === "cash_galla" ? "Cash Drawer" : "Online UPI"}
                             </span>
                           </div>
                           <h4 className="text-xs font-bold text-slate-900 mt-1">{exp.title}</h4>
@@ -1595,19 +1595,19 @@ export default function MobileOwnerApp() {
                           <button
                             onClick={() => handleOpenEditExpense(exp)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                            title="Edit Kharcha"
+                            title="Edit Expense"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={async () => {
-                              if (confirm(`Kya aap "${exp.title}" ko delete karna chahte hain?`)) {
+                              if (confirm(`Are you sure you want to delete "${exp.title}"?`)) {
                                 await StaffExpenseService.deleteExpense(exp.id, exp.tokenNumber);
                                 await loadAllData();
                               }
                             }}
                             className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
-                            title="Delete Kharcha"
+                            title="Delete Expense"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1625,7 +1625,7 @@ export default function MobileOwnerApp() {
                 <div className="space-y-2">
                   {advances.length === 0 ? (
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
-                      Koi staff advance record nahi hai.
+                      No staff advance records found.
                     </div>
                   ) : (
                     advances.map((adv) => (
@@ -1717,10 +1717,10 @@ export default function MobileOwnerApp() {
                     }}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition"
                   >
-                    ← Kal (Prev)
+                    ← Prev Day
                   </button>
                   <div className="text-center">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Haajiri Tareeq</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Attendance Date</span>
                     <input
                       type="date"
                       value={ownerAttendanceDate}
@@ -1737,7 +1737,7 @@ export default function MobileOwnerApp() {
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    Aaj (Today)
+                    Today
                   </button>
                 </div>
 
@@ -1867,7 +1867,7 @@ export default function MobileOwnerApp() {
                     className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Naya Staff Jodein</span>
+                    <span>+ Add Staff Member</span>
                   </button>
                 </div>
 
@@ -2127,7 +2127,7 @@ export default function MobileOwnerApp() {
                 <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
                   Owner Expense Entry
                 </span>
-                <h3 className="text-base font-bold text-slate-900">Showroom Kharcha Dalein</h3>
+                <h3 className="text-base font-bold text-slate-900">Record Store Expense</h3>
               </div>
               <button
                 onClick={() => setShowAddExpenseModal(false)}
@@ -2139,19 +2139,19 @@ export default function MobileOwnerApp() {
 
             <form onSubmit={handleOwnerAddExpense} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Kharcha Item / Naam</label>
+                <label className="font-bold text-slate-700 block mb-1">Expense Title / Item Description</label>
                 <input
                   type="text"
                   required
                   value={newExpTitle}
                   onChange={(e) => setNewExpTitle(e.target.value)}
-                  placeholder="e.g. Chai Samosa, Cold Drinks, Cleaning, Tape"
+                  placeholder="e.g. Tea & Samosa, Cold Drinks, Cleaning, Tape"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Amount (₹ Rupaye)</label>
+                <label className="font-bold text-slate-700 block mb-1">Amount (₹)</label>
                 <input
                   type="number"
                   required
@@ -2171,12 +2171,12 @@ export default function MobileOwnerApp() {
                     onChange={(e) => setNewExpCategory(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
                   >
-                    <option value="chai_nashta">Chai &amp; Nashta</option>
-                    <option value="refreshments">Cold Drinks / Water</option>
-                    <option value="cleaning_pooja">Cleaning &amp; Pooja</option>
-                    <option value="stationery_packing">Packing Tape / Bags</option>
-                    <option value="transport_fuel">Transport / Auto</option>
-                    <option value="other">Other Misc</option>
+                    <option value="chai_nashta">Tea &amp; Snacks</option>
+                    <option value="refreshments">Drinks &amp; Water</option>
+                    <option value="cleaning_pooja">Cleaning &amp; Care</option>
+                    <option value="stationery_packing">Packing Bags &amp; Tape</option>
+                    <option value="transport_fuel">Transport &amp; Courier</option>
+                    <option value="other">Miscellaneous</option>
                   </select>
                 </div>
 
@@ -2187,7 +2187,7 @@ export default function MobileOwnerApp() {
                     onChange={(e) => setNewExpPaidBy(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                   >
-                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="cash_galla">💵 Cash Drawer</option>
                     <option value="online_upi">📱 Online UPI</option>
                     <option value="owner_personal">👑 Owner Personal</option>
                   </select>
@@ -2217,7 +2217,7 @@ export default function MobileOwnerApp() {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
                 >
-                  Save Kharcha
+                  Save Expense
                 </button>
               </div>
             </form>
@@ -2236,7 +2236,7 @@ export default function MobileOwnerApp() {
                 <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
                   Showroom Staff
                 </span>
-                <h3 className="text-base font-bold text-slate-900">Naya Staff Add Karein</h3>
+                <h3 className="text-base font-bold text-slate-900">Add New Staff Member</h3>
               </div>
               <button
                 onClick={() => setShowAddMemberModal(false)}
@@ -2383,7 +2383,7 @@ export default function MobileOwnerApp() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Monthly Salary (₹ Rupaye)</label>
+                <label className="font-bold text-slate-700 block mb-1">Monthly Salary (₹)</label>
                 <input
                   type="number"
                   value={editStaffSalary}
@@ -2453,7 +2453,7 @@ export default function MobileOwnerApp() {
                 <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
                   Owner Audit
                 </span>
-                <h3 className="text-base font-bold text-slate-900">Edit Kharcha Entry</h3>
+                <h3 className="text-base font-bold text-slate-900">Edit Expense Record</h3>
               </div>
               <button
                 onClick={() => setEditingExpense(null)}
@@ -2465,19 +2465,19 @@ export default function MobileOwnerApp() {
 
             <form onSubmit={handleSaveEditExpense} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Kharcha Title</label>
+                <label className="font-bold text-slate-700 block mb-1">Expense Title</label>
                 <input
                   type="text"
                   required
                   value={editExpTitle}
                   onChange={(e) => setEditExpTitle(e.target.value)}
-                  placeholder="e.g. Chai & Samosa"
+                  placeholder="e.g. Tea & Snacks"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-semibold"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Amount (₹ Rupaye)</label>
+                <label className="font-bold text-slate-700 block mb-1">Amount (₹)</label>
                 <input
                   type="number"
                   required
@@ -2496,12 +2496,12 @@ export default function MobileOwnerApp() {
                     onChange={(e) => setEditExpCategory(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
                   >
-                    <option value="chai_nashta">Chai &amp; Nashta</option>
-                    <option value="refreshments">Cold Drinks / Water</option>
-                    <option value="cleaning_pooja">Cleaning &amp; Pooja</option>
-                    <option value="stationery_packing">Packing Tape / Bags</option>
-                    <option value="transport_fuel">Transport / Auto</option>
-                    <option value="other">Other Misc</option>
+                    <option value="chai_nashta">Tea &amp; Snacks</option>
+                    <option value="refreshments">Drinks &amp; Water</option>
+                    <option value="cleaning_pooja">Cleaning &amp; Care</option>
+                    <option value="stationery_packing">Packing Bags &amp; Tape</option>
+                    <option value="transport_fuel">Transport &amp; Courier</option>
+                    <option value="other">Miscellaneous</option>
                   </select>
                 </div>
 
@@ -2512,7 +2512,7 @@ export default function MobileOwnerApp() {
                     onChange={(e) => setEditExpPaidBy(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                   >
-                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="cash_galla">💵 Cash Drawer</option>
                     <option value="online_upi">📱 Online UPI</option>
                     <option value="owner_personal">👑 Owner Personal</option>
                   </select>
@@ -2552,7 +2552,7 @@ export default function MobileOwnerApp() {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
                 >
-                  Update Kharcha
+                  Update Expense
                 </button>
               </div>
             </form>
@@ -2585,7 +2585,7 @@ export default function MobileOwnerApp() {
 
             <form onSubmit={handleSaveEditAdvance} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Advance Amount (₹ Rupaye)</label>
+                <label className="font-bold text-slate-700 block mb-1">Advance Amount (₹)</label>
                 <input
                   type="number"
                   required
@@ -2619,7 +2619,7 @@ export default function MobileOwnerApp() {
                     onChange={(e) => setEditAdvPaidBy(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                   >
-                    <option value="cash_galla">💵 Cash Galla</option>
+                    <option value="cash_galla">💵 Cash Drawer</option>
                     <option value="online_upi">📱 Online UPI</option>
                   </select>
                 </div>
@@ -2632,7 +2632,7 @@ export default function MobileOwnerApp() {
                   onChange={(e) => setEditAdvStatus(e.target.value as any)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                 >
-                  <option value="active">🔴 Pending Advance (Salary me se katega)</option>
+                  <option value="active">🔴 Active Advance (Pending Settlement)</option>
                   <option value="cleared">🟢 Cleared / Deducted (Salary se kat chuka hai)</option>
                 </select>
               </div>
@@ -2783,7 +2783,7 @@ export default function MobileOwnerApp() {
             { id: "sales", label: "Sales", icon: TrendingUp },
             { id: "stock", label: "Stock", icon: Package },
             { id: "bills", label: "Bills", icon: Receipt },
-            { id: "staff", label: "Kharcha", icon: Users },
+            { id: "staff", label: "Staff & Ops", icon: Users },
             { id: "security", label: "Security", icon: ShieldCheck },
           ].map((tab) => {
             const Icon = tab.icon;

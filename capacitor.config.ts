@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: 'Rajnandini Boutique',
   webDir: 'out',
   server: {
-    url: 'https://rajnandni-pos.vercel.app/owner',
     cleartext: true
   },
   android: {
