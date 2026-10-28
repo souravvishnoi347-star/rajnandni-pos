@@ -3948,54 +3948,66 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               </div>
 
               {/* Search & Category Filter Bar inside Inventory */}
-              <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="bg-white p-5 rounded-3xl border border-stone-200/90 shadow-sm space-y-3.5">
+                {/* Row 1: Full-width Prominent Search Bar */}
+                <div className="relative">
+                  <Search className="w-5 h-5 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search inventory by Product Name, SKU (e.g. RJ-BAG-001), or Barcode Number..."
+                    placeholder="Search 880+ showroom items by Product Title, SKU (e.g. RJ-SAR-001), Barcode Number..."
                     value={inventorySearch}
                     onChange={e => setInventorySearch(e.target.value)}
-                    className="w-full pl-10 pr-8 py-2.5 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                    className="w-full pl-12 pr-32 py-3.5 bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-200 focus:border-amber-500 rounded-2xl text-sm font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-4 focus:ring-amber-500/10 transition shadow-inner"
                   />
-                  {inventorySearch && (
-                    <button
-                      onClick={() => setInventorySearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    {inventorySearch && (
+                      <button
+                        type="button"
+                        onClick={() => setInventorySearch("")}
+                        className="px-2.5 py-1 text-xs font-bold text-stone-500 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg cursor-pointer transition"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <span className="text-[11px] font-extrabold text-stone-600 bg-stone-200/70 px-2.5 py-1 rounded-lg">
+                      {filteredInventoryProducts.length} items
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {/* Row 2: Horizontal Category Filter Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5">
                   {[
-                    { id: "all", label: "All" },
-                    { id: "kidswear", label: "🧸 Kids Wear" },
-                    { id: "handbags", label: "👜 Handbags" },
-                    { id: "bangles", label: "💫 Bangles" },
-                    { id: "earrings", label: "💎 Earrings" },
+                    { id: "all", label: "All Items" },
                     { id: "sarees", label: "🥻 Sarees" },
-                    { id: "lehengas", label: "👗 Lehengas" },
-                    { id: "kurtis", label: "👚 Kurtis" },
+                    { id: "kurtis", label: "👚 Kurtis & Suits" },
+                    { id: "handbags", label: "👜 Handbags" },
                     { id: "jewellery", label: "💍 Jewellery" },
                     { id: "footwear", label: "👠 Footwear" },
                     { id: "cosmetics", label: "💄 Cosmetics" },
+                    { id: "lehengas", label: "👗 Lehengas" },
+                    { id: "bangles", label: "💫 Bangles" },
+                    { id: "earrings", label: "💎 Earrings" },
+                    { id: "kidswear", label: "🧸 Kids Wear" },
                     { id: "undergarments", label: "👙 Undergarments" },
                     { id: "handloom", label: "🧵 Handloom" }
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => setInventoryCategory(c.id as ProductCategory)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition border ${
-                        inventoryCategory === c.id
-                          ? "bg-white text-stone-900 border-stone-300 ring-1 ring-stone-100 shadow-sm"
-                          : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-white hover:text-stone-900"
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+                  ].map(c => {
+                    const isSelected = inventoryCategory === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setInventoryCategory(c.id as ProductCategory)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition border flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-stone-950 text-amber-300 border-stone-950 shadow-sm"
+                            : "bg-stone-50 text-stone-700 border-stone-200/80 hover:bg-stone-100 hover:text-stone-950"
+                        }`}
+                      >
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
