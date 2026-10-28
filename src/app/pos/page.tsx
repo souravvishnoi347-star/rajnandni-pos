@@ -247,6 +247,36 @@ export default function RajnandiniPosPage() {
     return Array.from(map.values());
   };
 
+  const PURGED_PRODUCT_IDS = new Set([
+    "manual-1792225948451",
+    "prod-par-1",
+    "prod-par-2",
+    "prod-par-3",
+    "prod-par-4",
+    "prod-par-5",
+    "prod-par-6",
+    "prod-par-7"
+  ]);
+  const PURGED_PRODUCT_SKUS = new Set([
+    "MANUAL-8451",
+    "SRV-HD-BR01",
+    "SRV-PTY-MK02",
+    "SRV-SPA-HR03",
+    "SRV-MHN-BD04",
+    "SRV-WAX-RC05",
+    "SRV-BLS-ST06",
+    "SRV-FL-PCO07"
+  ]);
+
+  const filterPurgedProducts = (list: ProductItem[]) => (list || []).filter(p => {
+    if (!p) return false;
+    if (PURGED_PRODUCT_IDS.has(p.id)) return false;
+    if (p.sku && PURGED_PRODUCT_SKUS.has(p.sku.toUpperCase().trim())) return false;
+    if (p.isService && p.category === "parlour") return false;
+    if (p.name && (p.name.toLowerCase().includes("hd beauity") || p.name.toLowerCase().includes("airbrush makeup"))) return false;
+    return true;
+  });
+
   // Load local storage & sync on mount (100% Lossless Merge — Never overwrites user-added items)
   useEffect(() => {
     try {
@@ -258,36 +288,6 @@ export default function RajnandiniPosPage() {
 
       const savedProdsRaw = localStorage.getItem("rajnandni_products");
       const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
-
-      const PURGED_PRODUCT_IDS = new Set([
-        "manual-1792225948451",
-        "prod-par-1",
-        "prod-par-2",
-        "prod-par-3",
-        "prod-par-4",
-        "prod-par-5",
-        "prod-par-6",
-        "prod-par-7"
-      ]);
-      const PURGED_PRODUCT_SKUS = new Set([
-        "MANUAL-8451",
-        "SRV-HD-BR01",
-        "SRV-PTY-MK02",
-        "SRV-SPA-HR03",
-        "SRV-MHN-BD04",
-        "SRV-WAX-RC05",
-        "SRV-BLS-ST06",
-        "SRV-FL-PCO07"
-      ]);
-
-      const filterPurgedProducts = (list: ProductItem[]) => (list || []).filter(p => {
-        if (!p) return false;
-        if (PURGED_PRODUCT_IDS.has(p.id)) return false;
-        if (p.sku && PURGED_PRODUCT_SKUS.has(p.sku.toUpperCase().trim())) return false;
-        if (p.isService && p.category === "parlour") return false;
-        if (p.name && (p.name.toLowerCase().includes("hd beauity") || p.name.toLowerCase().includes("airbrush makeup"))) return false;
-        return true;
-      });
 
       const savedProds: ProductItem[] = savedProdsRaw ? JSON.parse(savedProdsRaw) : [];
       const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
@@ -369,17 +369,22 @@ export default function RajnandiniPosPage() {
             const latestLocal: ProductItem[] = filterPurgedProducts(latestLocalRaw ? JSON.parse(latestLocalRaw) : localMerged);
             const latestCustom: ProductItem[] = filterPurgedProducts(latestCustomRaw ? JSON.parse(latestCustomRaw) : cleanSavedCustom);
 
-            // Keep all custom/local items + merge remote items
-            const finalMerged = filterPurgedProducts(mergeProductLists([...latestCustom, ...latestLocal], cleanRemote));
+            // Authoritative remote catalog: Supabase is single source of truth for stock, cost & price
+            const remoteSkuSet = new Set(cleanRemote.map(r => (r.sku || "").toUpperCase().trim()).filter(Boolean));
+            // Keep only user-added local custom items that have not yet been synced to Supabase
+            const unsyncedCustom = filterPurgedProducts(
+              [...latestCustom, ...latestLocal].filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
+            );
+
+            // Authoritative merge: local custom items first + clean remote master products
+            const finalMerged = [...unsyncedCustom, ...cleanRemote];
             setProducts(finalMerged);
             localStorage.setItem("rajnandni_products", JSON.stringify(finalMerged));
-            localStorage.setItem("rajnandni_custom_items", JSON.stringify(filterPurgedProducts(latestCustom)));
+            localStorage.setItem("rajnandni_custom_items", JSON.stringify(unsyncedCustom));
 
             // Push any legitimate local items that are missing in Supabase up to the cloud automatically
-            const remoteSkus = new Set(cleanRemote.map(r => r.sku));
-            const unsyncedLocal = filterPurgedProducts(finalMerged.filter(p => !remoteSkus.has(p.sku)));
-            if (unsyncedLocal.length > 0) {
-              SupabaseService.syncInitialProducts(unsyncedLocal).catch(() => {});
+            if (unsyncedCustom.length > 0) {
+              SupabaseService.syncInitialProducts(unsyncedCustom).catch(() => {});
             }
             setSyncStatusText(`Synced (${finalMerged.length} items safe)`);
           } else {
@@ -607,18 +612,36 @@ export default function RajnandiniPosPage() {
     setLoginError("");
   };
 
-  // Force re-load 159 products from purchase bills (while preserving custom user-added items!)
-  const handleReloadWholesaleInventory = () => {
-    if (confirm("Refresh the 159 supplier bill items? (Your custom added items like Handbags will remain safe!)")) {
-      const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
-      const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
-      const merged = mergeProductLists(savedCustom, INITIAL_PRODUCTS);
-      saveProductsLocally(merged);
-      localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
-      if (isSupabaseConfigured()) {
-        SupabaseService.syncInitialProducts(merged);
+  // Force re-load & live sync products and stock directly from Supabase Cloud
+  const handleReloadWholesaleInventory = async () => {
+    try {
+      if (!isSupabaseConfigured()) {
+        alert("Supabase keys are not configured.");
+        return;
       }
-      alert(`✅ Inventory refreshed! All ${merged.length} items (including your custom items) are safe.`);
+      setIsSyncing(true);
+      setSyncStatusText("Fetching live stock from Supabase...");
+      const remoteProds = await SupabaseService.fetchProducts();
+      if (remoteProds && remoteProds.length > 0) {
+        const cleanRemote = filterPurgedProducts(remoteProds);
+        const remoteSkuSet = new Set(cleanRemote.map((r: ProductItem) => (r.sku || "").toUpperCase().trim()).filter(Boolean));
+        const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
+        const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
+        const unsyncedCustom = filterPurgedProducts(
+          savedCustom.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
+        );
+        const finalMerged = [...unsyncedCustom, ...cleanRemote];
+        setProducts(finalMerged);
+        saveProductsLocally(finalMerged);
+        localStorage.setItem("rajnandni_custom_items", JSON.stringify(unsyncedCustom));
+        setSyncStatusText(`Synced (${finalMerged.length} items live)`);
+        const totalPcs = finalMerged.filter(p => !p.isService).reduce((s, p) => s + (Number(p.stock) || 0), 0);
+        alert(`✅ Live stock synchronized from Supabase!\n\n• Total Genuine Designs: ${finalMerged.length}\n• Current Showroom Stock: ${totalPcs.toLocaleString("en-IN")} pcs\n\nAll cache updated successfully.`);
+      }
+    } catch (e: any) {
+      alert("Error refreshing from database: " + (e?.message || e));
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -1940,6 +1963,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   const totalRetailStockValue = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0), [products]);
   const totalCostStockValue = useMemo(() => products.filter(p => !p.isService).reduce((sum, p) => sum + (Number(p.purchaseCost) || 0) * (Number(p.stock) || 0), 0), [products]);
   const totalTodayRevenue = useMemo(() => completedBills.reduce((s, b) => s + b.grandTotal, 0), [completedBills]);
+  const totalUnitsSold = useMemo(() => {
+    return completedBills.reduce((acc, b) => {
+      if (!b.items || !Array.isArray(b.items)) return acc;
+      return acc + b.items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+    }, 0);
+  }, [completedBills]);
 
   // Helper: Extract accurate YYYY-MM-DD in Indian Standard Time (Asia/Kolkata)
   const getBillDateString = useCallback((bill: CompletedBill): string => {
@@ -3817,13 +3846,22 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <a
+                    href="/RAJNANDINI_GENUINE_INVENTORY_MASTER.csv"
+                    download="RAJNANDINI_GENUINE_INVENTORY_MASTER.csv"
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer"
+                    title="Download complete genuine inventory audit with wholesale costs, retail prices & units sold"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Master Stock Excel (CSV)</span>
+                  </a>
                   <button
                     onClick={handleReloadWholesaleInventory}
                     className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-amber-200 border border-stone-700 rounded-xl text-xs font-bold cursor-pointer transition"
-                    title="Reload 159 items parsed from supplier wholesale bills"
+                    title="Fetch live stock levels directly from Supabase database"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Sync 159 Supplier Items</span>
+                    <span>Live Cloud Sync</span>
                   </button>
                   <button
                     onClick={() => setShowDbModal(true)}
@@ -3902,7 +3940,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <div>
                     <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Catalog Designs</span>
                     <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{products.length}</p>
-                    <span className="text-[10px] text-emerald-700 font-semibold">Active Barcoded SKUs</span>
+                    <span className="text-[10px] text-emerald-700 font-semibold">Active Unique SKUs</span>
                   </div>
                   <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
                     <Layers className="w-5 h-5" />
@@ -3911,9 +3949,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
                 <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Total Showroom Stock</span>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Available Stock in Shop</span>
                     <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{totalPhysicalPieces.toLocaleString("en-IN")} <span className="text-xs font-sans font-bold text-stone-500">pcs</span></p>
-                    <span className="text-[10px] text-stone-500 font-semibold">Ready for Sale</span>
+                    <span className="text-[10px] text-indigo-700 font-semibold">Unsold Inventory on Racks</span>
                   </div>
                   <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
                     <PackageCheck className="w-5 h-5" />
@@ -3922,27 +3960,23 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
                 <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Retail Stock Value</span>
-                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">₹{totalRetailStockValue.toLocaleString("en-IN")}</p>
-                    <span className="text-[10px] text-amber-800 font-semibold">At Fixed Selling Price</span>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Total Units Sold</span>
+                    <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">{totalUnitsSold.toLocaleString("en-IN")} <span className="text-xs font-sans font-bold text-emerald-600">pcs</span></p>
+                    <span className="text-[10px] text-stone-500 font-semibold">Across {completedBills.length} Customer Bills</span>
                   </div>
                   <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
-                    <TrendingUp className="w-5 h-5" />
+                    <Flame className="w-5 h-5" />
                   </div>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Projected Margin</span>
-                    <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">
-                      ₹{Math.max(0, totalRetailStockValue - totalCostStockValue).toLocaleString("en-IN")}
-                    </p>
-                    <span className="text-[10px] text-stone-500 font-semibold">
-                      Cost: ₹{totalCostStockValue.toLocaleString("en-IN")}
-                    </span>
+                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Showroom Stock Valuation</span>
+                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">₹{totalRetailStockValue.toLocaleString("en-IN")}</p>
+                    <span className="text-[10px] text-stone-500 font-semibold">Wholesale Cost: ₹{totalCostStockValue.toLocaleString("en-IN")}</span>
                   </div>
                   <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
-                    <Sparkles className="w-5 h-5" />
+                    <TrendingUp className="w-5 h-5" />
                   </div>
                 </div>
               </div>
