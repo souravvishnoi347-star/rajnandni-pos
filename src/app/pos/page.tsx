@@ -398,7 +398,7 @@ export default function RajnandiniPosPage() {
                       id: it.id || "",
                       name: it.name || "Ethnic Item",
                       sku: it.sku || "",
-                      barcode: it.barcode || "8901001",
+                      barcode: it.barcode || "",
                       category: it.category || "sarees",
                       price: Number(it.price) || 0,
                       mrp: Number(it.mrp || it.price) || 0,
@@ -675,7 +675,7 @@ export default function RajnandiniPosPage() {
               id: it.id || "",
               name: it.name || "Ethnic Item",
               sku: it.sku || "",
-              barcode: it.barcode || "8901001",
+              barcode: it.barcode || "",
               category: it.category || "sarees",
               price: Number(it.price) || 0,
               mrp: Number(it.mrp || it.price) || 0,
@@ -1562,7 +1562,7 @@ export default function RajnandiniPosPage() {
           id: (it as any).id || `prod-${Date.now()}`,
           name: (it as any).name || "Item",
           sku: (it as any).sku || "",
-          barcode: (it as any).barcode || "8901001",
+          barcode: (it as any).barcode || "",
           category: (it as any).category || "sarees",
           price: it.price || 0,
           mrp: it.originalPrice || it.price || 0,
@@ -1964,76 +1964,98 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   // BESTSELLER & VELOCITY ANALYTICS ENGINE
   // =========================================================================
   const productVelocityAnalytics = useMemo(() => {
-    // Build sales map by matching product id, sku, barcode, and normalized name
-    type SalesRec = { qty: number; revenue: number; firstDate: number; lastDate: number; count: number };
-    const salesMap = new Map<string, SalesRec>();
+    const norm = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+    type ProductSalesStats = {
+      qty: number;
+      revenue: number;
+      firstDate: number;
+      lastDate: number;
+      count: number;
+    };
+
+    const statsMap = new Map<string, ProductSalesStats>();
+    const byId = new Set<string>();
+    const bySku = new Map<string, string>();
+    const byBarcode = new Map<string, string>();
+    const byName = new Map<string, string>();
+
+    products.filter(p => !p.isService).forEach(p => {
+      statsMap.set(p.id, {
+        qty: 0,
+        revenue: 0,
+        firstDate: 0,
+        lastDate: 0,
+        count: 0
+      });
+      byId.add(p.id);
+      if (p.sku && p.sku.trim()) {
+        bySku.set(p.sku.toUpperCase().trim(), p.id);
+      }
+      if (p.barcode && p.barcode.trim() && p.barcode.trim() !== "8901001" && p.barcode.trim() !== "NO-BARCODE") {
+        byBarcode.set(p.barcode.trim(), p.id);
+      }
+      const n = norm(p.name);
+      if (n.length >= 3) {
+        byName.set(n, p.id);
+      }
+    });
+
+    const now = Date.now();
 
     completedBills.forEach(bill => {
       const billDateStr = getBillDateString(bill);
       const billTime = billDateStr ? new Date(billDateStr).getTime() : 0;
+
       (bill.items || []).forEach(it => {
+        const itId = it.product?.id || (it as any).id || "";
+        const itSku = (it.product?.sku || (it as any).sku || "").toUpperCase().trim();
+        const rawBarcode = (it.product?.barcode || (it as any).barcode || "").trim();
+        const itBarcode = (rawBarcode === "8901001" || rawBarcode === "NO-BARCODE") ? "" : rawBarcode;
+        const itName = it.product?.name || (it as any).name || "";
+        const itNorm = norm(itName);
         const qty = Number(it.quantity) || 1;
-        const price = Number(it.negotiatedPrice ?? it.product?.price ?? 0);
-        const keys: string[] = [];
-        if (it.product?.id) keys.push(`id:${it.product.id}`);
-        if (it.product?.sku) keys.push(`sku:${it.product.sku.trim().toUpperCase()}`);
-        if (it.product?.barcode) keys.push(`barcode:${it.product.barcode.trim()}`);
-        if (it.product?.name) {
-          const norm = it.product.name.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-          if (norm.length > 2) keys.push(`name:${norm}`);
+        const price = Number(it.price || it.negotiatedPrice || it.product?.price || 0);
+
+        // Match priority: 1. Exact ID, 2. Exact SKU, 3. Exact Barcode, 4. Exact Name
+        let matchedProdId: string | null = null;
+        if (itId && byId.has(itId)) {
+          matchedProdId = itId;
+        } else if (itSku && bySku.has(itSku)) {
+          matchedProdId = bySku.get(itSku)!;
+        } else if (itBarcode && byBarcode.has(itBarcode)) {
+          matchedProdId = byBarcode.get(itBarcode)!;
+        } else if (itNorm && byName.has(itNorm)) {
+          matchedProdId = byName.get(itNorm)!;
         }
-        keys.forEach(k => {
-          if (!salesMap.has(k)) {
-            salesMap.set(k, { qty: 0, revenue: 0, firstDate: billTime || Date.now(), lastDate: billTime || Date.now(), count: 0 });
-          }
-          const curr = salesMap.get(k)!;
-          curr.qty += qty;
-          curr.revenue += qty * price;
-          curr.count += 1;
+
+        if (matchedProdId && statsMap.has(matchedProdId)) {
+          const st = statsMap.get(matchedProdId)!;
+          st.qty += qty;
+          st.revenue += qty * price;
+          st.count += 1;
           if (billTime > 0) {
-            if (billTime < curr.firstDate) curr.firstDate = billTime;
-            if (billTime > curr.lastDate) curr.lastDate = billTime;
+            if (st.firstDate === 0 || billTime < st.firstDate) st.firstDate = billTime;
+            if (billTime > st.lastDate) st.lastDate = billTime;
           }
-        });
+        }
       });
     });
 
-    const now = Date.now();
     return products.filter(p => !p.isService).map(p => {
-      const keys: string[] = [];
-      if (p.id) keys.push(`id:${p.id}`);
-      if (p.sku) keys.push(`sku:${p.sku.trim().toUpperCase()}`);
-      if (p.barcode) keys.push(`barcode:${p.barcode.trim()}`);
-      const norm = p.name.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-      if (norm.length > 2) keys.push(`name:${norm}`);
-
-      let totalQtySold = 0;
-      let totalRevenue = 0;
-      let firstDate = now;
-      let lastDate = 0;
-      let billCount = 0;
-
-      const matched = new Set<SalesRec>();
-      for (const k of keys) {
-        const rec = salesMap.get(k);
-        if (rec && !matched.has(rec)) {
-          matched.add(rec);
-          if (rec.qty > totalQtySold) {
-            totalQtySold = rec.qty;
-            totalRevenue = rec.revenue;
-            firstDate = rec.firstDate;
-            lastDate = rec.lastDate;
-            billCount = rec.count;
-          }
-        }
-      }
+      const st = statsMap.get(p.id) || { qty: 0, revenue: 0, firstDate: 0, lastDate: 0, count: 0 };
+      const totalQtySold = st.qty;
+      const totalRevenue = st.revenue;
+      const firstDate = st.firstDate || now;
+      const lastDate = st.lastDate || now;
+      const billCount = st.count;
 
       const stock = Number(p.stock) || 0;
       const isOutOfStock = stock <= 0;
       const isCritical = stock > 0 && stock <= 3;
 
       let daysSpan = 1;
-      if (totalQtySold > 0 && lastDate > 0) {
+      if (totalQtySold > 0 && st.lastDate > 0) {
         daysSpan = Math.max(1, Math.round((Math.max(lastDate, now) - firstDate) / (1000 * 60 * 60 * 24)));
       }
       const unitsPerDay = totalQtySold > 0 ? Number((totalQtySold / daysSpan).toFixed(2)) : 0;
