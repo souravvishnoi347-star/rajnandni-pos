@@ -286,10 +286,9 @@ export default function RajnandiniPosPage() {
       }
       setAuthChecked(true);
 
-      // Automatic Cache Invalidation: if user's browser has old v3/v4 cache with 6,793 pcs, clear it so fresh live stock (6,416 pcs) loads
+      // Safe Non-Destructive Cache Loading: Never remove products upfront so UI never flashes empty/zero
       const currentVersion = localStorage.getItem("rajnandni_data_version");
       if (currentVersion !== INVENTORY_DATA_VERSION) {
-        localStorage.removeItem("rajnandni_products");
         localStorage.setItem("rajnandni_data_version", INVENTORY_DATA_VERSION);
       }
 

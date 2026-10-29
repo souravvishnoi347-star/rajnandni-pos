@@ -6,4 +6,5 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 Bills/
+offline_bills_vault/
 *.pdf

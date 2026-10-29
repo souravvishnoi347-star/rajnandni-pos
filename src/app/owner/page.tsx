@@ -48,6 +48,7 @@ import {
   Pencil,
   UserCheck,
   UserX,
+  Download,
 } from "lucide-react";
 import {
   getCurrentOwnerOtp,
@@ -62,7 +63,7 @@ import {
   OWNER_NAME,
 } from "@/lib/ownerSecurity";
 import { ProductItem, CompletedBill, ProductCategory } from "@/types/pos";
-import { SupabaseService } from "@/lib/supabaseClient";
+import { SupabaseService, supabase } from "@/lib/supabaseClient";
 import {
   StaffExpenseService,
   StoreExpense,
@@ -137,6 +138,7 @@ export default function MobileOwnerApp() {
   const [stockStatusFilter, setStockStatusFilter] = useState<"all" | "out" | "low" | "good">("all");
   const [billsSearch, setBillsSearch] = useState<string>("");
   const [billsPaymentFilter, setBillsPaymentFilter] = useState<string>("all");
+  const [liveSaleToast, setLiveSaleToast] = useState<{ billNo: string; customer: string; total: number; time: string } | null>(null);
 
   // Staff Section Sub-tab: 'expenses' | 'advances' | 'attendance' | 'members'
   const [staffSubTab, setStaffSubTab] = useState<"expenses" | "advances" | "attendance" | "members">("expenses");
@@ -302,9 +304,149 @@ export default function MobileOwnerApp() {
       const interval = setInterval(() => {
         loadAllData(false);
       }, 15000);
-      return () => clearInterval(interval);
+
+      // Realtime listener for instant incoming bills from Haridwar Boutique
+      let channel: any = null;
+      if (supabase) {
+        channel = supabase
+          .channel("owner_live_sales_stream")
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "bills" },
+            (payload) => {
+              const newRow = payload.new;
+              if (newRow) {
+                const mappedNewBill: CompletedBill = {
+                  id: newRow.id,
+                  billNo: newRow.invoice_number,
+                  customer: {
+                    name: newRow.customer_name || "Walk-in Guest",
+                    phone: newRow.customer_phone || "NA",
+                    notes: "",
+                  },
+                  items: Array.isArray(newRow.items)
+                    ? newRow.items.map((it: any) => ({
+                        product: {
+                          id: it.id || "",
+                          name: it.name || "Ethnic Item",
+                          sku: it.sku || "",
+                          barcode: it.barcode || "",
+                          category: it.category || "sarees",
+                          price: Number(it.price) || 0,
+                          mrp: Number(it.mrp || it.price) || 0,
+                          purchaseCost: Number(it.purchaseCost || it.purchase_cost || 0),
+                          stock: 1,
+                        },
+                        quantity: it.quantity || 1,
+                        price: Number(it.price) || 0,
+                        customDiscount: 0,
+                      }))
+                    : [],
+                  subtotal: Number(newRow.subtotal) || 0,
+                  discount: Number(newRow.discount) || 0,
+                  taxGst: Number(newRow.tax) || 0,
+                  grandTotal: Number(newRow.total) || 0,
+                  paidAmount: Number(newRow.total) || 0,
+                  paymentMode: (newRow.payment_mode || "upi").toLowerCase() as any,
+                  createdAt: new Date(newRow.created_at).toLocaleString("en-IN", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }),
+                  rawDate: newRow.created_at,
+                };
+
+                setBills((prev) => [mappedNewBill, ...prev.filter((b) => b.billNo !== mappedNewBill.billNo)]);
+                setLiveSaleToast({
+                  billNo: mappedNewBill.billNo,
+                  customer: mappedNewBill.customer.name,
+                  total: mappedNewBill.grandTotal,
+                  time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+                });
+              }
+            }
+          )
+          .subscribe();
+      }
+
+      return () => {
+        clearInterval(interval);
+        if (channel && supabase) supabase.removeChannel(channel);
+      };
     }
   }, [isAuthenticated, ownerAttendanceDate]);
+
+  // Export all bills to Laptop as CSV / Excel
+  const handleExportBillsCsv = () => {
+    if (!bills || bills.length === 0) {
+      alert("No bills available to export.");
+      return;
+    }
+    const rows: string[][] = [];
+    rows.push([
+      "Invoice Number",
+      "Date & Time",
+      "Customer Name",
+      "Customer Phone",
+      "Payment Mode",
+      "Items Count",
+      "Items Breakdown",
+      "Subtotal (Rs)",
+      "Discount (Rs)",
+      "Grand Total (Rs)"
+    ]);
+
+    bills.forEach(b => {
+      const items = Array.isArray(b.items) ? b.items : [];
+      const itemsSummary = items
+        .map(it => `${it.product?.name || 'Item'} (${it.quantity || 1} pcs @ Rs ${it.price})`)
+        .join("; ");
+      const itemsCount = items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+
+      rows.push([
+        b.billNo,
+        b.rawDate || b.createdAt,
+        b.customer?.name || "Walk-in Guest",
+        b.customer?.phone || "NA",
+        b.paymentMode || "UPI",
+        String(itemsCount),
+        itemsSummary,
+        String(b.subtotal || b.grandTotal),
+        String(b.discount || 0),
+        String(b.grandTotal)
+      ]);
+    });
+
+    const csvContent = rows
+      .map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `RAJNANDINI_ALL_BILLS_MASTER_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export all bills to Laptop as Raw JSON Vault
+  const handleExportBillsJson = () => {
+    if (!bills || bills.length === 0) {
+      alert("No bills available to export.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(bills, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `RAJNANDINI_BILLS_VAULT_BACKUP_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // Handle PIN Unlock
   const handlePinSubmit = (e?: React.FormEvent) => {
@@ -842,6 +984,15 @@ export default function MobileOwnerApp() {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleExportBillsCsv}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-xs active:scale-95 transition cursor-pointer"
+              title="Download all customer bills as Excel/CSV to your laptop"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Offline Bills Excel</span>
+            </button>
+
+            <button
               onClick={() => loadAllData(true)}
               disabled={isRefreshing}
               className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 active:scale-95 transition shadow-sm"
@@ -859,6 +1010,22 @@ export default function MobileOwnerApp() {
             </button>
           </div>
         </div>
+
+        {/* Realtime Live Incoming Sale Toast */}
+        {liveSaleToast && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl shadow-lg flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping" />
+              <div>
+                <p className="text-xs font-black">🔔 New Sale in Haridwar! Invoice: {liveSaleToast.billNo}</p>
+                <p className="text-[10px] text-emerald-100">Customer: {liveSaleToast.customer} • ₹{liveSaleToast.total.toLocaleString("en-IN")} at {liveSaleToast.time}</p>
+              </div>
+            </div>
+            <button onClick={() => setLiveSaleToast(null)} className="text-white/80 hover:text-white p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Date Filter Chips for Sales View */}
         {activeNav === "sales" && (
@@ -1386,6 +1553,40 @@ export default function MobileOwnerApp() {
             ========================================================================= */}
         {activeNav === "bills" && (
           <div className="space-y-4">
+            {/* Offline Laptop Archive Action Card */}
+            <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 text-white p-4 rounded-3xl border border-blue-500/30 shadow-md space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Haridwar Boutique Live Stream</span>
+                  <p className="text-sm font-black text-white">Laptop Offline Bills Vault ({bills.length} Bills Synced)</p>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-[10px] font-bold text-emerald-300">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Realtime Stream Active</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Haridwar boutique mein cashier jab bhi bill banata hai, woh instant aapke laptop par sync hota hai. Niche click karke offline backup save karein:
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={handleExportBillsCsv}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Master Excel (CSV)</span>
+                </button>
+                <button
+                  onClick={handleExportBillsJson}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+                  title="Download Raw JSON data file"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>JSON Vault</span>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2.5">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />

@@ -6,7 +6,8 @@
     "dev": "next dev --port 3005",
     "build": "next build",
     "start": "next start --port 3005",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-laptop": "node scripts/live_laptop_sync.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
