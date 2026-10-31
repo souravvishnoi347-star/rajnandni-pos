@@ -1484,126 +1484,6 @@
     "updated_at": "2026-09-28T15:51:48.596+00:00"
   },
   {
-    "id": "prod-par-1",
-    "sku": "SRV-HD-BR01",
-    "barcode": "9901001",
-    "name": "HD Bridal Airbrush Makeup & Hair Styling (Pre-Bridal Included)",
-    "category": "parlour",
-    "price": 8500,
-    "mrp": 12000,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Single Session"
-    ],
-    "colors": null,
-    "badge": "Most Popular",
-    "is_service": true,
-    "service_duration": "2.5 Hours",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-2",
-    "sku": "SRV-PTY-MK02",
-    "barcode": "9901002",
-    "name": "Celebrity Party Makeup with Eye Lashes & Saree Draping",
-    "category": "parlour",
-    "price": 1800,
-    "mrp": 2500,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Single Session"
-    ],
-    "colors": null,
-    "badge": "Parlour",
-    "is_service": true,
-    "service_duration": "60 Mins",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-3",
-    "sku": "SRV-SPA-HR03",
-    "barcode": "9901003",
-    "name": "L'Oreal Mythic Oil Hair Spa & Deep Conditioning",
-    "category": "parlour",
-    "price": 950,
-    "mrp": 1400,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Service Session"
-    ],
-    "colors": null,
-    "badge": "Parlour",
-    "is_service": true,
-    "service_duration": "45 Mins",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-4",
-    "sku": "SRV-MHN-BD04",
-    "barcode": "9901004",
-    "name": "Full Hand Designer Bridal Mehendi (Organic Rajasthani Cone)",
-    "category": "parlour",
-    "price": 2500,
-    "mrp": 3500,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Service Session"
-    ],
-    "colors": null,
-    "badge": "Parlour",
-    "is_service": true,
-    "service_duration": "3 Hours",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-5",
-    "sku": "SRV-WAX-RC05",
-    "barcode": "9901005",
-    "name": "Full Body Rica White Chocolate Waxing & Threading",
-    "category": "parlour",
-    "price": 1200,
-    "mrp": 1600,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Service Session"
-    ],
-    "colors": null,
-    "badge": "Parlour",
-    "is_service": true,
-    "service_duration": "50 Mins",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-6",
-    "sku": "SRV-BLS-ST06",
-    "barcode": "9901006",
-    "name": "Designer Blouse Stitching (Padded / Princess Cut / Dori)",
-    "category": "parlour",
-    "price": 650,
-    "mrp": 850,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Standard Stitch"
-    ],
-    "colors": null,
-    "badge": "Boutique Tailor",
-    "is_service": true,
-    "service_duration": "Tailoring Delivery",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
     "id": "prod-bill-3",
     "sku": "RJ-SAR-003",
     "barcode": "8901003",
@@ -2407,26 +2287,6 @@
     "is_service": false,
     "service_duration": null,
     "created_at": "2026-09-28T09:05:47.750475+00:00",
-    "updated_at": "2026-09-28T15:51:48.596+00:00"
-  },
-  {
-    "id": "prod-par-7",
-    "sku": "SRV-FL-PCO07",
-    "barcode": "9901007",
-    "name": "Saree Fall & Interlock Pico Finishing",
-    "category": "parlour",
-    "price": 120,
-    "mrp": 150,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Service"
-    ],
-    "colors": null,
-    "badge": "Finishing",
-    "is_service": true,
-    "service_duration": "30 Mins",
-    "created_at": "2026-09-28T09:05:49.575969+00:00",
     "updated_at": "2026-09-28T15:51:48.596+00:00"
   },
   {
@@ -17922,26 +17782,6 @@
     "service_duration": null,
     "created_at": "2026-10-06T07:49:44.918027+00:00",
     "updated_at": "2026-10-16T11:32:41.347868+00:00"
-  },
-  {
-    "id": "manual-1792225948451",
-    "sku": "MANUAL-8451",
-    "barcode": "NO-BARCODE",
-    "name": "HD Beauity",
-    "category": "sarees",
-    "price": 199,
-    "mrp": 199,
-    "purchase_cost": 0,
-    "stock": 999,
-    "sizes": [
-      "Standard"
-    ],
-    "colors": null,
-    "badge": null,
-    "is_service": false,
-    "service_duration": null,
-    "created_at": "2026-10-17T08:32:27.980721+00:00",
-    "updated_at": "2026-10-17T08:32:28.46+00:00"
   },
   {
     "id": "prod-1792596782274",

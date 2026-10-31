@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, Share2, ArrowLeft } from "lucide-react";
 import { CompletedBill } from "@/types/pos";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 
@@ -41,12 +41,8 @@ function InvoiceContent() {
 
     // 2. Fallback to Supabase cloud database
     const fetchInvoice = async () => {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (supabaseUrl && supabaseKey) {
+      if (supabase) {
         try {
-          const supabase = createClient(supabaseUrl, supabaseKey);
           const { data, error } = await supabase
             .from("bills")
             .select("*")

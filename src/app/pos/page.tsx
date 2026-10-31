@@ -395,20 +395,30 @@ export default function RajnandiniPosPage() {
 
             // Authoritative remote catalog: Supabase is single source of truth for stock, cost & price
             const remoteSkuSet = new Set(cleanRemote.map((r: ProductItem) => (r.sku || "").toUpperCase().trim()).filter(Boolean));
-            // Keep only user-added local custom items that have not yet been synced to Supabase
-            const unsyncedCustom = filterPurgedProducts(
-              latestCustom.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
-            );
 
-            // Authoritative merge: local custom items first + clean remote master products
-            const finalMerged = [...unsyncedCustom, ...cleanRemote];
+            // CRITICAL LOSSLESS SAFEGUARD: Never drop any item that exists locally, in custom items, or in INITIAL_PRODUCTS
+            const localPool = [...latestCustom, ...latestLocal, ...INITIAL_PRODUCTS];
+            const missingFromRemote = filterPurgedProducts(
+              localPool.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
+            );
+            // Deduplicate missing items by SKU
+            const uniqueMissing = mergeProductLists([], missingFromRemote);
+
+            // Authoritative merge: clean remote items + any local items not yet in cloud
+            const finalMerged = mergeProductLists(cleanRemote, uniqueMissing);
             setProducts(finalMerged);
             localStorage.setItem("rajnandni_products", JSON.stringify(finalMerged));
-            localStorage.setItem("rajnandni_custom_items", JSON.stringify(unsyncedCustom));
+
+            // Preserve all custom items that aren't in INITIAL_PRODUCTS
+            const initialSkus = new Set(INITIAL_PRODUCTS.map(ip => (ip.sku || "").toUpperCase().trim()));
+            const allCustomItems = finalMerged.filter(p => p && p.sku && !initialSkus.has(p.sku.toUpperCase().trim()));
+            localStorage.setItem("rajnandni_custom_items", JSON.stringify(allCustomItems));
 
             // Push any legitimate local items that are missing in Supabase up to the cloud automatically
-            if (unsyncedCustom.length > 0) {
-              SupabaseService.syncInitialProducts(unsyncedCustom).catch(() => {});
+            if (uniqueMissing.length > 0) {
+              SupabaseService.syncInitialProducts(uniqueMissing).catch(err => {
+                console.warn("Supabase auto-sync missing items error:", err);
+              });
             }
             setSyncStatusText(`Synced (${finalMerged.length} items safe)`);
           } else {
@@ -651,13 +661,24 @@ export default function RajnandiniPosPage() {
         const remoteSkuSet = new Set(cleanRemote.map((r: ProductItem) => (r.sku || "").toUpperCase().trim()).filter(Boolean));
         const savedCustomRaw = localStorage.getItem("rajnandni_custom_items");
         const savedCustom: ProductItem[] = savedCustomRaw ? JSON.parse(savedCustomRaw) : [];
-        const unsyncedCustom = filterPurgedProducts(
-          savedCustom.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
+        const savedProdsRaw = localStorage.getItem("rajnandni_products");
+        const savedProds: ProductItem[] = savedProdsRaw ? JSON.parse(savedProdsRaw) : [];
+
+        const localPool = [...savedCustom, ...savedProds, ...INITIAL_PRODUCTS];
+        const missingFromRemote = filterPurgedProducts(
+          localPool.filter(p => p && p.sku && !remoteSkuSet.has(p.sku.toUpperCase().trim()))
         );
-        const finalMerged = [...unsyncedCustom, ...cleanRemote];
+        const uniqueMissing = mergeProductLists([], missingFromRemote);
+        const finalMerged = mergeProductLists(cleanRemote, uniqueMissing);
+
         setProducts(finalMerged);
         saveProductsLocally(finalMerged);
-        localStorage.setItem("rajnandni_custom_items", JSON.stringify(unsyncedCustom));
+
+        if (uniqueMissing.length > 0) {
+          await SupabaseService.syncInitialProducts(uniqueMissing).catch(err => {
+            console.warn("Supabase manual sync missing items error:", err);
+          });
+        }
         setSyncStatusText(`Synced (${finalMerged.length} items live)`);
         const totalPcs = finalMerged.filter(p => !p.isService).reduce((s, p) => s + (Number(p.stock) || 0), 0);
         alert(`✅ Live stock synchronized from Supabase!\n\n• Total Genuine Designs: ${finalMerged.length}\n• Current Showroom Stock: ${totalPcs.toLocaleString("en-IN")} pcs\n\nAll cache updated successfully.`);
