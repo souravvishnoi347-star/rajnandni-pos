@@ -171,6 +171,16 @@ export default function RajnandiniPosPage() {
   const [issQty, setIssQty] = useState<number>(1);
   const [issPrice, setIssPrice] = useState<string>("");
   const [issNote, setIssNote] = useState<string>("");
+
+  const issFilteredProducts = useMemo(() => {
+    if (!issProductSearch.trim()) return products.slice(0, 12);
+    const q = issProductSearch.toLowerCase().trim();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q))
+    ).slice(0, 20);
+  }, [products, issProductSearch]);
   
   // Alteration in cart
   const [alterationEnabled, setAlterationEnabled] = useState<boolean>(false);
@@ -1035,6 +1045,12 @@ export default function RajnandiniPosPage() {
         ? "Price / Rate Revision"
         : ownerAuthDetails.actionType === "product_delete"
         ? "Delete Product"
+        : ownerAuthDetails.actionType === "bill_edit"
+        ? "Modify Completed Bill"
+        : ownerAuthDetails.actionType === "bill_delete"
+        ? "Permanently Delete Bill"
+        : ownerAuthDetails.actionType === "bill_amount_change"
+        ? "Change Bill Total Amount"
         : "Product Edit",
       productName: ownerAuthDetails.productName,
       oldValue: ownerAuthDetails.oldValue,
@@ -1872,7 +1888,6 @@ export default function RajnandiniPosPage() {
     });
     setShowOwnerAuthModal(true);
   };
-  };
 
   // Trigger Thermal Slip Print
   const handlePrintThermal = () => {
@@ -2603,6 +2618,124 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       console.error("Exchange completion error:", err);
       alert("Failed to finalize exchange: " + (err?.message || String(err)));
     }
+  };
+
+  // =========================================================
+  // STAFF KHATA, SALARY DEDUCTIONS & CASH/UPI DEPOSITS HELPERS
+  // =========================================================
+  const getStaffSummary = (staffId: string, baseSalary: number) => {
+    const purchases = staffPurchases.filter(p => p.staffId === staffId);
+    const deposits = staffDeposits.filter(d => d.staffId === staffId);
+    const advances = staffAdvances.filter(a => a.staffId === staffId);
+
+    const garmentTotal = purchases.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+    const depositTotal = deposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+    const advanceTotal = advances.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+
+    const netDeduction = (garmentTotal + advanceTotal) - depositTotal;
+    const netPayable = Math.max(0, baseSalary - netDeduction);
+
+    return {
+      purchases,
+      deposits,
+      advances,
+      garmentTotal,
+      depositTotal,
+      advanceTotal,
+      netDeduction,
+      netPayable,
+    };
+  };
+
+  const handleSaveStaffDeposit = async () => {
+    const num = Number(depAmount);
+    if (isNaN(num) || num <= 0) {
+      alert("Please enter a valid deposit amount in ₹");
+      return;
+    }
+    const staff = staffMembers.find(s => s.id === depStaffId);
+    const staffName = staff?.name || "Staff Member";
+
+    const rec = await StaffExpenseService.recordStaffDeposit({
+      staffId: depStaffId,
+      staffName,
+      amount: num,
+      paymentMode: depPaymentMode,
+      receivedBy: localStorage.getItem("rajnandni_active_staff_name") || "Galla Cashier",
+      note: depNote.trim(),
+    });
+
+    if (rec) {
+      setStaffDeposits(prev => [rec, ...prev.filter(d => d.id !== rec.id)]);
+      setShowStaffDepositModal(false);
+      setDepAmount("");
+      setDepNote("");
+      alert(`✅ Deposit of ₹${num.toLocaleString("en-IN")} recorded for ${staffName}! Net salary deduction updated.`);
+    }
+  };
+
+  const handleDeleteStaffDeposit = async (dep: StaffDepositRecord) => {
+    if (!confirm(`Delete deposit of ₹${dep.amount.toLocaleString("en-IN")} received from ${dep.staffName}?`)) return;
+    await StaffExpenseService.deleteStaffDeposit(dep.id, dep.tokenNumber);
+    setStaffDeposits(prev => prev.filter(d => d.id !== dep.id && (!dep.tokenNumber || d.tokenNumber !== dep.tokenNumber)));
+  };
+
+  const handleSaveDirectIssue = async () => {
+    if (!issSelectedProduct) {
+      alert("Please select a garment from the catalog");
+      return;
+    }
+    const qty = Math.max(1, Number(issQty) || 1);
+    const prc = Number(issPrice) > 0 ? Number(issPrice) : issSelectedProduct.price;
+    const total = qty * prc;
+
+    const staff = staffMembers.find(s => s.id === issStaffId);
+    const staffName = staff?.name || "Staff Member";
+
+    // Deduct local product stock
+    const updatedProducts = products.map(p => {
+      if (p.id === issSelectedProduct.id) {
+        return { ...p, stock: Math.max(0, p.stock - qty) };
+      }
+      return p;
+    });
+    saveProductsLocally(updatedProducts);
+
+    if (isSupabaseConfigured()) {
+      const newStock = Math.max(0, issSelectedProduct.stock - qty);
+      SupabaseService.updateProductStock(issSelectedProduct.id, newStock).catch(err => {
+        console.warn("Direct issue stock update warning:", err);
+      });
+    }
+
+    const rec = await StaffExpenseService.recordStaffPurchase({
+      staffId: issStaffId,
+      staffName,
+      productId: issSelectedProduct.id,
+      productName: issSelectedProduct.name,
+      sku: issSelectedProduct.sku,
+      quantity: qty,
+      price: prc,
+      totalAmount: total,
+      note: issNote.trim() || "Direct Garment Issue (Salary Cut)",
+    });
+
+    if (rec) {
+      setStaffPurchases(prev => [rec, ...prev.filter(p => p.id !== rec.id)]);
+      setShowStaffIssueModal(false);
+      setIssSelectedProduct(null);
+      setIssProductSearch("");
+      setIssQty(1);
+      setIssPrice("");
+      setIssNote("");
+      alert(`✅ ${issSelectedProduct.name} (₹${total.toLocaleString("en-IN")}) issued to ${staffName}! Salary deduction booked.`);
+    }
+  };
+
+  const handleDeleteStaffPurchase = async (pur: StaffProductPurchase) => {
+    if (!confirm(`Remove garment purchase "${pur.productName}" (₹${pur.totalAmount.toLocaleString("en-IN")}) from ${pur.staffName}'s salary deduction?`)) return;
+    await StaffExpenseService.deleteStaffPurchase(pur.id, pur.tokenNumber);
+    setStaffPurchases(prev => prev.filter(p => p.id !== pur.id && (!pur.tokenNumber || p.tokenNumber !== pur.tokenNumber)));
   };
 
   // Advanced Filtered Completed Bills for Sales Report Tab
@@ -3994,7 +4127,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider">
                     Tender Allocation (Payment Mode)
                   </span>
-                  <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs font-mono">
                     <button
                       type="button"
                       onClick={() => setPaymentMode("cash")}
@@ -4048,7 +4181,55 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         {paymentMode === "upi" ? `₹${grandTotal.toLocaleString("en-IN")}` : "₹0"}
                       </span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("staff_salary")}
+                      className={`p-2 rounded-xl border flex flex-col text-left transition cursor-pointer ${
+                        paymentMode === "staff_salary"
+                          ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
+                          : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
+                      }`}
+                      title="Staff taking garment - deduct from monthly salary"
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-sans font-medium">Salary Cut</span>
+                        <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+                      </div>
+                      <span className="font-black text-xs mt-1">
+                        {paymentMode === "staff_salary" ? `₹${grandTotal.toLocaleString("en-IN")}` : "₹0"}
+                      </span>
+                    </button>
                   </div>
+
+                  {/* Staff Selection Dropdown when Staff Salary Cut is selected */}
+                  {paymentMode === "staff_salary" && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5 mt-1.5 animate-fadeIn">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-amber-950 flex items-center gap-1">
+                          <UserCheck className="w-3.5 h-3.5 text-amber-800" />
+                          Select Staff Taking Garment:
+                        </span>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100 px-1.5 py-0.5 rounded">
+                          Salary Deduction
+                        </span>
+                      </div>
+                      <select
+                        value={selectedStaffBuyerId}
+                        onChange={(e) => setSelectedStaffBuyerId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-stone-900 focus:outline-hidden focus:border-amber-600"
+                      >
+                        {staffMembers.filter(s => s.isActive).map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.role}) - Base Salary: ₹{s.monthlySalary.toLocaleString("en-IN")}/mo
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10.5px] text-amber-900/90 leading-tight">
+                        💡 ₹{grandTotal.toLocaleString("en-IN")} will be cut from {staffMembers.find(s => s.id === selectedStaffBuyerId)?.name || "staff"}&apos;s salary and tracked in <strong>Staff Khata</strong>.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -6498,6 +6679,697 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           </div>
         )}
 
+        {/* =========================================================
+            STAFF KHATA & SALARY DEDUCTIONS TAB
+            ========================================================= */}
+        {activeTab === "staff_ledger" && (
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-[#fef8f7]">
+            <div className="max-w-[1600px] mx-auto space-y-6">
+              {/* Header Title & Action CTAs */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-xs">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-[#5a1e2d] text-white">
+                      <UserCheck className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <h2 className="font-serif font-black text-xl text-[#3f0819] uppercase tracking-wide">
+                        Staff Khata &amp; Monthly Salary Deductions
+                      </h2>
+                      <p className="text-xs text-[#534345] font-medium">
+                        Showroom staff taking products &amp; garments • Auto salary deductions • Cash into counter galla &amp; Online UPI repayments
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setDepStaffId(staffMembers[0]?.id || "staff-1");
+                      setDepAmount("");
+                      setDepNote("");
+                      setShowStaffDepositModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Banknote className="w-4 h-4 text-emerald-200" />
+                    <span>+ Record Staff Deposit (Cash / UPI)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIssStaffId(staffMembers[0]?.id || "staff-1");
+                      setIssSelectedProduct(null);
+                      setIssProductSearch("");
+                      setIssQty(1);
+                      setIssPrice("");
+                      setIssNote("");
+                      setShowStaffIssueModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#5a1e2d] hover:bg-[#3f0819] text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-amber-300" />
+                    <span>+ Issue Garment (Salary Cut)</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      const sp = await StaffExpenseService.fetchStaffPurchases();
+                      if (sp) setStaffPurchases(sp);
+                      const sd = await StaffExpenseService.fetchStaffDeposits();
+                      if (sd) setStaffDeposits(sd);
+                      const sa = await StaffExpenseService.fetchAdvances();
+                      if (sa) setStaffAdvances(sa);
+                      alert("✅ Staff Khata data refreshed from Cloud & Local cache!");
+                    }}
+                    className="p-2.5 rounded-xl bg-white border border-[#ede7e6] hover:bg-[#f8f2f2] text-[#534345] transition cursor-pointer"
+                    title="Refresh Staff Data"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* KPI Metrics Summary Grid */}
+              {(() => {
+                const totalGarmentsAmount = staffPurchases.reduce((s, p) => s + (Number(p.totalAmount) || 0), 0);
+                const totalDepositsAmount = staffDeposits.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+                const totalAdvancesAmount = staffAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+                const netPendingDeductions = (totalGarmentsAmount + totalAdvancesAmount) - totalDepositsAmount;
+                const totalBaseSalaries = staffMembers.filter(s => s.isActive).reduce((s, m) => s + m.monthlySalary, 0);
+
+                return (
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+                    <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-2xs">
+                      <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider block">Total Active Staff</span>
+                      <span className="text-xl font-black text-[#1d1b1b] mt-1 block">
+                        {staffMembers.filter(s => s.isActive).length} Members
+                      </span>
+                      <span className="text-[10px] text-[#534345] mt-0.5 block">
+                        Base: ₹{totalBaseSalaries.toLocaleString("en-IN")}/mo
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-2xs">
+                      <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">Garments Taken (₹)</span>
+                      <span className="text-xl font-black text-amber-900 font-mono mt-1 block">
+                        ₹{totalGarmentsAmount.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-[#534345] mt-0.5 block">
+                        {staffPurchases.length} items logged
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/20 shadow-2xs">
+                      <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Cash / UPI Repaid</span>
+                      <span className="text-xl font-black text-emerald-700 font-mono mt-1 block">
+                        ₹{totalDepositsAmount.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-emerald-800/80 mt-0.5 block">
+                        {staffDeposits.length} deposits recorded
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-2xs">
+                      <span className="text-[10px] uppercase font-bold text-purple-800 tracking-wider block">Cash Advances</span>
+                      <span className="text-xl font-black text-purple-900 font-mono mt-1 block">
+                        ₹{totalAdvancesAmount.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-[#534345] mt-0.5 block">
+                        {staffAdvances.length} salary advances
+                      </span>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-[#5a1e2d] to-[#3f0819] text-white p-4 rounded-2xl shadow-sm col-span-2 lg:col-span-1">
+                      <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider block">Net Pending Deductions</span>
+                      <span className="text-xl font-black text-white font-mono mt-1 block">
+                        ₹{Math.max(0, netPendingDeductions).toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-amber-200/80 mt-0.5 block">
+                        To be cut across all payrolls
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Staff Member Cards with Individual Passbooks */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif font-bold text-base text-[#3f0819] uppercase tracking-wide">
+                    Showroom Staff Passbooks &amp; Net Salary Payable
+                  </h3>
+                  <span className="text-xs text-[#534345]">
+                    Click any staff card to expand itemized ledger &amp; repayment history
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {staffMembers.map((staff) => {
+                    const summary = getStaffSummary(staff.id, staff.monthlySalary);
+                    const isExpanded = expandedStaffId === staff.id;
+
+                    return (
+                      <div
+                        key={staff.id}
+                        className="bg-white rounded-2xl border border-[#ede7e6] shadow-xs overflow-hidden transition"
+                      >
+                        {/* Main Staff Header Row */}
+                        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gradient-to-r from-white via-[#fef8f7] to-white">
+                          <div className="flex items-start sm:items-center gap-3">
+                            <div className="w-11 h-11 rounded-2xl bg-[#5a1e2d] text-white font-black flex items-center justify-center text-base shrink-0 shadow-xs">
+                              {staff.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-stone-900 text-base">
+                                  {staff.name}
+                                </h4>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#fdc9af]/40 text-[#7c5641] border border-[#c99a82]/30">
+                                  {staff.role}
+                                </span>
+                                {!staff.isActive && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-gray-100 text-gray-500">
+                                    Inactive
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-[#534345] mt-1">
+                                <span>📞 {staff.phone}</span>
+                                <span>• Base Salary: <strong>₹{staff.monthlySalary.toLocaleString("en-IN")}/mo</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Financial Summary Badges */}
+                          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
+                            <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950">
+                              <span className="text-[10px] uppercase font-bold text-amber-800 block">Garments Taken</span>
+                              <span className="font-mono font-black text-sm">₹{summary.garmentTotal.toLocaleString("en-IN")}</span>
+                              <span className="text-[9.5px] text-amber-800 ml-1">({summary.purchases.length} pcs)</span>
+                            </div>
+
+                            <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950">
+                              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Repaid (Cash/UPI)</span>
+                              <span className="font-mono font-black text-sm">₹{summary.depositTotal.toLocaleString("en-IN")}</span>
+                            </div>
+
+                            {summary.advanceTotal > 0 && (
+                              <div className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-950">
+                                <span className="text-[10px] uppercase font-bold text-purple-800 block">Advance</span>
+                                <span className="font-mono font-black text-sm">₹{summary.advanceTotal.toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+
+                            <div className="px-3.5 py-1.5 rounded-xl bg-stone-900 text-white shadow-xs">
+                              <span className="text-[10px] uppercase font-bold text-amber-400 block">Net Salary Payable</span>
+                              <span className="font-mono font-black text-base text-white">₹{summary.netPayable.toLocaleString("en-IN")}</span>
+                            </div>
+
+                            {/* Actions on Staff Card */}
+                            <div className="flex items-center gap-1.5 ml-auto">
+                              <button
+                                onClick={() => {
+                                  setDepStaffId(staff.id);
+                                  setDepAmount("");
+                                  setDepNote("");
+                                  setShowStaffDepositModal(true);
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                title="Staff paid cash into galla or UPI"
+                              >
+                                <Banknote className="w-3.5 h-3.5" />
+                                <span>Repay</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setIssStaffId(staff.id);
+                                  setIssSelectedProduct(null);
+                                  setIssProductSearch("");
+                                  setIssQty(1);
+                                  setIssPrice("");
+                                  setIssNote("");
+                                  setShowStaffIssueModal(true);
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                title="Issue a garment directly to this staff member"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                                <span>+ Garment</span>
+                              </button>
+
+                              <button
+                                onClick={() => setExpandedStaffId(isExpanded ? null : staff.id)}
+                                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] border transition cursor-pointer flex items-center gap-1 ${
+                                  isExpanded
+                                    ? "bg-[#5a1e2d] text-white border-[#5a1e2d]"
+                                    : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+                                }`}
+                              >
+                                <span>{isExpanded ? "Hide Passbook ▲" : `Passbook (${summary.purchases.length + summary.deposits.length}) ▼`}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expandable Itemized Passbook */}
+                        {isExpanded && (
+                          <div className="border-t border-[#ede7e6] p-4 sm:p-5 bg-stone-50/60 space-y-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* 1. Garments Taken (Salary Cut) */}
+                              <div className="bg-white p-4 rounded-xl border border-amber-200/80 shadow-2xs space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950 uppercase tracking-wider">
+                                    <ShoppingBag className="w-4 h-4 text-amber-800" />
+                                    <span>Garments Taken ({summary.purchases.length})</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-xs text-amber-900">
+                                    Total: ₹{summary.garmentTotal.toLocaleString("en-IN")}
+                                  </span>
+                                </div>
+
+                                {summary.purchases.length === 0 ? (
+                                  <div className="p-4 text-center text-xs text-stone-400 italic bg-stone-50 rounded-lg">
+                                    No garments taken by {staff.name} this cycle.
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {summary.purchases.map((pur) => (
+                                      <div
+                                        key={pur.id}
+                                        className="p-2.5 rounded-lg bg-amber-50/40 border border-amber-100 flex items-center justify-between text-xs gap-2"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-stone-900 truncate">
+                                              {pur.productName}
+                                            </span>
+                                            <span className="text-[10px] font-mono text-stone-500">
+                                              {pur.sku}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-[10.5px] text-stone-600 mt-0.5">
+                                            <span>Qty: <strong>{pur.quantity}</strong></span>
+                                            <span>• @ ₹{pur.price.toLocaleString("en-IN")}</span>
+                                            <span>• {pur.date}</span>
+                                            {pur.billNo && (
+                                              <span className="text-amber-800 font-mono">Bill #{pur.billNo}</span>
+                                            )}
+                                          </div>
+                                          {pur.note && (
+                                            <p className="text-[10px] text-stone-500 italic mt-0.5">
+                                              Note: {pur.note}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="text-right flex items-center gap-2">
+                                          <span className="font-mono font-black text-stone-900 text-xs">
+                                            ₹{pur.totalAmount.toLocaleString("en-IN")}
+                                          </span>
+                                          <button
+                                            onClick={() => handleDeleteStaffPurchase(pur)}
+                                            className="p-1 text-stone-400 hover:text-rose-600 rounded cursor-pointer transition"
+                                            title="Delete this purchase entry"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 2. Repayments / Deposits Made (Cash or UPI) */}
+                              <div className="bg-white p-4 rounded-xl border border-emerald-200/80 shadow-2xs space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                                    <Banknote className="w-4 h-4 text-emerald-700" />
+                                    <span>Cash &amp; UPI Repayments ({summary.deposits.length})</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-xs text-emerald-800">
+                                    Total: ₹{summary.depositTotal.toLocaleString("en-IN")}
+                                  </span>
+                                </div>
+
+                                {summary.deposits.length === 0 ? (
+                                  <div className="p-4 text-center text-xs text-stone-400 italic bg-stone-50 rounded-lg">
+                                    No repayments/deposits recorded yet.
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {summary.deposits.map((dep) => (
+                                      <div
+                                        key={dep.id}
+                                        className="p-2.5 rounded-lg bg-emerald-50/40 border border-emerald-100 flex items-center justify-between text-xs gap-2"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-emerald-950">
+                                              ₹{dep.amount.toLocaleString("en-IN")}
+                                            </span>
+                                            <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                                              {dep.paymentMode === "cash_galla" ? "Cash (In Galla)" : "Online UPI"}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-[10.5px] text-stone-600 mt-0.5">
+                                            <span>Date: {dep.date}</span>
+                                            <span>• Received By: <strong>{dep.receivedBy}</strong></span>
+                                          </div>
+                                          {dep.note && (
+                                            <p className="text-[10px] text-stone-500 italic mt-0.5">
+                                              Note: {dep.note}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="text-right">
+                                          <button
+                                            onClick={() => handleDeleteStaffDeposit(dep)}
+                                            className="p-1 text-stone-400 hover:text-rose-600 rounded cursor-pointer transition"
+                                            title="Delete this deposit entry"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* =========================================================
+          MODAL: RECORD STAFF REPAYMENT / DEPOSIT (CASH / UPI)
+          ========================================================= */}
+      {showStaffDepositModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-stone-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-emerald-700 text-white">
+                  <Banknote className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Record Staff Deposit</h3>
+                  <span className="text-xs text-stone-500">Repay garment purchase or salary deduction</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStaffDepositModal(false)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Showroom Staff Member *
+                </label>
+                <select
+                  value={depStaffId}
+                  onChange={(e) => setDepStaffId(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-semibold focus:outline-hidden focus:border-emerald-600"
+                >
+                  {staffMembers.filter(s => s.isActive).map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.role}) - Base Salary: ₹{s.monthlySalary.toLocaleString("en-IN")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Deposit Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={depAmount}
+                  onChange={(e) => setDepAmount(e.target.value)}
+                  placeholder="e.g. 1500"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono font-bold text-base focus:outline-hidden focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Payment Mode *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDepPaymentMode("cash_galla")}
+                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition ${
+                      depPaymentMode === "cash_galla"
+                        ? "bg-emerald-700 text-white border-emerald-700 font-bold"
+                        : "bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100"
+                    }`}
+                  >
+                    <span>Cash (In Galla)</span>
+                    <Banknote className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDepPaymentMode("online_upi")}
+                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition ${
+                      depPaymentMode === "online_upi"
+                        ? "bg-emerald-700 text-white border-emerald-700 font-bold"
+                        : "bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100"
+                    }`}
+                  >
+                    <span>Online UPI</span>
+                    <QrCode className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Notes / Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={depNote}
+                  onChange={(e) => setDepNote(e.target.value)}
+                  placeholder="e.g. Repayment for Saree taken on Diwali"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-emerald-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setShowStaffDepositModal(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStaffDeposit}
+                className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition"
+              >
+                Save Deposit &amp; Update Balance
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: DIRECT STAFF GARMENT ISSUE (SALARY CUT)
+          ========================================================= */}
+      {showStaffIssueModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-stone-200 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-[#5a1e2d] text-white">
+                  <ShoppingBag className="w-5 h-5 text-amber-300" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Direct Staff Garment Issue</h3>
+                  <span className="text-xs text-stone-500">Pick product from catalog • Deducts from salary</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStaffIssueModal(false)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Showroom Staff Member *
+                </label>
+                <select
+                  value={issStaffId}
+                  onChange={(e) => setIssStaffId(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-semibold focus:outline-hidden focus:border-[#5a1e2d]"
+                >
+                  {staffMembers.filter(s => s.isActive).map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.role}) - Base Salary: ₹{s.monthlySalary.toLocaleString("en-IN")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Garment Search and Selector */}
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Select Product / Garment from Catalog *
+                </label>
+                <div className="relative mb-2">
+                  <input
+                    type="text"
+                    value={issProductSearch}
+                    onChange={(e) => setIssProductSearch(e.target.value)}
+                    placeholder="Search saree, suit, lehenga, SKU..."
+                    className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 text-xs focus:outline-hidden focus:border-[#5a1e2d]"
+                  />
+                  <Search className="w-4 h-4 text-stone-400 absolute left-2.5 top-2.5" />
+                </div>
+
+                {issSelectedProduct ? (
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-300 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-stone-900 text-xs block">{issSelectedProduct.name}</span>
+                      <span className="text-[10px] text-stone-500 font-mono">SKU: {issSelectedProduct.sku} • Stock: {issSelectedProduct.stock} pcs</span>
+                    </div>
+                    <div className="text-right flex items-center gap-2">
+                      <span className="font-mono font-bold text-amber-900 text-xs">
+                        ₹{issSelectedProduct.price.toLocaleString("en-IN")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIssSelectedProduct(null);
+                          setIssPrice("");
+                        }}
+                        className="px-2 py-0.5 rounded text-[10px] bg-white border border-stone-300 hover:bg-stone-100 font-semibold cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-stone-200 rounded-xl max-h-40 overflow-y-auto divide-y divide-stone-100">
+                    {issFilteredProducts.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setIssSelectedProduct(p);
+                          setIssPrice(String(p.price));
+                        }}
+                        className="p-2 hover:bg-stone-50 cursor-pointer flex items-center justify-between text-xs transition"
+                      >
+                        <div className="truncate pr-2">
+                          <span className="font-medium text-stone-900">{p.name}</span>
+                          <span className="text-[10px] text-stone-400 block font-mono">{p.sku} • Stock: {p.stock}</span>
+                        </div>
+                        <span className="font-mono font-bold text-stone-800 shrink-0">
+                          ₹{p.price.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quantity and Price override */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={issQty}
+                    onChange={(e) => setIssQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono font-bold focus:outline-hidden focus:border-[#5a1e2d]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Unit Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    value={issPrice}
+                    onChange={(e) => setIssPrice(e.target.value)}
+                    placeholder="Price"
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono font-bold focus:outline-hidden focus:border-[#5a1e2d]"
+                  />
+                </div>
+              </div>
+
+              {issSelectedProduct && (
+                <div className="p-2.5 rounded-xl bg-stone-900 text-white flex items-center justify-between font-mono">
+                  <span className="text-xs text-amber-300 font-sans font-medium">Total Deducted from Salary:</span>
+                  <span className="text-base font-black">
+                    ₹{((Number(issQty) || 1) * (Number(issPrice) || issSelectedProduct.price)).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Note / Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={issNote}
+                  onChange={(e) => setIssNote(e.target.value)}
+                  placeholder="e.g. Wedding dress for cousin"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setShowStaffIssueModal(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!issSelectedProduct}
+                onClick={handleSaveDirectIssue}
+                className="px-5 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition disabled:opacity-40"
+              >
+                Issue Garment &amp; Deduct Salary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Festive Broadcast Quick Modal */}
       {showFestiveBroadcastModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -6970,7 +7842,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px", fontSize: "11.5px", color: "#000", fontWeight: "800" }}>
               <span>Time: {lastBill.createdAt.split(",")[1] || ""}</span>
-              <span style={{ textTransform: "uppercase" }}>Pay: {lastBill.paymentMode}</span>
+              <span style={{ textTransform: "uppercase" }}>
+                Pay: {lastBill.paymentMode === "staff_salary" ? `STAFF SALARY CUT (${lastBill.staffBuyerName || "STAFF"})` : lastBill.paymentMode}
+              </span>
             </div>
             <div style={{ marginTop: "3px", paddingTop: "3px", borderTop: "1.5px dashed #000" }}>
               <span style={{ fontWeight: "800" }}>Customer: </span>
@@ -7049,7 +7923,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             )}
 
             <div style={{ fontSize: "11px", marginTop: "3px", textAlign: "right", fontWeight: "800", color: "#000" }}>
-              Payment Mode: {lastBill.paymentMode.toUpperCase()}
+              Payment Mode: {lastBill.paymentMode === "staff_salary" ? `STAFF SALARY CUT (${lastBill.staffBuyerName || "STAFF"})` : lastBill.paymentMode.toUpperCase()}
             </div>
           </div>
 
@@ -7996,17 +8870,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                       ? "Price Revision"
                       : ownerAuthDetails.actionType === "product_delete"
                       ? "Delete Product"
+                      : ownerAuthDetails.actionType === "bill_edit"
+                      ? "Modify Completed Bill"
+                      : ownerAuthDetails.actionType === "bill_delete"
+                      ? "Delete Bill Record"
+                      : ownerAuthDetails.actionType === "bill_amount_change"
+                      ? "Bill Amount Change"
                       : "Product Edit"}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-stone-500 block uppercase font-bold">Product</span>
+                  <span className="text-[10px] text-stone-500 block uppercase font-bold">
+                    {ownerAuthDetails.actionType.startsWith("bill_") ? "Bill Details" : "Product"}
+                  </span>
                   <p className="text-white font-bold text-sm">
                     {ownerAuthDetails.productName}
                   </p>
                   <p className="text-[11px] font-mono text-stone-400">
-                    SKU: {ownerAuthDetails.sku}
+                    {ownerAuthDetails.actionType.startsWith("bill_") ? `Bill Ref: ${ownerAuthDetails.sku}` : `SKU: ${ownerAuthDetails.sku}`}
                   </p>
                 </div>
 
