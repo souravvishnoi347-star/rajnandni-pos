@@ -1591,6 +1591,9 @@ export default function RajnandiniPosPage() {
           ...alterationData,
           required: true,
           garmentName: alterationData.garmentName || cart[0]?.product.name || "Ladies Ethnic Wear",
+          customerName: customer.name || "Walk-in Guest",
+          customerPhone: customer.phone || "",
+          billNo: newBill.billNo,
           status: "Received" as const
         },
         ...alterationsList
@@ -3563,14 +3566,27 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         placeholder="Fitting instructions, waistline ease, fall/pico, blouse hook adjustments..."
                         className="w-full p-2 bg-white text-[#1d1b1b] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/20 border border-[#ede7e6] resize-none"
                       />
-                      <div className="flex items-center justify-between text-[#534345] text-[11px] font-medium flex-wrap gap-1">
-                        <div className="flex items-center gap-1">
-                          <Scissors className="w-3.5 h-3.5 text-[#5a1e2d]" />
-                          <span>Assigned Tailor: <strong className="text-[#1d1b1b]">Masterji Rafiq</strong></span>
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#ede7e6] text-[11px]">
+                        <div>
+                          <label className="text-[10px] font-bold text-[#7c5641] block mb-0.5">Assigned Tailor</label>
+                          <select
+                            value={alterationData.tailorName}
+                            onChange={e => setAlterationData({ ...alterationData, tailorName: e.target.value })}
+                            className="w-full p-1.5 bg-white text-[#1d1b1b] rounded-lg text-xs border border-[#ede7e6] focus:outline-none"
+                          >
+                            {TAILOR_NAMES.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
                         </div>
-                        <div className="flex items-center gap-1 text-[#735c00] font-bold">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Express Delivery: 48h</span>
+                        <div>
+                          <label className="text-[10px] font-bold text-[#7c5641] block mb-0.5">Trial / Ready Date</label>
+                          <input
+                            type="date"
+                            value={alterationData.readyDate}
+                            onChange={e => setAlterationData({ ...alterationData, readyDate: e.target.value })}
+                            className="w-full p-1.5 bg-white text-[#1d1b1b] rounded-lg text-xs border border-[#ede7e6] focus:outline-none font-mono"
+                          />
                         </div>
                       </div>
                     </div>
@@ -3951,11 +3967,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       <Layers className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="mt-4 pt-1 flex items-center gap-1 text-[11px] text-[#534345]">
-                    <span className="font-bold text-[#735c00] bg-[#ffe088]/40 px-1.5 py-0.5 rounded">
-                      +48 this week
+                  <div className="mt-4 pt-1 flex items-center gap-1.5 text-[11px] text-[#534345]">
+                    <span className="font-bold text-[#735c00] bg-[#ffe088]/40 px-1.5 py-0.5 rounded font-mono">
+                      {products.filter(p => (p.stock || 0) > 0).length} In Stock
                     </span>
-                    <span>across 6 boutique sections</span>
+                    <span>• {products.filter(p => (p.stock || 0) <= 0).length} Sold Out</span>
                   </div>
                 </div>
 
@@ -3975,14 +3991,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       <PackageCheck className="w-5 h-5" />
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <div className="w-full bg-[#f3ecec] h-1.5 rounded-full overflow-hidden flex">
-                      <div className="bg-[#5a1e2d] h-full w-[94%]" title="Showroom Floor (94%)"></div>
-                      <div className="bg-[#cba72f] h-full w-[6%]" title="Atelier Vault (6%)"></div>
+                  <div className="mt-4 pt-1 flex flex-col gap-1 text-[11px] text-[#534345]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#5a1e2d] font-mono">{totalPhysicalPieces.toLocaleString("en-IN")} Pcs</span>
+                      <span className="text-[#857275]">Showroom Racks</span>
                     </div>
-                    <div className="flex justify-between items-center mt-1 text-[10px] text-[#857275] font-medium">
-                      <span>94% Showroom Floor</span>
-                      <span>6% Atelier Vault</span>
+                    <div className="text-[10px] text-[#7c5641]">
+                      {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 2).length} critical low stock (≤2 pcs)
                     </div>
                   </div>
                 </div>
@@ -4004,10 +4019,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
                   </div>
                   <div className="mt-4 pt-1 flex items-center justify-between text-[11px] text-[#534345]">
-                    <span className="font-bold text-[#735c00] bg-[#ffe088]/40 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                      <TrendingUp className="w-3 h-3" /> 18.4%
+                    <span className="font-bold text-[#5a1e2d] font-mono">
+                      {completedBills.length} Bills Settled
                     </span>
-                    <span>vs previous billing cycle</span>
+                    <span className="text-[#857275]">All Showroom Sales</span>
                   </div>
                 </div>
 
@@ -4015,10 +4030,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <div className="bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Stock Valuation</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Stock Retail Value</span>
                       <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-3xl font-black text-[#5a1e2d] font-mono tabular-nums">
-                          ₹{(totalRetailStockValue / 10000000).toFixed(2)} Cr
+                        <span className="text-2xl sm:text-3xl font-bold text-[#5a1e2d] font-mono tabular-nums">
+                          ₹{totalRetailStockValue.toLocaleString("en-IN")}
                         </span>
                       </div>
                     </div>
@@ -4027,8 +4042,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
                   </div>
                   <div className="mt-4 pt-1 flex items-center justify-between text-[11px] text-[#534345]">
-                    <span>MRP ₹{((totalRetailStockValue * 1.35) / 10000000).toFixed(2)} Cr</span>
-                    <span className="font-bold text-[#7c5641]">Avg Margin 42.6%</span>
+                    <span>Cost: ₹{totalCostStockValue.toLocaleString("en-IN")}</span>
+                    <span className="font-bold text-[#7c5641]">
+                      Margin: {totalRetailStockValue > 0 ? Math.round(((totalRetailStockValue - totalCostStockValue) / totalRetailStockValue) * 100) : 0}%
+                    </span>
                   </div>
                 </div>
               </div>
@@ -4935,7 +4952,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           Fitting Notes: <span className="font-normal text-[#534345]">{alt.fittingNotes || "Standard fit adjustments"}</span>
                         </p>
                         <p className="font-semibold text-[#1d1b1b]">
-                          Master Tailor: <span className="font-medium text-[#7c5641]">{alt.tailorName || "Masterji Rafiq"}</span>
+                          Master Tailor: <span className="font-medium text-[#7c5641]">{alt.tailorName || TAILOR_NAMES[0]}</span>
                         </p>
                         <p className="font-semibold text-[#1d1b1b]">
                           Trial / Delivery Date: <span className="font-bold text-[#5a1e2d] font-mono">{alt.readyDate}</span>
@@ -5082,10 +5099,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       ₹{reportAnalytics.totalProfit.toLocaleString("en-IN")}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1.5 text-[#ffd9de] text-xs">
-                      <span>Daily Target: ₹1,50,000</span>
-                      <span className="text-[#ffe088] font-bold">
-                        ({reportAnalytics.totalProfit >= 150000 ? "+ Ahead" : "On Track"})
-                      </span>
+                      <span>Gross Profit on {reportAnalytics.billCount} bills</span>
+                      {reportAnalytics.totalDiscounts > 0 && (
+                        <span className="text-[#ffe088] font-bold">
+                          (₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")} discounts)
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
@@ -5831,9 +5850,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-xs text-[#735c00] font-bold flex items-center gap-1">
-                        <TrendingUp className="w-3.5 h-3.5" /> +124 newly enrolled
+                        <UserCheck className="w-3.5 h-3.5" /> {customerAnalytics.repeatCustomers} Repeat Visitors
                       </span>
-                      <span className="text-xs text-[#857275]">• this wedding season</span>
+                      <span className="text-xs text-[#857275]">• {Math.max(0, customerAnalytics.totalCustomers - customerAnalytics.repeatCustomers)} single visits</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
@@ -5865,9 +5884,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6] bg-[#f8f2f2]/60 px-2 rounded-lg">
-                    <span>Target conversion: 82%</span>
+                    <span>VIP Revenue Share:</span>
                     <span className="font-bold text-[#5a1e2d] font-mono">
-                      ₹{customerAnalytics.vipRevenue.toLocaleString("en-IN")} total
+                      ₹{customerAnalytics.vipRevenue.toLocaleString("en-IN")}
                     </span>
                   </div>
                 </div>
@@ -5891,8 +5910,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
-                    <span>Ceiling tolerance: 12.0%</span>
-                    <span className="text-[#735c00] font-bold">Safe Margin</span>
+                    <span>Customer Savings Given:</span>
+                    <span className="text-[#735c00] font-bold">₹{customerAnalytics.totalDiscounts.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
 
@@ -5910,15 +5929,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <div className="text-3xl text-[#1d1b1b] font-bold tracking-tight font-mono">
                       ₹{customerAnalytics.avgSpendPerCust.toLocaleString("en-IN")}
                     </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs">
-                      <TrendingUp className="w-3.5 h-3.5 text-[#735c00]" />
-                      <span className="text-[#735c00] font-bold">+15.6% YoY growth</span>
-                      <span className="text-[#857275]">across couture</span>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-[#534345]">
+                      <span>Average Order Value per Registered Client</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
-                    <span>Bridal cohort avg: ₹3.4L</span>
-                    <span className="font-bold text-[#5a1e2d]">High Tier</span>
+                    <span>Total Client Spend:</span>
+                    <span className="font-bold text-[#5a1e2d] font-mono">₹{customerAnalytics.totalSpend.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               </div>
