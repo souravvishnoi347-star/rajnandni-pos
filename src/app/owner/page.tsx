@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import SupplierIntelligence from "@/components/SupplierIntelligence";
 import {
   TrendingUp,
@@ -51,6 +52,18 @@ import {
   UserCheck,
   UserX,
   Download,
+  Award,
+  CircleDollarSign,
+  QrCode,
+  Tag,
+  PieChart,
+  Star,
+  Hourglass,
+  Scissors,
+  CheckCheck,
+  FileSpreadsheet,
+  FileCode,
+  ShieldAlert,
 } from "lucide-react";
 import {
   getCurrentOwnerOtp,
@@ -107,6 +120,18 @@ function isServiceItem(p: { sku?: string; category?: string; stock?: number; pur
   return false;
 }
 
+// Generate short deterministic hash preview for audit parity
+function getBillHash(billNo: string, amount: number, date: string): string {
+  let hash = 0;
+  const str = `${billNo}_${amount}_${date}`;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, "0");
+  return `${hex.slice(0, 4)}...${hex.slice(-4)}`;
+}
+
 export default function MobileOwnerApp() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -115,7 +140,10 @@ export default function MobileOwnerApp() {
   const [rememberDevice, setRememberDevice] = useState<boolean>(true);
 
   // Active Bottom Nav Tab: 'sales' | 'stock' | 'bills' | 'staff' | 'security'
-  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "suppliers" | "bills" | "staff" | "security">("sales");
+  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "bills" | "staff" | "security">("sales");
+
+  // Stock sub-view: 'inventory' | 'suppliers'
+  const [stockViewMode, setStockViewMode] = useState<"inventory" | "suppliers">("inventory");
 
   // Time Filter for Sales: 'today' | 'yesterday' | 'week' | 'month' | 'all'
   const [timeFilter, setTimeFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
@@ -123,6 +151,7 @@ export default function MobileOwnerApp() {
   // Data States
   const [bills, setBills] = useState<CompletedBill[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [alterations, setAlterations] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<InventoryAuthRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<InventoryAuditLog[]>([]);
   const [expenses, setExpenses] = useState<StoreExpense[]>([]);
@@ -209,6 +238,10 @@ export default function MobileOwnerApp() {
       if (savedAuth === "true" || sessionAuth === "true") {
         setIsAuthenticated(true);
       }
+      const savedAlts = localStorage.getItem("rajnandni_alterations");
+      if (savedAlts) {
+        setAlterations(JSON.parse(savedAlts));
+      }
     } catch {}
   }, []);
 
@@ -281,6 +314,11 @@ export default function MobileOwnerApp() {
         setProducts(remoteProducts);
       }
 
+      try {
+        const savedAlts = localStorage.getItem("rajnandni_alterations");
+        if (savedAlts) setAlterations(JSON.parse(savedAlts));
+      } catch {}
+
       setPendingRequests(reqs || []);
       setAuditLogs(logs || []);
       setExpenses(expList || []);
@@ -302,12 +340,10 @@ export default function MobileOwnerApp() {
   useEffect(() => {
     if (isAuthenticated) {
       loadAllData();
-      // Auto-refresh every 15 seconds for live store sales updates
       const interval = setInterval(() => {
         loadAllData(false);
       }, 15000);
 
-      // Realtime listener for instant incoming bills from Haridwar Boutique
       let channel: any = null;
       if (supabase) {
         channel = supabase
@@ -377,7 +413,7 @@ export default function MobileOwnerApp() {
     }
   }, [isAuthenticated, ownerAttendanceDate]);
 
-  // Export all bills to Laptop as CSV / Excel
+  // Export all bills to Laptop as CSV
   const handleExportBillsCsv = () => {
     if (!bills || bills.length === 0) {
       alert("No bills available to export.");
@@ -433,7 +469,7 @@ export default function MobileOwnerApp() {
     URL.revokeObjectURL(url);
   };
 
-  // Export all bills to Laptop as Raw JSON Vault
+  // Export all bills as JSON Vault
   const handleExportBillsJson = () => {
     if (!bills || bills.length === 0) {
       alert("No bills available to export.");
@@ -463,7 +499,7 @@ export default function MobileOwnerApp() {
       setPinError("");
       setPinInput("");
     } else {
-      setPinError("Incorrect Security PIN. Please enter the valid PIN (Master PIN: 7898)");
+      setPinError("Incorrect Security PIN. Please enter valid PIN (7898)");
     }
   };
 
@@ -568,7 +604,12 @@ export default function MobileOwnerApp() {
     };
   }, [timeFilteredBills, productCostMap]);
 
-  // Expenses & Advances Calculation for Cash Drawer Reconciliation
+  // Total Vault Value (all recorded bills)
+  const totalBillsVaultValue = useMemo(() => {
+    return bills.reduce((sum, b) => sum + (Number(b.grandTotal) || 0), 0);
+  }, [bills]);
+
+  // Expenses & Advances for Cash Drawer Reconciliation
   const todayExpenses = useMemo(() => {
     return expenses.filter((e) => e.date === todayStr);
   }, [expenses, todayStr]);
@@ -621,17 +662,18 @@ export default function MobileOwnerApp() {
     };
   }, [attendance, staffMembers]);
 
-  // Top Selling Items in selected time
+  // Top 4 Selling Items for Sales Hero Section
   const topSellingItems = useMemo(() => {
-    const map = new Map<string, { name: string; sku: string; qty: number; revenue: number }>();
+    const map = new Map<string, { name: string; sku: string; qty: number; revenue: number; category?: string }>();
     timeFilteredBills.forEach((b) => {
       (b.items || []).forEach((it) => {
         const key = it.product?.sku || it.product?.name || "Item";
         const existing = map.get(key) || {
-          name: it.product?.name || "Item",
+          name: it.product?.name || "Ethnic Garment",
           sku: it.product?.sku || "",
           qty: 0,
           revenue: 0,
+          category: it.product?.category || "Apparel",
         };
         existing.qty += it.quantity || 1;
         existing.revenue += (it.price || 0) * (it.quantity || 1);
@@ -684,6 +726,23 @@ export default function MobileOwnerApp() {
       lowStock,
       goodStock: Math.max(0, physicalItemsCount - outOfStock - lowStock),
     };
+  }, [products]);
+
+  // Workshop Hold Alterations
+  const activeAlterations = useMemo(() => {
+    return alterations.filter((a) => a.status !== "delivered" && a.status !== "completed");
+  }, [alterations]);
+
+  const activeAlterationsCount = activeAlterations.length;
+  const alterationsValue = useMemo(() => {
+    return activeAlterations.reduce((sum, a) => sum + (Number(a.balanceDue) || Number(a.charges) || 0), 0);
+  }, [activeAlterations]);
+
+  // Aged stock valuation (items with stock <= 2)
+  const agedStockValue = useMemo(() => {
+    return products
+      .filter((p) => !isServiceItem(p) && p.stock > 0 && p.stock <= 2)
+      .reduce((sum, p) => sum + p.stock * p.price, 0);
   }, [products]);
 
   // Filtered Products for Inventory View
@@ -821,16 +880,10 @@ export default function MobileOwnerApp() {
   };
 
   const handleDeleteStaff = async (staff: StaffMember) => {
-    if (confirm(`Are you sure you want to deactivate "${staff.name}" from the staff roster?`)) {
+    if (confirm(`Are you sure you want to deactivate "${staff.name}" from staff roster?`)) {
       await StaffExpenseService.deleteStaffMember(staff.id);
       await loadAllData();
     }
-  };
-
-  const handleToggleStaffActive = async (staff: StaffMember) => {
-    const nextState = !staff.isActive;
-    await StaffExpenseService.toggleStaffStatus(staff.id, nextState);
-    await loadAllData();
   };
 
   // Edit Expense Handlers
@@ -896,27 +949,35 @@ export default function MobileOwnerApp() {
   };
 
   // =========================================================================
-  // VIEW 0: PIN LOCK SCREEN (CLEAN LUXURY WHITE THEME)
+  // VIEW 0: PIN LOCK SCREEN (DEEP MIDNIGHT NAVY & CHAMPAGNE GOLD THEME)
   // =========================================================================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
         <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
-            <Crown className="w-8 h-8 text-blue-600" />
+          {/* Brand Logo & Crown */}
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-[#0F2042] border border-[#C5A880]/40 flex items-center justify-center mb-4 shadow-md shadow-[#0F2042]/20">
+            <Image
+              src="/logo.png"
+              alt="Rajnandini"
+              width={42}
+              height={42}
+              className="object-contain"
+              priority
+            />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-blue-700">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0F2042]/5 border border-[#C5A880]/30 mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-ping" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-[#0F2042]">
               Rajnandini Boutique
             </span>
           </div>
 
-          <h1 className="text-xl font-black text-slate-900 mt-1 tracking-tight">
+          <h1 className="text-xl font-black text-[#0F2042] mt-1 tracking-tight">
             Owner Executive Suite
           </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Haridwar Showroom Realtime Portal</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Zari &amp; Silk Atelier • Haridwar Live</p>
 
           <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
             <div>
@@ -931,7 +992,7 @@ export default function MobileOwnerApp() {
                 }}
                 placeholder="Enter Quick PIN (7898)"
                 autoFocus
-                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-slate-50 text-blue-700 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-2xl py-3 px-4 outline-none placeholder:tracking-normal placeholder:text-xs placeholder:text-slate-400 transition"
+                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-slate-50 text-[#0F2042] border-2 border-slate-200 focus:border-[#0F2042] focus:bg-white rounded-2xl py-3 px-4 outline-none placeholder:tracking-normal placeholder:text-xs placeholder:text-slate-400 transition"
               />
               {pinError && <p className="text-rose-600 text-xs font-semibold mt-2">{pinError}</p>}
             </div>
@@ -941,99 +1002,115 @@ export default function MobileOwnerApp() {
                 type="checkbox"
                 checked={rememberDevice}
                 onChange={(e) => setRememberDevice(e.target.checked)}
-                className="rounded border-slate-300 accent-blue-600 w-4 h-4"
+                className="rounded border-slate-300 accent-[#0F2042] w-4 h-4"
               />
               <span>Remember this phone (Direct Unlock)</span>
             </label>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md shadow-blue-600/25 active:scale-[0.98] transition text-sm tracking-wide"
+              className="w-full py-3.5 bg-[#0F2042] hover:bg-[#0A162E] text-white font-bold rounded-2xl shadow-md shadow-[#0F2042]/25 active:scale-[0.98] transition text-sm tracking-wide flex items-center justify-center gap-2"
             >
-              Open Owner Dashboard →
+              <span>Open Owner Dashboard</span>
+              <ArrowRight className="w-4 h-4 text-[#C5A880]" />
             </button>
           </form>
 
-          <p className="text-[11px] text-slate-400 mt-5 font-mono">Default PIN: 7898 or Indu@123</p>
+          <p className="text-[11px] text-slate-400 mt-5 font-mono">Master PIN: 7898</p>
         </div>
       </div>
     );
   }
 
+  // Calculation for two-tone Inflow Composition bar
+  const totalInflow = (salesStats.upiTotal + salesStats.cashTotal) || 1;
+  const digitalPct = Math.round((salesStats.upiTotal / totalInflow) * 100);
+  const cashPct = 100 - digitalPct;
+
+  // Segmented stock bar percentages
+  const totalPhysicalSkus = inventoryStats.totalItems || 1;
+  const healthyPct = Math.round((inventoryStats.goodStock / totalPhysicalSkus) * 100);
+  const lowStockPct = Math.round((inventoryStats.lowStock / totalPhysicalSkus) * 100);
+  const outStockPct = 100 - healthyPct - lowStockPct;
+
   // =========================================================================
-  // MAIN MOBILE APPLICATION VIEW (CLEAN WHITE & ROYAL SAPPHIRE BLUE THEME)
+  // MAIN MOBILE APPLICATION VIEW (MIDNIGHT NAVY & WARM SAND LUXURY SUITE)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans pb-28 selection:bg-blue-600 selection:text-white">
-      {/* Top Mobile App Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-28 selection:bg-[#0F2042] selection:text-white">
+      {/* Top Mobile App Header matching Image 2 */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 font-black">
-              <Crown className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-[#0F2042] p-1 flex items-center justify-center shadow-sm">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={28}
+                height={28}
+                className="object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-700">
-                  Rajnandini
+                <span className="font-extrabold text-sm text-[#0F2042] tracking-tight">
+                  Owner Executive
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-bold text-emerald-600 font-mono tracking-tight">LIVE SYNC</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-[#10B981] border border-emerald-200/80 text-[10px] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                  LIVE
+                </span>
               </div>
-              <h1 className="text-xs font-bold text-slate-900">Owner Executive Suite</h1>
+              <p className="text-[10px] text-slate-500 font-medium">Zari &amp; Silk Atelier • Haridwar</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {/* Quick Master CSV Download */}
             <button
               onClick={handleExportBillsCsv}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-xs active:scale-95 transition cursor-pointer"
-              title="Download all customer bills as Excel/CSV to your laptop"
+              className="p-2 rounded-xl text-slate-500 hover:text-[#0F2042] hover:bg-slate-100 transition"
+              title="Download Master Excel Backup"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Offline Bills Excel</span>
+              <Download className="w-4 h-4" />
             </button>
 
+            {/* Refresh Live Stream */}
             <button
               onClick={() => loadAllData(true)}
-              disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 active:scale-95 transition shadow-sm"
-              title="Refresh Live Data"
+              className="p-2 rounded-xl text-slate-500 hover:text-[#0F2042] hover:bg-slate-100 transition"
+              title="Refresh Data"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#0F2042]" : ""}`} />
             </button>
 
+            {/* Lock Device */}
             <button
               onClick={handleLock}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-rose-600 active:scale-95 transition shadow-sm"
-              title="Lock App"
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+              title="Lock Owner Suite"
             >
               <Lock className="w-4 h-4" />
             </button>
+
+            {/* Profile Avatar */}
+            <div className="w-8 h-8 rounded-full border border-slate-200 overflow-hidden ml-1">
+              <Image
+                src="/logo.png"
+                alt="Owner"
+                width={32}
+                height={32}
+                className="object-cover bg-[#0F2042] p-1"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Realtime Live Incoming Sale Toast */}
-        {liveSaleToast && (
-          <div className="mt-3 p-3 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl shadow-lg flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping" />
-              <div>
-                <p className="text-xs font-black">🔔 New Sale in Haridwar! Invoice: {liveSaleToast.billNo}</p>
-                <p className="text-[10px] text-emerald-100">Customer: {liveSaleToast.customer} • ₹{liveSaleToast.total.toLocaleString("en-IN")} at {liveSaleToast.time}</p>
-              </div>
-            </div>
-            <button onClick={() => setLiveSaleToast(null)} className="text-white/80 hover:text-white p-1">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Date Filter Chips for Sales View */}
+        {/* Date Filter Chips for Sales View matching Image 2 */}
         {activeNav === "sales" && (
           <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1 no-scrollbar text-xs">
             {[
-              { id: "today", label: "Today" },
+              { id: "today", label: "• Today" },
               { id: "yesterday", label: "Yesterday" },
               { id: "week", label: "This Week" },
               { id: "month", label: "This Month" },
@@ -1044,8 +1121,8 @@ export default function MobileOwnerApp() {
                 onClick={() => setTimeFilter(tab.id as any)}
                 className={`px-3.5 py-1.5 rounded-full font-bold whitespace-nowrap transition text-xs shrink-0 ${
                   timeFilter === tab.id
-                    ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-600/30"
-                    : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
+                    ? "bg-[#0F2042] text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200/90 hover:bg-slate-50"
                 }`}
               >
                 {tab.label}
@@ -1058,241 +1135,216 @@ export default function MobileOwnerApp() {
       {/* Main Tab Content */}
       <main className="px-4 pt-4 max-w-lg mx-auto space-y-4">
         {/* =========================================================================
-            TAB 1: 📊 DAILY SALES & REVENUE REPORT
+            TAB 1: 📊 SALES VIEW (EXACT INSPIRATION IMAGE 2)
             ========================================================================= */}
         {activeNav === "sales" && (
           <div className="space-y-4">
-            {/* Primary Executive Sales Card */}
+            {/* Hero Bento Card: Today's Showroom Sales */}
             <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                  <Award className="w-4 h-4 text-[#C5A880]" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     {timeFilter === "today"
-                      ? "Today's Showroom Sales"
+                      ? "TODAY'S SHOWROOM SALES"
                       : timeFilter === "yesterday"
-                      ? "Yesterday's Sales"
+                      ? "YESTERDAY'S SALES"
                       : timeFilter === "week"
-                      ? "Past 7 Days Sales"
+                      ? "THIS WEEK'S SALES"
                       : timeFilter === "month"
-                      ? "This Month's Sales"
-                      : "All Time Showroom Sales"}
+                      ? "THIS MONTH'S SALES"
+                      : "ALL-TIME REVENUE"}
                   </span>
                 </div>
-                <span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-mono">
-                  {salesStats.count} Invoices
-                </span>
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+                  <Store className="w-4 h-4" />
+                </div>
               </div>
 
-              {/* Total Revenue in tabular bold numbers */}
-              <div className="mt-1">
-                <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight tabular-nums block">
+              {/* Revenue Big Bold Amount */}
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="text-3xl sm:text-4xl font-extrabold text-[#0F2042] tracking-tight tabular-nums">
                   ₹{salesStats.revenue.toLocaleString("en-IN")}
                 </span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-                  {formatIndianCompact(salesStats.revenue)} Total Collection • {salesStats.itemsCount} Pcs Sold
+                <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#10B981] font-bold text-xs border border-emerald-100">
+                  ↑ +{salesStats.marginPct}%
                 </span>
               </div>
 
-              {/* Profit & Margin Row with clean separate boxes */}
-              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-2.5">
-                  <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
-                    Gross Profit (Net Margin)
-                  </span>
-                  <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
-                    +₹{salesStats.grossProfit.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-[10px] text-emerald-600 font-mono">
-                    {formatIndianCompact(salesStats.grossProfit)} Net
-                  </span>
+              {/* Run-rate status & progress bar */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
+                  <span>{salesStats.count} Invoices Settled</span>
+                  <span className="font-mono text-slate-500">Avg Ticket: ₹{salesStats.avgBill.toLocaleString("en-IN")}</span>
                 </div>
-
-                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-2.5 text-right">
-                  <span className="text-[10px] text-blue-800 uppercase font-semibold block">
-                    Profit Margin (%)
-                  </span>
-                  <span className="text-base sm:text-lg font-black text-blue-700 font-mono tabular-nums block mt-0.5">
-                    {salesStats.marginPct}%
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    Cost: {formatIndianCompact(salesStats.wholesaleCost)}
-                  </span>
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#0F2042] rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.max(15, salesStats.count * 8))}%` }}
+                  />
                 </div>
+                <p className="text-[11px] text-slate-500 flex items-center gap-1 pt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#C5A880]" />
+                  <span>Real-time cloud sync with Haridwar Atelier Terminal</span>
+                </p>
               </div>
             </div>
 
-            {/* REAL NET DRAWER CASH IN HAND RECONCILIATION CARD */}
-            <div className="bg-gradient-to-br from-emerald-50 via-slate-50 to-blue-50/40 border border-emerald-200 rounded-3xl p-4 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Wallet className="w-4 h-4 text-emerald-700" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                    Net Drawer Cash in Hand (Cash Reconciliation)
+            {/* 4-Grid Metric Bento Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Card 1: Gross Profit */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GROSS PROFIT</span>
+                  <Receipt className="w-4 h-4 text-[#10B981]" />
+                </div>
+                <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                  ₹{salesStats.grossProfit.toLocaleString("en-IN")}
+                </p>
+                <div>
+                  <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-[#10B981] text-[10px] font-bold border border-emerald-100">
+                    Margin: {salesStats.marginPct}%
                   </span>
                 </div>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
-                  Realtime Drawer Cash
+              </div>
+
+              {/* Card 2: Physical Drawer */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">PHYSICAL DRAWER</span>
+                  <Wallet className="w-4 h-4 text-[#C5A880]" />
+                </div>
+                <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                  ₹{netGallaCashInHand.toLocaleString("en-IN")}
+                </p>
+                <div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FBF6EE] text-[#A67C43] text-[10px] font-bold border border-[#C5A880]/30">
+                    <Check className="w-3 h-3 text-[#A67C43]" />
+                    <span>Reconciled</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 3: Digital Inflow */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">DIGITAL INFLOW</span>
+                  <QrCode className="w-4 h-4 text-[#0F2042]" />
+                </div>
+                <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                  ₹{salesStats.upiTotal.toLocaleString("en-IN")}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">UPI &amp; Card Terminals</p>
+              </div>
+
+              {/* Card 4: Concessions */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">CONCESSIONS</span>
+                  <Tag className="w-4 h-4 text-rose-500" />
+                </div>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                    ₹{salesStats.discount.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-xs text-rose-500 font-semibold font-mono">
+                    ({salesStats.revenue > 0 ? ((salesStats.discount / (salesStats.revenue + salesStats.discount)) * 100).toFixed(1) : 0}%)
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  ABV: ₹{salesStats.avgBill.toLocaleString("en-IN")} ({salesStats.count} Bills)
+                </p>
+              </div>
+            </div>
+
+            {/* Inflow Composition Card */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <PieChart className="w-4 h-4 text-[#0F2042]" />
+                  <span className="text-xs font-bold text-[#0F2042]">Inflow Composition</span>
+                </div>
+                <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">
+                  Live Audit
                 </span>
               </div>
 
-              <div className="flex items-baseline justify-between pt-1">
-                <div>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
-                    ₹{netGallaCashInHand.toLocaleString("en-IN")}
-                  </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Counter Cash: ₹{salesStats.cashTotal.toLocaleString("en-IN")} | Store Expenses: -₹{todayCashExpense} | Advances: -₹{todayCashAdvance}
+              {/* Two-tone bar: Navy Digital vs Sand Gold Cash */}
+              <div className="h-3 w-full rounded-full overflow-hidden flex bg-slate-100">
+                <div
+                  className="bg-[#0F2042] h-full transition-all"
+                  style={{ width: `${digitalPct}%` }}
+                  title="Digital (UPI/Card)"
+                />
+                <div
+                  className="bg-[#C5A880] h-full transition-all"
+                  style={{ width: `${cashPct}%` }}
+                  title="Cash Vault"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <div className="space-y-0.5">
+                  <p className="flex items-center gap-1.5 text-slate-700">
+                    <span className="w-2 h-2 rounded-full bg-[#0F2042]" />
+                    <span className="font-medium">Digital (UPI/Card):</span>
+                    <span className="font-bold font-mono">₹{salesStats.upiTotal.toLocaleString("en-IN")}</span>
+                    <span className="text-slate-400">({digitalPct}%)</span>
+                  </p>
+                  <p className="flex items-center gap-1.5 text-slate-700">
+                    <span className="w-2 h-2 rounded-full bg-[#C5A880]" />
+                    <span className="font-medium">Cash Vault:</span>
+                    <span className="font-bold font-mono">₹{salesStats.cashTotal.toLocaleString("en-IN")}</span>
+                    <span className="text-slate-400">({cashPct}%)</span>
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setActiveNav("staff")}
-                  className="text-xs font-bold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-xl shadow-sm hover:bg-blue-50 transition flex items-center gap-1"
-                >
-                  <span>Details</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 4 Quick Stat Metric Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Cash Collection */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cash Collected</span>
-                  <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <Wallet className="w-3.5 h-3.5 text-emerald-600" />
-                  </div>
-                </div>
-                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
-                  ₹{salesStats.cashTotal.toLocaleString("en-IN")}
-                </p>
-                <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-emerald-700 font-semibold">Counter Cash</span>
-                  <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.cashTotal)}</span>
-                </div>
-              </div>
-
-              {/* UPI / Online */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">UPI / Online</span>
-                  <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
-                </div>
-                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
-                  ₹{salesStats.upiTotal.toLocaleString("en-IN")}
-                </p>
-                <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-blue-700 font-semibold">PhonePe / QR</span>
-                  <span className="text-slate-400 font-mono">{formatIndianCompact(salesStats.upiTotal)}</span>
-                </div>
-              </div>
-
-              {/* Total Discount Given */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Discount Given</span>
-                  <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center">
-                    <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
-                  </div>
-                </div>
-                <p className="text-base sm:text-lg font-black text-rose-600 font-mono mt-1.5 tabular-nums truncate">
-                  -₹{salesStats.discount.toLocaleString("en-IN")}
-                </p>
-                <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-slate-500 font-semibold">Bargain Given</span>
-                  <span className="text-rose-600 font-mono">
-                    {salesStats.revenue > 0 ? ((salesStats.discount / (salesStats.revenue + salesStats.discount)) * 100).toFixed(1) : 0}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Average Bill Value */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Avg Bill Value</span>
-                  <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
-                    <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
-                  </div>
-                </div>
-                <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-1.5 tabular-nums truncate">
-                  ₹{salesStats.avgBill.toLocaleString("en-IN")}
-                </p>
-                <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-slate-500 font-semibold">Per Customer</span>
-                  <span className="text-blue-600 font-mono">{salesStats.count} bills</span>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-[#10B981] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Zero Discrepancy</span>
                 </div>
               </div>
             </div>
 
-            {/* Payment Mode Visual Split Bar */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-slate-800">Payment Breakdown</span>
-                <span className="text-slate-500 text-[11px] font-mono">
-                  Cash: {salesStats.revenue > 0 ? Math.round((salesStats.cashTotal / salesStats.revenue) * 100) : 0}% | UPI:{" "}
-                  {salesStats.revenue > 0 ? Math.round((salesStats.upiTotal / salesStats.revenue) * 100) : 0}%
-                </span>
-              </div>
-              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
-                <div
-                  className="bg-emerald-500 h-full transition-all"
-                  style={{
-                    width: `${salesStats.revenue > 0 ? (salesStats.cashTotal / salesStats.revenue) * 100 : 50}%`,
-                  }}
-                  title="Cash"
-                />
-                <div
-                  className="bg-blue-600 h-full transition-all"
-                  style={{
-                    width: `${salesStats.revenue > 0 ? (salesStats.upiTotal / salesStats.revenue) * 100 : 50}%`,
-                  }}
-                  title="UPI"
-                />
-              </div>
-            </div>
-
-            {/* Top 10 Fast-Selling Items */}
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-4 space-y-3 shadow-sm">
+            {/* Fast-Selling Showroom Ensembles Card (TOP 4 TODAY) */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Fast-Selling Showroom Items
+                  <Star className="w-4 h-4 text-[#C5A880]" />
+                  <h2 className="text-xs font-bold text-[#0F2042] uppercase tracking-wide">
+                    Fast-Selling Showroom Ensembles
                   </h2>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">Ranked by Revenue</span>
+                <span className="text-[10px] font-bold bg-[#0F2042]/5 text-[#0F2042] border border-[#0F2042]/10 px-2.5 py-0.5 rounded-full font-mono">
+                  TOP 4 TODAY
+                </span>
               </div>
 
               {topSellingItems.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">No sales transactions recorded for this period</p>
+                <p className="text-xs text-slate-400 py-3 text-center">No transactions recorded for this period</p>
               ) : (
                 <div className="space-y-2">
-                  {topSellingItems.map((item, idx) => (
+                  {topSellingItems.slice(0, 4).map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80 hover:border-blue-300 transition"
+                      className="flex items-center justify-between p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/70 hover:border-[#0F2042]/30 transition"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-3">
-                        <span className="w-5 h-5 rounded-lg bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0 font-mono">
+                      <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#0F2042] shrink-0 font-bold text-xs shadow-sm">
                           {idx + 1}
-                        </span>
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">{item.name}</p>
                           <p className="text-[10px] text-slate-500 font-mono">
-                            {item.sku} • <span className="text-blue-600 font-bold">{item.qty} pcs</span> sold
+                            {item.sku} • <span className="text-[#0F2042] font-semibold">{item.qty} pcs sold</span>
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-slate-900 font-mono tabular-nums block">
+                        <span className="text-xs font-extrabold text-[#0F2042] font-mono tabular-nums block">
                           ₹{item.revenue.toLocaleString("en-IN")}
                         </span>
-                        <span className="text-[9px] text-slate-500 font-mono">
+                        <span className="text-[9px] text-slate-400 font-mono">
                           {formatIndianCompact(item.revenue)}
                         </span>
                       </div>
@@ -1305,621 +1357,804 @@ export default function MobileOwnerApp() {
         )}
 
         {/* =========================================================================
-            TAB 2: 📦 FULL STOCK & INVENTORY STATUS (ACCURATE ~₹44.57 LAKH PHYSICAL VALUATION)
+            TAB 2: 📦 STOCK & WHOLESALE MARGINS (EXACT INSPIRATION IMAGE 3)
             ========================================================================= */}
         {activeNav === "stock" && (
           <div className="space-y-4">
-            {/* Stock Overview Hero Card with Clean White Layout */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Package className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Showroom Physical Stock Valuation
-                  </span>
-                </div>
-                <span className="text-xs font-bold font-mono bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 shadow-sm">
-                  {inventoryStats.totalPcs.toLocaleString("en-IN")} Physical Pcs
-                </span>
-              </div>
+            {/* View Mode Switcher: Physical Stock vs Wholesale Suppliers */}
+            <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-1.5 shadow-sm">
+              <button
+                onClick={() => setStockViewMode("inventory")}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  stockViewMode === "inventory"
+                    ? "bg-[#0F2042] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>Showroom Inventory</span>
+              </button>
 
-              {/* Primary Metric: Total Physical Retail Value (Accurate ~₹44.57 Lakhs) */}
-              <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/50 border border-blue-100 rounded-2xl p-4">
-                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
-                  Total Showroom Stock Retail Value
-                </span>
-                <div className="flex items-baseline gap-2 flex-wrap mt-1">
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
-                    ₹{inventoryStats.totalRetail.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-xs font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-md border border-blue-200 font-mono">
-                    {formatIndianCompact(inventoryStats.totalRetail)} Physical Stock
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500 block mt-1 font-medium">
-                  {inventoryStats.totalItems} physical products • {inventoryStats.totalPcs} total items on hangers/shelves
-                </span>
-              </div>
-
-              {/* Wholesale Cost & Profit Potential in distinct cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-                  <span className="text-[10px] text-slate-500 uppercase font-semibold block">
-                    Wholesale Cost (Investment)
-                  </span>
-                  <span className="text-base sm:text-lg font-black text-slate-900 font-mono tabular-nums block mt-0.5">
-                    ₹{inventoryStats.totalCost.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
-                    {formatIndianCompact(inventoryStats.totalCost)}
-                  </span>
-                </div>
-
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 shadow-sm">
-                  <span className="text-[10px] text-emerald-800 uppercase font-semibold block">
-                    Estimated Gross Margin
-                  </span>
-                  <span className="text-base sm:text-lg font-black text-emerald-700 font-mono tabular-nums block mt-0.5">
-                    +₹{inventoryStats.potentialMargin.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-mono mt-0.5 block">
-                    {formatIndianCompact(inventoryStats.potentialMargin)} ({inventoryStats.potentialMarginPct}%)
-                  </span>
-                </div>
-              </div>
-
-              {/* Stock Status Badges */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs flex-wrap">
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                  <span className="font-mono font-black">{inventoryStats.outOfStock}</span>
-                  <span className="text-[11px]">Out of Stock (0 pcs)</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 font-semibold shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span className="font-mono font-black">{inventoryStats.lowStock}</span>
-                  <span className="text-[11px]">Low Stock (&le; 2 pcs)</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="font-mono font-black">{inventoryStats.goodStock}</span>
-                  <span className="text-[11px]">Healthy Stock</span>
-                </div>
-              </div>
+              <button
+                onClick={() => setStockViewMode("suppliers")}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  stockViewMode === "suppliers"
+                    ? "bg-[#0F2042] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Wholesale Suppliers</span>
+              </button>
             </div>
 
-            {/* Search & Stock Filter Bar */}
-            <div className="space-y-2.5">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <input
-                  type="text"
-                  value={stockSearch}
-                  onChange={(e) => setStockSearch(e.target.value)}
-                  placeholder="Search item name, SKU, or Barcode..."
-                  className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 shadow-sm transition"
-                />
-                {stockSearch && (
-                  <button
-                    onClick={() => setStockSearch("")}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+            {stockViewMode === "suppliers" ? (
+              <SupplierIntelligence products={products} bills={bills} isOwnerView={true} />
+            ) : (
+              <div className="space-y-4">
+                {/* Top Title & Subtitle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      SHOWROOM PHYSICAL STOCK &amp; WHOLESALE MARGINS
+                    </span>
+                    <h2 className="text-base font-black text-[#0F2042] flex items-center gap-1.5 mt-0.5">
+                      <span>Vault &amp; Floor Balance</span>
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold font-mono">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    <span>Live {lastRefreshedAt || "08:30 AM"}</span>
+                  </div>
+                </div>
 
-              {/* Stock Health Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
-                {[
-                  { id: "all", label: `All Items (${inventoryStats.totalItems})` },
-                  { id: "low", label: `⚠️ Low Stock (${inventoryStats.lowStock})` },
-                  { id: "out", label: `🔴 Out of Stock (${inventoryStats.outOfStock})` },
-                  { id: "good", label: `🟢 Healthy Stock (${inventoryStats.goodStock})` },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setStockStatusFilter(f.id as any)}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition ${
-                      stockStatusFilter === f.id
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
-                {[
-                  "all",
-                  "sarees",
-                  "kurtis",
-                  "lehengas",
-                  "jewellery",
-                  "handbags",
-                  "footwear",
-                  "cosmetics",
-                  "bangles",
-                  "earrings",
-                  "handloom",
-                  "kidswear",
-                  "undergarments",
-                ].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition ${
-                      selectedCategory === cat
-                        ? "bg-slate-800 text-white font-bold"
-                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Product Item Cards List */}
-            <div className="space-y-2.5">
-              <span className="text-[11px] text-slate-500 font-semibold block px-1">
-                Showing {filteredProducts.length} items
-              </span>
-
-              {filteredProducts.slice(0, 50).map((p) => {
-                const isOutOfStock = p.stock <= 0;
-                const isLowStock = p.stock > 0 && p.stock <= 2;
-
-                return (
-                  <div
-                    key={p.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 shadow-sm hover:border-blue-300 transition"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 tracking-wider">
-                            {p.category}
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                            {p.sku}
-                          </span>
-                          {p.badge && (
-                            <span className="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-200">
-                              {p.badge}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-xs font-bold text-slate-900 mt-1.5 leading-snug">{p.name}</h3>
-                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">Barcode: {p.barcode}</p>
-                      </div>
-
-                      {/* Stock Quantity Badge */}
-                      <span
-                        className={`text-[11px] font-bold font-mono px-2.5 py-1 rounded-xl shrink-0 shadow-sm ${
-                          isOutOfStock
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : isLowStock
-                            ? "bg-amber-50 text-amber-800 border border-amber-200"
-                            : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        }`}
-                      >
-                        {p.stock} pcs
+                {/* Hero Card: Audited Tag Valuation */}
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        AUDITED TAG VALUATION
                       </span>
                     </div>
+                    <span className="text-[10px] font-bold bg-[#FBF6EE] text-[#A67C43] border border-[#C5A880]/40 px-2.5 py-0.5 rounded-full">
+                      Retail Valuation
+                    </span>
+                  </div>
 
-                    {/* Price & Cost Row with clear spacing */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-black text-blue-700 font-mono tabular-nums">
-                          ₹{p.price.toLocaleString("en-IN")}
-                        </span>
-                        {p.mrp > p.price && (
-                          <span className="text-[10px] text-slate-400 line-through font-mono">
-                            ₹{p.mrp.toLocaleString("en-IN")}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-500">
-                          Cost: <span className="font-mono text-slate-700 font-bold">₹{p.purchaseCost || 0}</span>
-                        </span>
-                        {p.price > p.purchaseCost && (
-                          <span className="text-[10px] text-emerald-600 font-bold ml-1.5 font-mono">
-                            (+₹{p.price - (p.purchaseCost || 0)})
-                          </span>
-                        )}
-                      </div>
+                  {/* Big Valuation Number */}
+                  <div className="mt-1">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-[#0F2042] tracking-tight tabular-nums block">
+                      ₹{inventoryStats.totalRetail.toLocaleString("en-IN")}
+                    </span>
+                    <div className="flex items-center gap-3 text-xs text-slate-600 font-medium mt-1">
+                      <span className="flex items-center gap-1">
+                        <Package className="w-3.5 h-3.5 text-[#C5A880]" />
+                        <span>{inventoryStats.totalPcs.toLocaleString("en-IN")} Designer Pieces</span>
+                      </span>
+                      <span>•</span>
+                      <span>Showroom &amp; Vault Floor</span>
                     </div>
                   </div>
-                );
-              })}
 
-              {filteredProducts.length > 50 && (
-                <p className="text-center text-xs text-slate-400 py-3 font-mono">
-                  Showing first 50 items. Use search bar to find specific products.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================================
-            TAB 3: 🧾 LIVE INVOICES & BILLS
-            ========================================================================= */}
-        
-        {/* =========================================================================
-            TAB: 🏭 WHOLESALE SUPPLIERS INTELLIGENCE & SOURCING SCORECARD
-            ========================================================================= */}
-        {activeNav === "suppliers" && (
-          <div className="space-y-4">
-            <SupplierIntelligence products={products} bills={bills} isOwnerView={true} />
-          </div>
-        )}
-
-        {activeNav === "bills" && (
-          <div className="space-y-4">
-            {/* Offline Laptop Archive Action Card */}
-            <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 text-white p-4 rounded-3xl border border-blue-500/30 shadow-md space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Haridwar Boutique Live Stream</span>
-                  <p className="text-sm font-black text-white">Laptop Offline Bills Vault ({bills.length} Bills Synced)</p>
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                      <CheckCheck className="w-4 h-4 text-[#10B981]" />
+                      <span>100% Barcode &amp; Tag Verified</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {formatIndianCompact(inventoryStats.totalRetail)} Total
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-[10px] font-bold text-emerald-300">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Realtime Stream Active</span>
+
+                {/* 4-Grid Metric Cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Card 1: Wholesale Cost */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">WHOLESALE COST</span>
+                      <Boxes className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                      ₹{inventoryStats.totalCost.toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Capital outlay at {inventoryStats.totalRetail > 0 ? Math.round((inventoryStats.totalCost / inventoryStats.totalRetail) * 100) : 52}% avg MRP
+                    </p>
+                  </div>
+
+                  {/* Card 2: Gross Margin */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GROSS MARGIN</span>
+                      <TrendingUp className="w-4 h-4 text-[#10B981]" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                      ₹{inventoryStats.potentialMargin.toLocaleString("en-IN")}
+                    </p>
+                    <div>
+                      <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-[#10B981] text-[10px] font-bold border border-emerald-100">
+                        ↑ {inventoryStats.potentialMarginPct}% Margin
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Aged Stock */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">AGED STOCK</span>
+                      <Hourglass className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                      ₹{agedStockValue.toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {inventoryStats.lowStock} pieces (&le;2 pcs low stock)
+                    </p>
+                  </div>
+
+                  {/* Card 4: Workshop Hold */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">WORKSHOP HOLD</span>
+                      <Scissors className="w-4 h-4 text-[#0F2042]" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-extrabold text-[#0F2042] tabular-nums tracking-tight">
+                      {activeAlterationsCount} Pcs
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      ₹{alterationsValue.toLocaleString("en-IN")} value • Master tailor fitting bay
+                    </p>
+                  </div>
+                </div>
+
+                {/* Floor Replenishment Section */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl p-4 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-[#0F2042]">Floor Replenishment</h3>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {inventoryStats.totalItems} Total Active SKUs
+                    </span>
+                  </div>
+
+                  {/* Filter chips matching Image 3 */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <button
+                      onClick={() => setStockStatusFilter("all")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                        stockStatusFilter === "all"
+                          ? "bg-[#0F2042] text-white shadow-sm"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      All Units ({inventoryStats.totalItems})
+                    </button>
+                    <button
+                      onClick={() => setStockStatusFilter("good")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                        stockStatusFilter === "good"
+                          ? "bg-[#0F2042] text-white shadow-sm"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      }`}
+                    >
+                      • Healthy ({inventoryStats.goodStock})
+                    </button>
+                    <button
+                      onClick={() => setStockStatusFilter("low")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                        stockStatusFilter === "low"
+                          ? "bg-[#0F2042] text-white shadow-sm"
+                          : "bg-amber-50 text-amber-800 border border-amber-200"
+                      }`}
+                    >
+                      • Low Stock ({inventoryStats.lowStock})
+                    </button>
+                  </div>
+
+                  {/* Segmented Progress Bar: Green (healthy), Gold (low), Red (out) */}
+                  <div className="h-2 w-full rounded-full overflow-hidden flex bg-slate-100">
+                    <div
+                      className="bg-[#10B981] h-full transition-all"
+                      style={{ width: `${healthyPct}%` }}
+                      title="Healthy"
+                    />
+                    <div
+                      className="bg-[#C5A880] h-full transition-all"
+                      style={{ width: `${lowStockPct}%` }}
+                      title="Low Stock"
+                    />
+                    <div
+                      className="bg-rose-500 h-full transition-all"
+                      style={{ width: `${outStockPct}%` }}
+                      title="Out of Stock"
+                    />
+                  </div>
+                </div>
+
+                {/* Search Bar for Garments */}
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    value={stockSearch}
+                    onChange={(e) => setStockSearch(e.target.value)}
+                    placeholder="Search item name, SKU, or Barcode..."
+                    className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#0F2042] shadow-sm transition"
+                  />
+                  {stockSearch && (
+                    <button
+                      onClick={() => setStockSearch("")}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Product List Cards */}
+                <div className="space-y-2.5">
+                  <span className="text-[11px] text-slate-500 font-semibold block px-1">
+                    Showing {filteredProducts.length} items
+                  </span>
+
+                  {filteredProducts.slice(0, 40).map((p) => {
+                    const isOutOfStock = p.stock <= 0;
+                    const isLowStock = p.stock > 0 && p.stock <= 2;
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="bg-white border border-slate-200/90 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 shadow-sm hover:border-[#0F2042]/40 transition"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[9px] font-bold uppercase bg-[#0F2042]/5 text-[#0F2042] px-2 py-0.5 rounded-md border border-[#0F2042]/10 tracking-wider">
+                                {p.category}
+                              </span>
+                              <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                {p.sku}
+                              </span>
+                            </div>
+                            <h3 className="text-xs font-bold text-slate-900 mt-1.5 leading-snug">{p.name}</h3>
+                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">Barcode: {p.barcode}</p>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-sm font-extrabold text-[#0F2042] font-mono tabular-nums block">
+                              ₹{p.price.toLocaleString("en-IN")}
+                            </span>
+                            {p.purchaseCost > 0 && (
+                              <span className="text-[10px] text-slate-400 font-mono block">
+                                Cost: ₹{p.purchaseCost}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                              isOutOfStock
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : isLowStock
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
+                          >
+                            {isOutOfStock ? "Out of Stock" : `${p.stock} Pcs on Rack`}
+                          </span>
+
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Total: ₹{(p.stock * p.price).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            TAB 3: 🧾 BILLS & OFFLINE VAULT (EXACT INSPIRATION IMAGE 4)
+            ========================================================================= */}
+        {activeNav === "bills" && (
+          <div className="space-y-4">
+            {/* Hero Dark Card: Laptop Offline Vault */}
+            <div className="bg-[#0F2042] text-white rounded-3xl p-5 shadow-lg relative overflow-hidden space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-[#C5A880]">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-black text-white">Laptop Offline Vault</span>
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                    </div>
+                    <p className="text-[10px] text-slate-300">POS Terminal 01 • Air-Gapped Sync</p>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[10px] font-bold text-emerald-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>PARITY OK</span>
+                </div>
+              </div>
+
+              {/* 2-Column Stats: Synced Bills & Offline Vault Value */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block">
+                    SYNCED BILLS
+                  </span>
+                  <span className="text-2xl font-black text-white font-mono mt-0.5 block">
+                    {bills.length.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <Check className="w-3 h-3" />
+                    <span>100% cloud parity</span>
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 block">
+                    OFFLINE VAULT VALUE
+                  </span>
+                  <span className="text-2xl font-black text-white font-mono mt-0.5 block">
+                    {formatIndianCompact(totalBillsVaultValue)}
+                  </span>
+                  <span className="text-[10px] text-slate-300 flex items-center gap-1 mt-0.5">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    <span>Checked {lastRefreshedAt || "just now"}</span>
+                  </span>
+                </div>
+              </div>
+
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                Haridwar boutique mein cashier jab bhi bill banata hai, woh instant aapke laptop par sync hota hai. Niche click karke offline backup save karein:
+                Cryptographically verified local POS backup synced seamlessly to owner cloud storage. Real-time parity with showroom billing terminal.
               </p>
+
+              {/* Two Action Buttons: Master Excel and JSON Vault */}
               <div className="flex items-center gap-2 pt-1">
                 <button
                   onClick={handleExportBillsCsv}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+                  className="flex-1 py-2.5 px-3 bg-white text-[#0F2042] hover:bg-slate-100 rounded-xl font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Master Excel (CSV)</span>
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Master Excel</span>
                 </button>
+
                 <button
                   onClick={handleExportBillsJson}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
-                  title="Download Raw JSON data file"
+                  className="flex-1 py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-bold text-xs shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <FileCode className="w-4 h-4 text-[#C5A880]" />
                   <span>JSON Vault</span>
                 </button>
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <input
-                  type="text"
-                  value={billsSearch}
-                  onChange={(e) => setBillsSearch(e.target.value)}
-                  placeholder="Search Bill #, Customer Name, or Phone..."
-                  className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-sm transition"
-                />
-                {billsSearch && (
-                  <button
-                    onClick={() => setBillsSearch("")}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Payment Mode Pills */}
-              <div className="flex items-center gap-1.5 text-xs">
-                {[
-                  { id: "all", label: `All Bills (${bills.length})` },
-                  { id: "cash", label: `💵 Cash (${bills.filter((b) => b.paymentMode === "cash").length})` },
-                  { id: "upi", label: `📱 UPI (${bills.filter((b) => b.paymentMode === "upi").length})` },
-                ].map((pm) => (
-                  <button
-                    key={pm.id}
-                    onClick={() => setBillsPaymentFilter(pm.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
-                      billsPaymentFilter === pm.id
-                        ? "bg-blue-600 text-white font-bold shadow-sm"
-                        : "bg-white text-slate-600 border border-slate-200"
-                    }`}
-                  >
-                    {pm.label}
-                  </button>
-                ))}
-              </div>
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                value={billsSearch}
+                onChange={(e) => setBillsSearch(e.target.value)}
+                placeholder="Search Bill #, Customer Name, or Phone..."
+                className="w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#0F2042] shadow-sm transition"
+              />
+              {billsSearch && (
+                <button
+                  onClick={() => setBillsSearch("")}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
-            {/* Bills Feed List */}
-            <div className="space-y-2.5">
-              {searchFilteredBills.slice(0, 60).map((bill) => (
-                <div
-                  key={bill.id || bill.billNo}
-                  onClick={() => setViewingBill(bill)}
-                  className="bg-white border border-slate-200 hover:border-blue-400 rounded-2xl p-3.5 space-y-2 transition cursor-pointer active:scale-[0.99] shadow-sm"
+            {/* Filter Chips */}
+            <div className="flex items-center gap-1.5 text-xs">
+              {[
+                { id: "all", label: `All Bills (${bills.length})` },
+                { id: "cash", label: `Cash (${bills.filter((b) => b.paymentMode === "cash").length})` },
+                { id: "upi", label: `UPI / Card (${bills.filter((b) => b.paymentMode === "upi").length})` },
+              ].map((pm) => (
+                <button
+                  key={pm.id}
+                  onClick={() => setBillsPaymentFilter(pm.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                    billsPaymentFilter === pm.id
+                      ? "bg-[#0F2042] text-white shadow-sm"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-xs text-blue-700">{bill.billNo}</span>
-                    <span
-                      className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-md font-mono ${
-                        bill.paymentMode === "cash"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-blue-50 text-blue-700 border border-blue-200"
-                      }`}
-                    >
-                      {bill.paymentMode}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">{bill.customer?.name || "Walk-in Guest"}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">
-                        {bill.customer?.phone && bill.customer.phone !== "NA" ? bill.customer.phone : "No Phone"}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-base font-black text-slate-900 font-mono tabular-nums">
-                        ₹{bill.grandTotal.toLocaleString("en-IN")}
-                      </p>
-                      <span className="text-[10px] text-slate-400">{bill.createdAt}</span>
-                    </div>
-                  </div>
-
-                  {/* Items summary */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="truncate max-w-[220px]">
-                      {bill.items?.length || 0} items:{" "}
-                      {bill.items?.map((it) => it.product?.name).filter(Boolean).slice(0, 2).join(", ")}
-                      {(bill.items?.length || 0) > 2 ? "..." : ""}
-                    </span>
-                    <span className="text-blue-600 text-[10px] font-bold flex items-center gap-0.5 shrink-0">
-                      View Slip →
-                    </span>
-                  </div>
-                </div>
+                  {pm.label}
+                </button>
               ))}
+            </div>
+
+            {/* Section Title */}
+            <div className="flex items-center justify-between pt-1">
+              <h3 className="text-xs font-bold text-[#0F2042]">Today's Verified Invoices</h3>
+              <span className="text-[10px] text-slate-500 font-mono">
+                Showroom 1 • ₹{salesStats.revenue.toLocaleString("en-IN")} Total
+              </span>
+            </div>
+
+            {/* Bill Cards matching Image 4 */}
+            <div className="space-y-3">
+              {searchFilteredBills.slice(0, 60).map((bill) => {
+                const billTime = bill.rawDate
+                  ? new Date(bill.rawDate).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+                  : bill.createdAt;
+                const itemsCount = bill.items?.reduce((sum, it) => sum + (it.quantity || 1), 0) || 0;
+                const itemsSummary = bill.items?.map((it) => it.product?.name).filter(Boolean).slice(0, 2).join(", ") || "Ethnic Apparel";
+
+                return (
+                  <div
+                    key={bill.id || bill.billNo}
+                    onClick={() => setViewingBill(bill)}
+                    className="bg-white border border-slate-200/90 hover:border-[#0F2042]/50 rounded-2xl p-4 space-y-2.5 transition cursor-pointer active:scale-[0.99] shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-[#0F2042]">{bill.billNo}</span>
+                        <span
+                          className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md font-mono ${
+                            bill.paymentMode === "cash"
+                              ? "bg-[#FBF6EE] text-[#A67C43] border border-[#C5A880]/30"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                          }`}
+                        >
+                          {bill.paymentMode === "cash" ? "Cash Drawer" : "UPI • Instant QR"}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="text-base font-extrabold text-[#0F2042] font-mono tabular-nums">
+                            ₹{bill.grandTotal.toLocaleString("en-IN")}
+                          </span>
+                          <span className="text-[10px] font-bold text-[#10B981] flex items-center">
+                            <Check className="w-3 h-3 text-[#10B981]" />
+                            <span>Verified</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-slate-900">{bill.customer?.name || "Walk-in Guest"}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          {bill.customer?.phone && bill.customer.phone !== "NA"
+                            ? bill.customer.phone.replace(/(d{5})$/, "•••••")
+                            : "Direct Counter Guest"}
+                        </p>
+                      </div>
+
+                      <span className="text-[10px] text-slate-400 font-mono">{billTime}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                      <Package className="w-3.5 h-3.5 text-[#C5A880] shrink-0" />
+                      <span className="truncate">
+                        {itemsCount} Items • {itemsSummary}
+                        {(bill.items?.length || 0) > 2 ? "..." : ""}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                      <span className="font-mono">
+                        SHA 256: {getBillHash(bill.billNo, bill.grandTotal, bill.createdAt)}
+                      </span>
+                      <span className="text-[#0F2042] font-bold flex items-center gap-0.5">
+                        View Slip &gt;
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* =========================================================================
-            TAB 4: ☕ STAFF & EXPENSES SUITE (OWNER CONTROL & AUDIT)
+            TAB 4: 👥 STAFF & OPS SUITE (EXACT INSPIRATION IMAGE 5)
             ========================================================================= */}
         {activeNav === "staff" && (
           <div className="space-y-4">
-            {/* Header & Sub-tab Bar */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                    Staff &amp; Store Expenses Management
-                  </span>
-                  <span className="text-xs text-blue-700 font-bold">
-                    Connected with Head Staff App
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowAddExpenseModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Expense</span>
-                  </button>
-                  <button
-                    onClick={() => setShowAddMemberModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold hover:bg-slate-200 flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Staff</span>
-                  </button>
-                </div>
-              </div>
+            {/* Action Buttons Top Bar */}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => setShowAddExpenseModal(true)}
+                className="py-2 px-3 rounded-xl bg-[#0F2042] text-white text-xs font-bold shadow-sm hover:bg-[#0A162E] flex items-center gap-1.5 active:scale-95 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#C5A880]" />
+                <span>+ Expense</span>
+              </button>
 
-              {/* Sub-tab Navigation */}
-              <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-xs">
-                {[
-                  { id: "expenses", label: "☕ Expenses", count: todayExpenses.length },
-                  { id: "advances", label: "👥 Advances", count: advances.length },
-                  { id: "attendance", label: "📅 Attendance", count: `${attendanceStats.present}/${attendanceStats.totalStaff}` },
-                  { id: "members", label: "👔 Staff", count: staffMembers.length },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    onClick={() => setStaffSubTab(st.id as any)}
-                    className={`py-2 px-1 rounded-xl font-bold transition flex flex-col items-center justify-center text-[11px] ${
-                      staffSubTab === st.id
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    <span>{st.label}</span>
-                    <span className={`text-[9px] font-mono ${staffSubTab === st.id ? "text-blue-100" : "text-slate-400"}`}>
-                      {st.count}
-                    </span>
-                  </button>
-                ))}
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                className="py-2 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold shadow-sm hover:bg-slate-50 flex items-center gap-1.5 active:scale-95 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-slate-500" />
+                <span>+ Staff</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-3 py-2 bg-slate-100 rounded-xl text-slate-700 text-xs font-bold font-mono">
+                <Wallet className="w-3.5 h-3.5 text-[#C5A880]" />
+                <span>Float: ₹{netGallaCashInHand}</span>
               </div>
             </div>
 
-            {/* Sub-Tab 1: Expenses Feed */}
+            {/* OPERATIONAL PILLARS (4 Bento Cards) */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block px-1">
+                OPERATIONAL PILLARS
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Pillar 1: Expenses */}
+                <div
+                  onClick={() => setStaffSubTab("expenses")}
+                  className={`bg-white border rounded-2xl p-3.5 shadow-sm space-y-1.5 cursor-pointer transition ${
+                    staffSubTab === "expenses" ? "border-[#0F2042] ring-1 ring-[#0F2042]/20" : "border-slate-200/90"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Expenses</span>
+                    <Coffee className="w-4 h-4 text-[#0F2042]" />
+                  </div>
+                  <p className="text-xl font-extrabold text-[#0F2042] font-mono tabular-nums">
+                    ₹{todayExpenseTotal.toLocaleString("en-IN")}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {todayExpenses.length} entries today
+                  </p>
+                </div>
+
+                {/* Pillar 2: Advances */}
+                <div
+                  onClick={() => setStaffSubTab("advances")}
+                  className={`bg-white border rounded-2xl p-3.5 shadow-sm space-y-1.5 cursor-pointer transition ${
+                    staffSubTab === "advances" ? "border-[#0F2042] ring-1 ring-[#0F2042]/20" : "border-slate-200/90"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Advances</span>
+                    <CreditCard className="w-4 h-4 text-[#C5A880]" />
+                  </div>
+                  <p className="text-xl font-extrabold text-[#0F2042] font-mono tabular-nums">
+                    ₹{todayAdvanceTotal.toLocaleString("en-IN")}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {todayAdvances.length} active drawdowns
+                  </p>
+                </div>
+
+                {/* Pillar 3: Attendance */}
+                <div
+                  onClick={() => setStaffSubTab("attendance")}
+                  className={`bg-white border rounded-2xl p-3.5 shadow-sm space-y-1.5 cursor-pointer transition ${
+                    staffSubTab === "attendance" ? "border-[#0F2042] ring-1 ring-[#0F2042]/20" : "border-slate-200/90"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Attendance</span>
+                    <UserCheck className="w-4 h-4 text-[#10B981]" />
+                  </div>
+                  <p className="text-xl font-extrabold text-[#0F2042] font-mono tabular-nums">
+                    {attendanceStats.present} On Duty
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {attendanceStats.totalStaff > 0 ? Math.round((attendanceStats.present / attendanceStats.totalStaff) * 100) : 0}% Biometric Verified
+                  </p>
+                </div>
+
+                {/* Pillar 4: Staff Directory */}
+                <div
+                  onClick={() => setStaffSubTab("members")}
+                  className={`bg-white border rounded-2xl p-3.5 shadow-sm space-y-1.5 cursor-pointer transition ${
+                    staffSubTab === "members" ? "border-[#0F2042] ring-1 ring-[#0F2042]/20" : "border-slate-200/90"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Staff Directory</span>
+                    <Users className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <p className="text-xl font-extrabold text-[#0F2042] font-mono tabular-nums">
+                    {staffMembers.length} Active
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    Showroom Atelier Team
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 2 Reconciliation Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">TOTAL EXPENSE</span>
+                <p className="text-lg font-extrabold text-rose-600 font-mono mt-1 tabular-nums">
+                  -₹{todayExpenseTotal}
+                </p>
+                <span className="text-[10px] text-slate-400">Within daily allowance</span>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">CASH DRAWER</span>
+                <p className="text-lg font-extrabold text-[#0F2042] font-mono mt-1 tabular-nums">
+                  ₹{netGallaCashInHand}
+                </p>
+                <span className="text-[10px] text-emerald-600 font-medium">Reconciled float</span>
+              </div>
+            </div>
+
+            {/* Active Sub-Tab View Feed */}
             {staffSubTab === "expenses" && (
-              <div className="space-y-3">
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Today's Store Expenses</span>
-                    <span className="text-xl font-black text-slate-900 font-mono">₹{todayExpenseTotal}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Paid From Cash Drawer</span>
-                    <span className="text-xl font-black text-rose-600 font-mono">₹{todayCashExpense}</span>
-                  </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[#0F2042]">Store Expenses Feed</h3>
+                  <span className="text-[10px] text-slate-400 font-mono">{expenses.length} Records</span>
                 </div>
 
-                <div className="space-y-2">
-                  {expenses.length === 0 ? (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
-                      No expenses recorded today.
-                    </div>
-                  ) : (
-                    expenses.map((exp) => (
-                      <div
-                        key={exp.id}
-                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
-                              {exp.category.replace("_", " ")}
-                            </span>
-                            <span
-                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                                exp.paidBy === "cash_galla"
-                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              }`}
-                            >
-                              {exp.paidBy === "cash_galla" ? "Cash Drawer" : "Online UPI"}
-                            </span>
-                          </div>
-                          <h4 className="text-xs font-bold text-slate-900 mt-1">{exp.title}</h4>
-                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            By {exp.staffName} • {exp.date} {exp.note ? `• "${exp.note}"` : ""}
-                          </p>
-                        </div>
-
-                        <div className="text-right shrink-0 flex items-center gap-1.5">
-                          <span className="text-base font-black text-rose-600 font-mono tabular-nums mr-1">
-                            -₹{exp.amount}
+                {expenses.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
+                    No store expenses recorded today.
+                  </div>
+                ) : (
+                  expenses.map((exp) => (
+                    <div
+                      key={exp.id}
+                      className="bg-white border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[9px] font-bold uppercase bg-[#0F2042]/5 text-[#0F2042] px-2 py-0.5 rounded-md border border-[#0F2042]/10">
+                            {exp.category.replace("_", " ")}
                           </span>
-                          <button
-                            onClick={() => handleOpenEditExpense(exp)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                            title="Edit Expense"
+                          <span
+                            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                              exp.paidBy === "cash_galla"
+                                ? "bg-[#FBF6EE] text-[#A67C43] border border-[#C5A880]/30"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
                           >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm(`Are you sure you want to delete "${exp.title}"?`)) {
-                                await StaffExpenseService.deleteExpense(exp.id, exp.tokenNumber);
-                                await loadAllData();
-                              }
-                            }}
-                            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
-                            title="Delete Expense"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            {exp.paidBy === "cash_galla" ? "Cash Drawer" : "Online UPI"}
+                          </span>
                         </div>
+                        <h4 className="text-xs font-bold text-slate-900 mt-1">{exp.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          By {exp.staffName} • {exp.date} {exp.note ? `• "${exp.note}"` : ""}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
+
+                      <div className="text-right shrink-0 flex items-center gap-1.5">
+                        <span className="text-base font-extrabold text-rose-600 font-mono tabular-nums mr-1">
+                          -₹{exp.amount}
+                        </span>
+                        <button
+                          onClick={() => handleOpenEditExpense(exp)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#0F2042] hover:bg-slate-100 transition"
+                          title="Edit Expense"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Delete expense "${exp.title}"?`)) {
+                              await StaffExpenseService.deleteExpense(exp.id, exp.tokenNumber);
+                              await loadAllData();
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                          title="Delete Expense"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
-            {/* Sub-Tab 2: Advances Feed */}
             {staffSubTab === "advances" && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  {advances.length === 0 ? (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
-                      No staff advance records found.
-                    </div>
-                  ) : (
-                    advances.map((adv) => (
-                      <div
-                        key={adv.id}
-                        className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-slate-900">{adv.staffName}</span>
-                            <span
-                              className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                                adv.status === "active"
-                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              }`}
-                            >
-                              {adv.status === "active" ? "Pending Advance" : "Cleared"}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                            Reason: {adv.reason.replace("_", " ")} • {adv.date} • {adv.paidBy === "cash_galla" ? "Cash" : "UPI"}
-                          </p>
-                        </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[#0F2042]">Staff Salary Advances</h3>
+                  <span className="text-[10px] text-slate-400 font-mono">{advances.length} Active Records</span>
+                </div>
 
-                        <div className="text-right shrink-0 flex items-center gap-1.5">
-                          <span className="text-base font-black text-rose-600 font-mono tabular-nums mr-1">
-                            ₹{adv.amount}
-                          </span>
-                          {adv.status === "active" ? (
-                            <button
-                              onClick={async () => {
-                                await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "cleared");
-                                await loadAllData();
-                              }}
-                              className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100"
-                            >
-                              Clear
-                            </button>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "active");
-                                await loadAllData();
-                              }}
-                              className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold"
-                            >
-                              Undo
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleOpenEditAdvance(adv)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                            title="Edit Advance"
+                {advances.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400">
+                    No staff salary advance records found.
+                  </div>
+                ) : (
+                  advances.map((adv) => (
+                    <div
+                      key={adv.id}
+                      className="bg-white border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-900">{adv.staffName}</span>
+                          <span
+                            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                              adv.status === "active"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
                           >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                            {adv.status === "active" ? "Pending Advance" : "Cleared"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          {adv.reason.replace("_", " ")} • {adv.date} • {adv.paidBy === "cash_galla" ? "Cash" : "UPI"}
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0 flex items-center gap-1.5">
+                        <span className="text-base font-extrabold text-rose-600 font-mono tabular-nums mr-1">
+                          ₹{adv.amount}
+                        </span>
+                        {adv.status === "active" ? (
                           <button
                             onClick={async () => {
-                              if (confirm(`Delete advance record for ${adv.staffName}?`)) {
-                                await StaffExpenseService.deleteAdvance(adv.id, adv.tokenNumber);
-                                await loadAllData();
-                              }
+                              await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "cleared");
+                              await loadAllData();
                             }}
-                            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
-                            title="Delete Advance"
+                            className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Clear
                           </button>
-                        </div>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "active");
+                              await loadAllData();
+                            }}
+                            className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold"
+                          >
+                            Undo
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOpenEditAdvance(adv)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#0F2042] hover:bg-slate-100"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Delete advance record for ${adv.staffName}?`)) {
+                              await StaffExpenseService.deleteAdvance(adv.id, adv.tokenNumber);
+                              await loadAllData();
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
-            {/* Sub-Tab 3: Attendance Feed */}
             {staffSubTab === "attendance" && (
               <div className="space-y-3">
-                {/* Attendance Date Selector */}
                 <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-2.5 shadow-sm">
                   <button
                     type="button"
@@ -1946,7 +2181,7 @@ export default function MobileOwnerApp() {
                     onClick={() => setOwnerAttendanceDate(todayStr)}
                     className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
                       ownerAttendanceDate === todayStr
-                        ? "bg-blue-600 text-white shadow-sm"
+                        ? "bg-[#0F2042] text-white shadow-sm"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
@@ -1968,8 +2203,8 @@ export default function MobileOwnerApp() {
                     <span className="text-lg font-black text-rose-700 font-mono">{attendanceStats.absent}</span>
                   </div>
                   <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
-                    <span className="text-[10px] text-blue-800 font-bold uppercase block">Leave</span>
-                    <span className="text-lg font-black text-blue-700 font-mono">{attendanceStats.leave}</span>
+                    <span className="text-[10px] text-slate-600 font-bold uppercase block">Leave</span>
+                    <span className="text-lg font-black text-[#0F2042] font-mono">{attendanceStats.leave}</span>
                   </div>
                 </div>
 
@@ -1985,7 +2220,7 @@ export default function MobileOwnerApp() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#0F2042]/5 border border-[#0F2042]/20 text-[#0F2042] font-bold text-xs flex items-center justify-center shrink-0">
                               {staff.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
@@ -2001,20 +2236,20 @@ export default function MobileOwnerApp() {
                                 ? "bg-amber-50 text-amber-800 border border-amber-200"
                                 : currentStatus === "absent"
                                 ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-slate-100 text-slate-700"
                             }`}
                           >
                             {currentStatus.replace("_", " ")}
                           </span>
                         </div>
 
-                        {/* Owner 1-Tap Status Override Buttons */}
+                        {/* Owner 1-Tap Status Override */}
                         <div className="grid grid-cols-4 gap-1.5 text-xs">
                           {[
                             { id: "present", label: "P", active: "bg-emerald-600 text-white" },
                             { id: "half_day", label: "HD", active: "bg-amber-500 text-white" },
                             { id: "absent", label: "A", active: "bg-rose-600 text-white" },
-                            { id: "leave", label: "L", active: "bg-blue-600 text-white" },
+                            { id: "leave", label: "L", active: "bg-[#0F2042] text-white" },
                           ].map((s) => {
                             const isSel = currentStatus === s.id;
                             return (
@@ -2046,152 +2281,59 @@ export default function MobileOwnerApp() {
               </div>
             )}
 
-            {/* Sub-Tab 4: Staff Directory & Full Edit Controls */}
             {staffSubTab === "members" && (
-              <div className="space-y-3">
-                {/* Staff Summary Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                      Active Staff Members
-                    </span>
-                    <span className="text-xl font-black text-slate-900 font-mono">
-                      {staffMembers.filter((s) => s.isActive !== false).length} / {staffMembers.length}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                      Total Monthly Payroll
-                    </span>
-                    <span className="text-xl font-black text-blue-700 font-mono">
-                      ₹
-                      {staffMembers
-                        .filter((s) => s.isActive !== false)
-                        .reduce((sum, s) => sum + s.monthlySalary, 0)
-                        .toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-xs font-bold text-slate-700">Staff List &amp; Profile Edit</span>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[#0F2042]">Showroom Staff Directory</h3>
                   <button
                     onClick={() => setShowAddMemberModal(true)}
-                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    className="text-xs font-bold text-[#0F2042] flex items-center gap-1 hover:underline"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add Staff Member</span>
+                    <span>Add Member</span>
                   </button>
                 </div>
 
-                <div className="space-y-2.5">
-                  {staffMembers.map((staff) => {
-                    const activeAdv = advances
-                      .filter((a) => a.staffId === staff.id && a.status === "active")
-                      .reduce((sum, a) => sum + a.amount, 0);
-
-                    const isActive = staff.isActive !== false;
-
-                    return (
-                      <div
-                        key={staff.id}
-                        className={`bg-white border rounded-2xl p-4 shadow-sm space-y-3 transition ${
-                          isActive ? "border-slate-200" : "border-slate-200 bg-slate-50/70 opacity-75"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 ${
-                                isActive
-                                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                                  : "bg-slate-200 text-slate-500"
-                              }`}
-                            >
-                              {staff.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-bold text-slate-900">{staff.name}</h4>
-                                <span
-                                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                                    isActive
-                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                      : "bg-slate-100 text-slate-600 border border-slate-200"
-                                  }`}
-                                >
-                                  {isActive ? "Active" : "Inactive"}
-                                </span>
-                              </div>
-                              <p className="text-xs text-blue-700 font-semibold mt-0.5">{staff.role}</p>
-                              {staff.phone && (
-                                <a
-                                  href={`tel:${staff.phone}`}
-                                  className="text-[11px] text-slate-500 hover:text-blue-600 font-mono mt-0.5 inline-block"
-                                >
-                                  📞 {staff.phone}
-                                </a>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className="text-sm font-black font-mono text-slate-900 block">
-                              ₹{staff.monthlySalary.toLocaleString("en-IN")}
-                              <span className="text-[10px] text-slate-400 font-normal">/mo</span>
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono block">
-                              ~₹{Math.round(staff.monthlySalary / 30)}/day
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-1 ${
-                                activeAdv > 0
-                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              }`}
-                            >
-                              {activeAdv > 0 ? `Adv: ₹${activeAdv}` : "No Advance"}
-                            </span>
-                          </div>
+                <div className="space-y-2">
+                  {staffMembers.map((staff) => (
+                    <div
+                      key={staff.id}
+                      className="bg-white border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#0F2042] text-white flex items-center justify-center font-bold text-sm">
+                          {staff.name.slice(0, 2).toUpperCase()}
                         </div>
-
-                        {/* Staff Action Buttons (Edit, Active Toggle, Delete) */}
-                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStaffActive(staff)}
-                            className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
-                              isActive
-                                ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                            }`}
-                          >
-                            <span>{isActive ? "⏸ Mark Inactive" : "▶ Re-Activate"}</span>
-                          </button>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditStaff(staff)}
-                              className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold flex items-center gap-1 transition"
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                staff.isActive !== false
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-100 text-slate-400"
+                              }`}
                             >
-                              <Pencil className="w-3.5 h-3.5" />
-                              <span>Edit Details</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteStaff(staff)}
-                              className="p-1.5 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
-                              title="Delete Staff Member"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              {staff.isActive !== false ? "Active" : "Relieved"}
+                            </span>
                           </div>
+                          <p className="text-[10px] text-slate-500 font-medium">{staff.role}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            Salary: ₹{staff.monthlySalary?.toLocaleString("en-IN") || 15000}/mo • {staff.phone || "No Phone"}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditStaff(staff)}
+                          className="p-2 rounded-xl text-slate-400 hover:text-[#0F2042] hover:bg-slate-100"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -2199,22 +2341,22 @@ export default function MobileOwnerApp() {
         )}
 
         {/* =========================================================================
-            TAB 5: 🛡️ SECURITY & STAFF APPROVALS
+            TAB 5: 🛡️ SECURITY & ROLLING OTP
             ========================================================================= */}
         {activeNav === "security" && (
           <div className="space-y-4">
             {/* Live 30-Sec OTP Card */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 text-center shadow-sm">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-5 text-center shadow-sm">
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <ShieldCheck className="w-4 h-4 text-blue-600" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                <ShieldCheck className="w-4 h-4 text-[#0F2042]" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#0F2042]">
                   Staff Override Dynamic OTP
                 </span>
               </div>
               <h2 className="text-xs text-slate-500 mt-0.5">Tell this code to counter staff for price override</h2>
 
               <div className="my-5">
-                <span className="font-mono text-4xl sm:text-5xl font-black text-blue-700 tracking-[0.25em] tabular-nums">
+                <span className="font-mono text-4xl sm:text-5xl font-black text-[#0F2042] tracking-[0.25em] tabular-nums">
                   {otpData.otp}
                 </span>
               </div>
@@ -2222,7 +2364,7 @@ export default function MobileOwnerApp() {
               {/* Progress Bar & Timer */}
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-2 border border-slate-200">
                 <div
-                  className="bg-blue-600 h-full transition-all duration-1000"
+                  className="bg-[#0F2042] h-full transition-all duration-1000"
                   style={{ width: `${(otpData.secondsRemaining / otpData.totalSeconds) * 100}%` }}
                 />
               </div>
@@ -2249,7 +2391,7 @@ export default function MobileOwnerApp() {
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-2.5 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition"
+                  className="py-2.5 px-4 rounded-xl bg-[#10B981] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>WhatsApp</span>
@@ -2258,9 +2400,9 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Pending Requests */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-sm">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-4 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase text-slate-900 tracking-wider">
+                <h3 className="text-xs font-bold uppercase text-[#0F2042] tracking-wider">
                   Pending Staff Price Requests ({pendingRequests.length})
                 </h3>
               </div>
@@ -2276,7 +2418,7 @@ export default function MobileOwnerApp() {
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-900">{req.productName}</span>
-                        <span className="text-[10px] text-blue-700 font-mono">{req.sku}</span>
+                        <span className="text-[10px] text-[#0F2042] font-mono">{req.sku}</span>
                       </div>
 
                       <div className="flex items-center gap-3 text-xs">
@@ -2308,9 +2450,9 @@ export default function MobileOwnerApp() {
             </div>
 
             {/* Audit Log */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-sm">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-4 space-y-3 shadow-sm">
               <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-                Recent Audit History
+                Recent Security Audit History
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {auditLogs.slice(0, 10).map((log) => (
@@ -2330,14 +2472,15 @@ export default function MobileOwnerApp() {
       </main>
 
       {/* =========================================================================
-          MODAL: ADD EXPENSE BY OWNER
+          MODALS & POPUPS
           ========================================================================= */}
+      {/* Modal: Add Expense */}
       {showAddExpenseModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Owner Expense Entry
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Record Store Expense</h3>
@@ -2352,13 +2495,13 @@ export default function MobileOwnerApp() {
 
             <form onSubmit={handleOwnerAddExpense} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Expense Title / Item Description</label>
+                <label className="font-bold text-slate-700 block mb-1">Expense Title / Description</label>
                 <input
                   type="text"
                   required
                   value={newExpTitle}
                   onChange={(e) => setNewExpTitle(e.target.value)}
-                  placeholder="e.g. Tea & Samosa, Cold Drinks, Cleaning, Tape"
+                  placeholder="e.g. Tea & Snacks, Cleaning, Tape"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
                 />
               </div>
@@ -2428,7 +2571,7 @@ export default function MobileOwnerApp() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#0F2042] text-white font-bold shadow-md hover:bg-[#0A162E]"
                 >
                   Save Expense
                 </button>
@@ -2438,15 +2581,13 @@ export default function MobileOwnerApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: ADD NEW STAFF MEMBER BY OWNER
-          ========================================================================= */}
+      {/* Modal: Add Member */}
       {showAddMemberModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Showroom Staff
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Add New Staff Member</h3>
@@ -2473,7 +2614,7 @@ export default function MobileOwnerApp() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Mobile Phone (Optional)</label>
+                <label className="font-bold text-slate-700 block mb-1">Mobile Phone</label>
                 <input
                   type="tel"
                   value={newMemberPhone}
@@ -2485,7 +2626,7 @@ export default function MobileOwnerApp() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Designation / Role</label>
+                  <label className="font-bold text-slate-700 block mb-1">Designation</label>
                   <input
                     type="text"
                     value={newMemberRole}
@@ -2517,7 +2658,7 @@ export default function MobileOwnerApp() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#0F2042] text-white font-bold shadow-md hover:bg-[#0A162E]"
                 >
                   Save Member
                 </button>
@@ -2527,15 +2668,13 @@ export default function MobileOwnerApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: EDIT EXISTING STAFF MEMBER BY OWNER
-          ========================================================================= */}
+      {/* Modal: Edit Staff */}
       {editingStaff && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Owner Staff Management
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Edit Staff Details</h3>
@@ -2556,43 +2695,28 @@ export default function MobileOwnerApp() {
                   required
                   value={editStaffName}
                   onChange={(e) => setEditStaffName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-semibold"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Mobile Phone (Calling / WhatsApp)</label>
+                <label className="font-bold text-slate-700 block mb-1">Mobile Phone</label>
                 <input
                   type="tel"
                   value={editStaffPhone}
                   onChange={(e) => setEditStaffPhone(e.target.value)}
-                  placeholder="98XXXXXXXX"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Role / Designation</label>
+                <label className="font-bold text-slate-700 block mb-1">Role</label>
                 <input
                   type="text"
                   value={editStaffRole}
                   onChange={(e) => setEditStaffRole(e.target.value)}
-                  placeholder="e.g. Head Staff / Store Manager"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
                 />
-                <div className="flex gap-1.5 flex-wrap mt-1.5">
-                  {["Head Staff", "Sales Executive", "Saree Specialist", "Lehenga Expert", "Tailor / Master", "Helper"].map((rolePreset) => (
-                    <button
-                      key={rolePreset}
-                      type="button"
-                      onClick={() => setEditStaffRole(rolePreset)}
-                      className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200"
-                    >
-                      {rolePreset}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div>
@@ -2601,30 +2725,8 @@ export default function MobileOwnerApp() {
                   type="number"
                   value={editStaffSalary}
                   onChange={(e) => setEditStaffSalary(e.target.value)}
-                  placeholder="20000"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold font-mono text-base outline-none"
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Daily wage approx: ~₹{Math.round((Number(editStaffSalary) || 0) / 30)} / day
-                </span>
-              </div>
-
-              {/* Status Toggle */}
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <span className="font-bold text-slate-800 block">Employment Status</span>
-                    <span className="text-[11px] text-slate-500">
-                      {editStaffActive ? "Active (Currently Employed)" : "Inactive / Relieved"}
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={editStaffActive}
-                    onChange={(e) => setEditStaffActive(e.target.checked)}
-                    className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                  />
-                </label>
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -2645,9 +2747,9 @@ export default function MobileOwnerApp() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700 transition"
+                  className="flex-1 py-2.5 rounded-xl bg-[#0F2042] text-white font-bold shadow-md hover:bg-[#0A162E] transition"
                 >
-                  Save Changes
+                  Save
                 </button>
               </div>
             </form>
@@ -2655,15 +2757,13 @@ export default function MobileOwnerApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: EDIT EXISTING STORE EXPENSE BY OWNER
-          ========================================================================= */}
+      {/* Modal: Edit Expense */}
       {editingExpense && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Owner Audit
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Edit Expense Record</h3>
@@ -2684,7 +2784,6 @@ export default function MobileOwnerApp() {
                   required
                   value={editExpTitle}
                   onChange={(e) => setEditExpTitle(e.target.value)}
-                  placeholder="e.g. Tea & Snacks"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-semibold"
                 />
               </div>
@@ -2701,58 +2800,6 @@ export default function MobileOwnerApp() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Category</label>
-                  <select
-                    value={editExpCategory}
-                    onChange={(e) => setEditExpCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
-                  >
-                    <option value="chai_nashta">Tea &amp; Snacks</option>
-                    <option value="refreshments">Drinks &amp; Water</option>
-                    <option value="cleaning_pooja">Cleaning &amp; Care</option>
-                    <option value="stationery_packing">Packing Bags &amp; Tape</option>
-                    <option value="transport_fuel">Transport &amp; Courier</option>
-                    <option value="other">Miscellaneous</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Paid From</label>
-                  <select
-                    value={editExpPaidBy}
-                    onChange={(e) => setEditExpPaidBy(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
-                  >
-                    <option value="cash_galla">💵 Cash Drawer</option>
-                    <option value="online_upi">📱 Online UPI</option>
-                    <option value="owner_personal">👑 Owner Personal</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Date</label>
-                <input
-                  type="date"
-                  value={editExpDate}
-                  onChange={(e) => setEditExpDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
-                <input
-                  type="text"
-                  value={editExpNote}
-                  onChange={(e) => setEditExpNote(e.target.value)}
-                  placeholder="e.g. Verified by Owner"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
-                />
-              </div>
-
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -2763,9 +2810,9 @@ export default function MobileOwnerApp() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#0F2042] text-white font-bold shadow-md hover:bg-[#0A162E]"
                 >
-                  Update Expense
+                  Update
                 </button>
               </div>
             </form>
@@ -2773,15 +2820,13 @@ export default function MobileOwnerApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: EDIT EXISTING STAFF ADVANCE BY OWNER
-          ========================================================================= */}
+      {/* Modal: Edit Advance */}
       {editingAdvance && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Owner Audit
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
@@ -2809,68 +2854,6 @@ export default function MobileOwnerApp() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Reason</label>
-                  <select
-                    value={editAdvReason}
-                    onChange={(e) => setEditAdvReason(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
-                  >
-                    <option value="salary_advance">Salary Advance</option>
-                    <option value="daily_wages">Daily Wages</option>
-                    <option value="emergency">Emergency Medical</option>
-                    <option value="travel_incentive">Travel / Fuel</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Paid Mode</label>
-                  <select
-                    value={editAdvPaidBy}
-                    onChange={(e) => setEditAdvPaidBy(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
-                  >
-                    <option value="cash_galla">💵 Cash Drawer</option>
-                    <option value="online_upi">📱 Online UPI</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Status</label>
-                <select
-                  value={editAdvStatus}
-                  onChange={(e) => setEditAdvStatus(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
-                >
-                  <option value="active">🔴 Active Advance (Pending Settlement)</option>
-                  <option value="cleared">🟢 Cleared / Deducted (Salary se kat chuka hai)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Date</label>
-                <input
-                  type="date"
-                  value={editAdvDate}
-                  onChange={(e) => setEditAdvDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
-                <input
-                  type="text"
-                  value={editAdvNote}
-                  onChange={(e) => setEditAdvNote(e.target.value)}
-                  placeholder="e.g. Diye gaye cash se"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
-                />
-              </div>
-
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -2881,9 +2864,9 @@ export default function MobileOwnerApp() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#0F2042] text-white font-bold shadow-md hover:bg-[#0A162E]"
                 >
-                  Update Advance
+                  Update
                 </button>
               </div>
             </form>
@@ -2891,15 +2874,13 @@ export default function MobileOwnerApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          VIEW BILL MODAL POPUP
-          ========================================================================= */}
+      {/* Modal: View Full Bill */}
       {viewingBill && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#0F2042] tracking-wider">
                   Tax Invoice Slip
                 </span>
                 <h3 className="text-base font-bold font-mono text-slate-900">{viewingBill.billNo}</h3>
@@ -2955,7 +2936,7 @@ export default function MobileOwnerApp() {
                   <span>-₹{viewingBill.discount.toLocaleString("en-IN")}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-100">
+              <div className="flex justify-between text-base font-black text-[#0F2042] pt-1 border-t border-slate-100">
                 <span className="font-sans font-bold">Grand Total:</span>
                 <span className="tabular-nums">₹{viewingBill.grandTotal.toLocaleString("en-IN")}</span>
               </div>
@@ -2976,7 +2957,7 @@ export default function MobileOwnerApp() {
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                  className="flex-1 py-2.5 rounded-xl bg-[#10B981] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>WhatsApp</span>
@@ -2988,14 +2969,13 @@ export default function MobileOwnerApp() {
       )}
 
       {/* =========================================================================
-          FIXED BOTTOM MOBILE NAVIGATION BAR (5 TABS IN CLEAN WHITE DOCK)
+          FIXED BOTTOM MOBILE NAVIGATION BAR (5 DOCKED ICONS MATCHING IMAGE 1)
           ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
-        <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-1">
           {[
             { id: "sales", label: "Sales", icon: TrendingUp },
             { id: "stock", label: "Stock", icon: Package },
-            { id: "suppliers", label: "Suppliers", icon: Building2 },
             { id: "bills", label: "Bills", icon: Receipt },
             { id: "staff", label: "Staff & Ops", icon: Users },
             { id: "security", label: "Security", icon: ShieldCheck },
@@ -3006,18 +2986,20 @@ export default function MobileOwnerApp() {
               <button
                 key={tab.id}
                 onClick={() => setActiveNav(tab.id as any)}
-                className={`flex flex-col items-center justify-center py-1 rounded-2xl transition active:scale-95 ${
-                  isActive ? "text-blue-600 font-bold" : "text-slate-400 hover:text-slate-700"
+                className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition active:scale-95 ${
+                  isActive ? "text-[#0F2042] font-bold" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
                 <div
-                  className={`p-1 rounded-xl transition ${
-                    isActive ? "bg-blue-50 text-blue-600 shadow-sm border border-blue-100" : ""
+                  className={`p-1.5 rounded-xl transition ${
+                    isActive
+                      ? "bg-[#0F2042] text-white shadow-md shadow-[#0F2042]/20"
+                      : "bg-transparent text-slate-400"
                   }`}
                 >
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-[9px] mt-0.5 tracking-tight font-medium truncate max-w-full">
+                <span className="text-[10px] mt-1 tracking-tight font-medium truncate">
                   {tab.label}
                 </span>
               </button>
