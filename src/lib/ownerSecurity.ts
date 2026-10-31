@@ -10,7 +10,7 @@ const TIME_STEP_MS = 5 * 60 * 1000;
 
 export interface InventoryAuthRequest {
   id: string;
-  actionType: "stock_change" | "price_change" | "product_edit" | "product_delete";
+  actionType: "stock_change" | "price_change" | "product_edit" | "product_delete" | "bill_edit" | "bill_delete" | "bill_amount_change";
   productId: string;
   productName: string;
   sku: string;
@@ -26,7 +26,7 @@ export interface InventoryAuthRequest {
 
 export interface InventoryAuditLog {
   id: string;
-  actionType: "stock_change" | "price_change" | "product_edit" | "product_delete";
+  actionType: "stock_change" | "price_change" | "product_edit" | "product_delete" | "bill_edit" | "bill_delete" | "bill_amount_change";
   productId: string;
   productName: string;
   sku: string;

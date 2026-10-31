@@ -81,6 +81,14 @@ import {
   OWNER_PHONE_NUMBER,
   OWNER_NAME,
 } from "@/lib/ownerSecurity";
+import {
+  StaffExpenseService,
+  StaffMember,
+  StaffProductPurchase,
+  StaffDepositRecord,
+  StaffAdvance,
+  DEFAULT_STAFF_MEMBERS,
+} from "@/lib/staffExpenseService";
 
 const INVENTORY_DATA_VERSION = "rajnandni_inventory_v5_live_stock_6416";
 const POS_ACCESS_PASSWORD = "Indu@123";
@@ -95,7 +103,7 @@ export default function RajnandiniPosPage() {
   const [loginError, setLoginError] = useState<string>("");
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<"pos" | "inventory" | "alterations" | "reports" | "customers">("pos");
+  const [activeTab, setActiveTab] = useState<"pos" | "inventory" | "alterations" | "reports" | "customers" | "staff_ledger">("pos");
   
   // Customer Directory State
   const [customerSearch, setCustomerSearch] = useState<string>("");
@@ -138,7 +146,31 @@ export default function RajnandiniPosPage() {
   const [agreedDealPrice, setAgreedDealPrice] = useState<string>("");
   const [editingPriceIdx, setEditingPriceIdx] = useState<number | null>(null);
   const [tempItemPrice, setTempItemPrice] = useState<string>("");
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "khata">("upi");
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "khata" | "staff_salary">("upi");
+  const [selectedStaffBuyerId, setSelectedStaffBuyerId] = useState<string>("staff-1");
+
+  // Staff Khata & Salary Deductions State
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>(DEFAULT_STAFF_MEMBERS);
+  const [staffPurchases, setStaffPurchases] = useState<StaffProductPurchase[]>([]);
+  const [staffDeposits, setStaffDeposits] = useState<StaffDepositRecord[]>([]);
+  const [staffAdvances, setStaffAdvances] = useState<StaffAdvance[]>([]);
+  const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
+
+  // Deposit Form State
+  const [showStaffDepositModal, setShowStaffDepositModal] = useState<boolean>(false);
+  const [depStaffId, setDepStaffId] = useState<string>("staff-1");
+  const [depAmount, setDepAmount] = useState<string>("");
+  const [depPaymentMode, setDepPaymentMode] = useState<"cash_galla" | "online_upi">("cash_galla");
+  const [depNote, setDepNote] = useState<string>("");
+
+  // Direct Staff Garment Issue Modal State
+  const [showStaffIssueModal, setShowStaffIssueModal] = useState<boolean>(false);
+  const [issStaffId, setIssStaffId] = useState<string>("staff-1");
+  const [issProductSearch, setIssProductSearch] = useState<string>("");
+  const [issSelectedProduct, setIssSelectedProduct] = useState<ProductItem | null>(null);
+  const [issQty, setIssQty] = useState<number>(1);
+  const [issPrice, setIssPrice] = useState<string>("");
+  const [issNote, setIssNote] = useState<string>("");
   
   // Alteration in cart
   const [alterationEnabled, setAlterationEnabled] = useState<boolean>(false);
@@ -228,7 +260,7 @@ export default function RajnandiniPosPage() {
   // Owner Security Modal for Inventory Edits / Deletions
   const [showOwnerAuthModal, setShowOwnerAuthModal] = useState<boolean>(false);
   const [ownerAuthDetails, setOwnerAuthDetails] = useState<{
-    actionType: "stock_change" | "price_change" | "product_edit" | "product_delete";
+    actionType: "stock_change" | "price_change" | "product_edit" | "product_delete" | "bill_edit" | "bill_delete" | "bill_amount_change";
     productId: string;
     productName: string;
     sku: string;
@@ -380,6 +412,20 @@ export default function RajnandiniPosPage() {
 
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
+
+      // Fetch Staff Members, Garment Purchases, Deposits, and Advances
+      StaffExpenseService.fetchStaffMembers().then(sm => {
+        if (sm && sm.length > 0) setStaffMembers(sm);
+      }).catch(() => {});
+      StaffExpenseService.fetchStaffPurchases().then(sp => {
+        if (sp) setStaffPurchases(sp);
+      }).catch(() => {});
+      StaffExpenseService.fetchStaffDeposits().then(sd => {
+        if (sd) setStaffDeposits(sd);
+      }).catch(() => {});
+      StaffExpenseService.fetchAdvances().then(sa => {
+        if (sa) setStaffAdvances(sa);
+      }).catch(() => {});
 
       // Check Supabase connection & merge products and bills
       if (isSupabaseConfigured()) {
@@ -755,6 +801,8 @@ export default function RajnandiniPosPage() {
               id: it.product?.id || "",
               name: it.product?.name || "Item",
               sku: it.product?.sku || "",
+              barcode: it.product?.barcode || (it as any).barcode || it.product?.sku || "",
+              category: it.product?.category || "sarees",
               price: it.price || 0,
               quantity: it.quantity || 1,
               isService: it.product?.isService || false
@@ -1451,6 +1499,7 @@ export default function RajnandiniPosPage() {
         alteration: alterationEnabled ? { ...alterationData, required: true } : undefined
       };
 
+      const originalTotal = editingBill.grandTotal;
       const nextBills = completedBills.map(b => b.billNo === editingBill.billNo ? updatedBill : b);
       saveBillsLocally(nextBills);
 
@@ -1468,11 +1517,29 @@ export default function RajnandiniPosPage() {
             id: ci.product.id,
             name: ci.product.name,
             sku: ci.product.sku,
+            barcode: ci.product.barcode || ci.product.sku || "",
+            category: ci.product.category || "sarees",
             price: ci.price,
             quantity: ci.quantity,
             isService: ci.product.isService
           }))
         }).catch(err => console.error("Cloud bill update error:", err));
+
+        // ANTI-FRAUD SECURITY AUDIT: If bill amount changed, permanently log in Supabase
+        if (grandTotal !== originalTotal) {
+          const isReduced = grandTotal < originalTotal;
+          OwnerSecurityService.logAuditEntry({
+            actionType: "bill_amount_change",
+            productId: editingBill.id || editingBill.billNo,
+            productName: `Bill #${editingBill.billNo} Amount Changed (${editingBill.customer?.name || "Customer"})`,
+            sku: editingBill.billNo,
+            oldValue: `₹${originalTotal.toLocaleString("en-IN")}`,
+            newValue: `₹${grandTotal.toLocaleString("en-IN")} (${isReduced ? "Reduced by" : "Increased by"} ₹${Math.abs(grandTotal - originalTotal).toLocaleString("en-IN")})`,
+            reason: discountReason || "Bill amount modified by staff",
+            staffName: (typeof window !== "undefined" ? localStorage.getItem("rajnandni_active_staff_name") : "") || "Showroom Staff",
+            approvedVia: "master_pin",
+          }).catch((err: any) => console.warn("Audit log record warning:", err));
+        }
       }
 
       setLastBill(updatedBill);
@@ -1545,12 +1612,18 @@ export default function RajnandiniPosPage() {
       nextSeq++;
       billNumber = `RJN-${currentYear}-${String(nextSeq).padStart(4, "0")}`;
     }
+    const selectedStaff = staffMembers.find(s => s.id === selectedStaffBuyerId);
+    const staffBuyerName = selectedStaff?.name || "Staff Member";
+    const effectiveCustomerName = (paymentMode === "staff_salary" && (!customer.name.trim() || customer.name.trim() === "Walk-in Guest"))
+      ? `${staffBuyerName} (Staff)`
+      : (customer.name.trim() || "Walk-in Guest");
+
     const newBill: CompletedBill = {
       id: `bill-${Date.now()}`,
       billNo: billNumber,
       customer: {
-        name: customer.name.trim() || "Walk-in Guest",
-        phone: customer.phone.trim() || "NA",
+        name: effectiveCustomerName,
+        phone: customer.phone.trim() || (paymentMode === "staff_salary" ? selectedStaff?.phone || "NA" : "NA"),
         notes: customer.notes.trim()
       },
       items: [...cart],
@@ -1563,10 +1636,35 @@ export default function RajnandiniPosPage() {
       originalTotal: catalogTotal,
       totalSavings: totalSavings,
       paymentMode,
+      staffBuyerId: paymentMode === "staff_salary" ? selectedStaffBuyerId : undefined,
+      staffBuyerName: paymentMode === "staff_salary" ? staffBuyerName : undefined,
       createdAt: new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
       rawDate: new Date().toISOString(),
       alteration: alterationEnabled ? { ...alterationData, required: true } : undefined
     };
+
+    // If staff salary cut, record purchases in Staff Ledger
+    if (paymentMode === "staff_salary") {
+      cart.forEach(ci => {
+        StaffExpenseService.recordStaffPurchase({
+          staffId: selectedStaffBuyerId,
+          staffName: staffBuyerName,
+          billNo: billNumber,
+          productId: ci.product.id,
+          productName: ci.product.name,
+          sku: ci.product.sku,
+          quantity: ci.quantity,
+          price: ci.price,
+          totalAmount: ci.price * ci.quantity,
+          date: new Date().toISOString().split("T")[0],
+          note: `Billed at POS (#${billNumber})`
+        }).then(rec => {
+          if (rec) {
+            setStaffPurchases(prev => [rec, ...prev.filter(p => p.id !== rec.id)]);
+          }
+        }).catch(err => console.warn("Staff purchase record error:", err));
+      });
+    }
 
     // Update Stock for physical products
     const updatedProducts = products.map(prod => {
@@ -1598,6 +1696,8 @@ export default function RajnandiniPosPage() {
           id: ci.product.id,
           name: ci.product.name,
           sku: ci.product.sku,
+          barcode: ci.product.barcode || ci.product.sku || "",
+          category: ci.product.category || "sarees",
           price: ci.price,
           quantity: ci.quantity,
           isService: ci.product.isService
@@ -1656,63 +1756,75 @@ export default function RajnandiniPosPage() {
   }, [products]);
 
   // Start Editing an existing bill (re-loads into cart for bargaining or adding more items)
+  // ANTI-TAMPERING: Protected by Owner Authorization (Indu Ji PIN / WhatsApp OTP)
   const handleStartEditBill = (billToEdit: CompletedBill) => {
-    if (cart.length > 0) {
-      if (!confirm("Your current checkout cart has items. Discard current cart and edit this bill?")) {
-        return;
+    setOwnerAuthDetails({
+      actionType: "bill_edit",
+      productId: billToEdit.billNo,
+      productName: `Bill #${billToEdit.billNo} (${billToEdit.customer.name})`,
+      sku: billToEdit.billNo,
+      oldValue: `₹${billToEdit.grandTotal.toLocaleString("en-IN")} (${billToEdit.items.length} items)`,
+      newValue: "Unlock Bill for Editing & Re-negotiation",
+      onApprove: async () => {
+        if (cart.length > 0) {
+          if (!confirm("Your current checkout cart has items. Discard current cart and edit this bill?")) {
+            return;
+          }
+        }
+        setEditingBill(billToEdit);
+        const loadedCart: CartItem[] = (billToEdit.items || []).map(it => {
+          const pSku = (it.product?.sku || (it as any).sku || "").toLowerCase();
+          const pId = (it.product?.id || (it as any).id || "").toLowerCase();
+          const pName = (it.product?.name || (it as any).name || "").trim().toLowerCase();
+          const cost = Number(it.product?.purchaseCost || (it as any).purchaseCost || (it as any).purchase_cost) ||
+                       (pSku && productCostMap.get(pSku)) ||
+                       (pId && productCostMap.get(pId)) ||
+                       (pName && productCostMap.get(pName)) ||
+                       0;
+          return {
+            product: it.product ? {
+              ...it.product,
+              purchaseCost: (it.product.purchaseCost && it.product.purchaseCost > 0) ? it.product.purchaseCost : cost
+            } : {
+              id: (it as any).id || `prod-${Date.now()}`,
+              name: (it as any).name || "Item",
+              sku: (it as any).sku || "",
+              barcode: (it as any).barcode || "",
+              category: (it as any).category || "sarees",
+              price: it.price || 0,
+              mrp: it.originalPrice || it.price || 0,
+              purchaseCost: cost,
+              stock: 10,
+              isService: (it as any).isService || false
+            },
+            quantity: it.quantity || 1,
+            price: it.price || 0,
+            originalPrice: it.originalPrice || it.price || 0,
+            selectedSize: it.selectedSize || "Standard",
+            customDiscount: 0
+          };
+        });
+        setCart(loadedCart);
+        setCustomer({
+          name: billToEdit.customer.name === "Walk-in Guest" ? "" : billToEdit.customer.name,
+          phone: billToEdit.customer.phone === "NA" ? "" : billToEdit.customer.phone,
+          notes: billToEdit.customer.notes || ""
+        });
+        setDiscountAmount(billToEdit.discount || 0);
+        setAgreedDealPrice(billToEdit.discount > 0 ? String(billToEdit.subtotal - billToEdit.discount) : "");
+        setDiscountReason(billToEdit.discountReason || "Negotiated Bargain");
+        setPaymentMode((billToEdit.paymentMode as any) || "upi");
+        if (billToEdit.alteration) {
+          setAlterationEnabled(true);
+          setAlterationData(billToEdit.alteration);
+        } else {
+          setAlterationEnabled(false);
+        }
+        setShowCheckoutSuccess(false);
+        setActiveTab("pos");
       }
-    }
-    setEditingBill(billToEdit);
-    const loadedCart: CartItem[] = (billToEdit.items || []).map(it => {
-      const pSku = (it.product?.sku || (it as any).sku || "").toLowerCase();
-      const pId = (it.product?.id || (it as any).id || "").toLowerCase();
-      const pName = (it.product?.name || (it as any).name || "").trim().toLowerCase();
-      const cost = Number(it.product?.purchaseCost || (it as any).purchaseCost || (it as any).purchase_cost) ||
-                   (pSku && productCostMap.get(pSku)) ||
-                   (pId && productCostMap.get(pId)) ||
-                   (pName && productCostMap.get(pName)) ||
-                   0;
-      return {
-        product: it.product ? {
-          ...it.product,
-          purchaseCost: (it.product.purchaseCost && it.product.purchaseCost > 0) ? it.product.purchaseCost : cost
-        } : {
-          id: (it as any).id || `prod-${Date.now()}`,
-          name: (it as any).name || "Item",
-          sku: (it as any).sku || "",
-          barcode: (it as any).barcode || "",
-          category: (it as any).category || "sarees",
-          price: it.price || 0,
-          mrp: it.originalPrice || it.price || 0,
-          purchaseCost: cost,
-          stock: 10,
-          isService: (it as any).isService || false
-        },
-        quantity: it.quantity || 1,
-        price: it.price || 0,
-        originalPrice: it.originalPrice || it.price || 0,
-        selectedSize: it.selectedSize || "Standard",
-        customDiscount: 0
-      };
     });
-    setCart(loadedCart);
-    setCustomer({
-      name: billToEdit.customer.name === "Walk-in Guest" ? "" : billToEdit.customer.name,
-      phone: billToEdit.customer.phone === "NA" ? "" : billToEdit.customer.phone,
-      notes: billToEdit.customer.notes || ""
-    });
-    setDiscountAmount(billToEdit.discount || 0);
-    setAgreedDealPrice(billToEdit.discount > 0 ? String(billToEdit.subtotal - billToEdit.discount) : "");
-    setDiscountReason(billToEdit.discountReason || "Negotiated Bargain");
-    setPaymentMode((billToEdit.paymentMode as any) || "upi");
-    if (billToEdit.alteration) {
-      setAlterationEnabled(true);
-      setAlterationData(billToEdit.alteration);
-    } else {
-      setAlterationEnabled(false);
-    }
-    setShowCheckoutSuccess(false);
-    setActiveTab("pos");
+    setShowOwnerAuthModal(true);
   };
 
   // Cancel Editing bill
@@ -1727,32 +1839,39 @@ export default function RajnandiniPosPage() {
     }
   };
 
-  // Delete a single bill entry
-  const handleDeleteSingleBill = async (billToDelete: CompletedBill) => {
-    const confirmed = confirm(
-      `Are you sure you want to permanently delete bill ${billToDelete.billNo} (${billToDelete.customer.name} - ₹${billToDelete.grandTotal.toLocaleString("en-IN")})?\n\nThis will remove it from showroom reports and Cloud Database.`
-    );
-    if (!confirmed) return;
+  // Delete a single bill entry - ANTI-FRAUD: Hard locked behind Owner Authorization
+  const handleDeleteSingleBill = (billToDelete: CompletedBill) => {
+    setOwnerAuthDetails({
+      actionType: "bill_delete",
+      productId: billToDelete.billNo,
+      productName: `Bill #${billToDelete.billNo} (${billToDelete.customer.name})`,
+      sku: billToDelete.billNo,
+      oldValue: `₹${billToDelete.grandTotal.toLocaleString("en-IN")}`,
+      newValue: "PERMANENT BILL DELETION",
+      onApprove: async () => {
+        try {
+          const deletedRaw = localStorage.getItem("rajnandni_deleted_bills");
+          const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+          if (!deletedList.includes(billToDelete.billNo)) {
+            deletedList.push(billToDelete.billNo);
+            localStorage.setItem("rajnandni_deleted_bills", JSON.stringify(deletedList));
+          }
+        } catch {}
 
-    try {
-      const deletedRaw = localStorage.getItem("rajnandni_deleted_bills");
-      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
-      if (!deletedList.includes(billToDelete.billNo)) {
-        deletedList.push(billToDelete.billNo);
-        localStorage.setItem("rajnandni_deleted_bills", JSON.stringify(deletedList));
+        const updatedBills = completedBills.filter(b => b.billNo !== billToDelete.billNo);
+        saveBillsLocally(updatedBills);
+
+        if (isSupabaseConfigured()) {
+          try {
+            await SupabaseService.deleteBill(billToDelete.billNo);
+          } catch (err) {
+            console.error("Failed to delete bill from Supabase:", err);
+          }
+        }
       }
-    } catch {}
-
-    const updatedBills = completedBills.filter(b => b.billNo !== billToDelete.billNo);
-    saveBillsLocally(updatedBills);
-
-    if (isSupabaseConfigured()) {
-      try {
-        await SupabaseService.deleteBill(billToDelete.billNo);
-      } catch (err) {
-        console.error("Failed to delete bill from Supabase:", err);
-      }
-    }
+    });
+    setShowOwnerAuthModal(true);
+  };
   };
 
   // Trigger Thermal Slip Print
@@ -3128,6 +3247,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   activeTab === "alterations" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-rose-100 text-rose-700 animate-pulse"
                 }`}>
                   {alterationsList.filter(a => a.status !== "Delivered").length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("staff_ledger")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer relative ${
+                activeTab === "staff_ledger"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
+              }`}
+              title="Staff Product Purchases, Salary Deductions & Cash/UPI Repayments"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Staff Khata</span>
+              {(staffPurchases.length > 0 || staffDeposits.length > 0) && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  activeTab === "staff_ledger" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-[#ede7e6] text-[#534345]"
+                }`}>
+                  {staffPurchases.length + staffDeposits.length}
                 </span>
               )}
             </button>

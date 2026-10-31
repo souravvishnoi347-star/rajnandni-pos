@@ -140,7 +140,9 @@ export interface CompletedBill {
   paidAmount: number;
   originalTotal?: number;
   totalSavings?: number;
-  paymentMode: "cash" | "upi" | "card" | "khata";
+  paymentMode: "cash" | "upi" | "card" | "khata" | "staff_salary";
+  staffBuyerId?: string;
+  staffBuyerName?: string;
   createdAt: string;
   rawDate?: string;
   alteration?: AlterationDetail;

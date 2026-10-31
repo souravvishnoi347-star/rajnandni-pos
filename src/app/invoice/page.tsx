@@ -52,6 +52,18 @@ function InvoiceContent() {
             .maybeSingle();
 
           if (!error && data) {
+            let productsMap: Map<string, any> = new Map();
+            try {
+              const rawProds = typeof window !== "undefined" ? localStorage.getItem("rajnandni_products") : null;
+              if (rawProds) {
+                const list = JSON.parse(rawProds);
+                list.forEach((p: any) => {
+                  if (p.id) productsMap.set(p.id, p);
+                  if (p.sku) productsMap.set(p.sku.toLowerCase(), p);
+                });
+              }
+            } catch {}
+
             const mappedBill: CompletedBill = {
               id: data.id,
               billNo: data.invoice_number,
@@ -60,24 +72,28 @@ function InvoiceContent() {
                 phone: data.customer_phone || "",
                 notes: ""
               },
-              items: (data.items || []).map((it: any) => ({
-                product: {
-                  id: it.id || "",
-                  name: it.name || "Ethnic Garment",
-                  sku: it.sku || "",
-                  barcode: it.barcode || "8901001",
-                  category: "sarees",
+              items: (data.items || []).map((it: any) => {
+                const matched = productsMap.get(it.id) || (it.sku ? productsMap.get(it.sku.toLowerCase()) : null);
+                const authenticBarcode = it.barcode || it.product?.barcode || matched?.barcode || "";
+                return {
+                  product: {
+                    id: it.id || "",
+                    name: it.name || "Ethnic Garment",
+                    sku: it.sku || "",
+                    barcode: authenticBarcode,
+                    category: it.category || "sarees",
+                    price: it.price || 0,
+                    mrp: it.mrp || Math.round((it.price || 0) * 1.25),
+                    purchaseCost: 0,
+                    stock: 1
+                  },
+                  quantity: it.quantity || 1,
                   price: it.price || 0,
-                  mrp: it.mrp || Math.round((it.price || 0) * 1.25),
-                  purchaseCost: 0,
-                  stock: 1
-                },
-                quantity: it.quantity || 1,
-                price: it.price || 0,
-                originalPrice: it.mrp || Math.round((it.price || 0) * 1.25),
-                selectedSize: it.size || "Standard",
-                customDiscount: 0
-              })),
+                  originalPrice: it.mrp || Math.round((it.price || 0) * 1.25),
+                  selectedSize: it.size || "Standard",
+                  customDiscount: 0
+                };
+              }),
               subtotal: Number(data.subtotal) || 0,
               discount: Number(data.discount) || 0,
               taxGst: Number(data.tax) || 0,
@@ -319,7 +335,7 @@ function InvoiceContent() {
                   {/* Line 2: Barcode / SKU + Qty x Rate */}
                   <div className="flex justify-between items-center text-[11px] font-mono font-bold text-black mt-1">
                     <span>
-                      HSN: {hsnCode} · Barcode: {it.product.barcode || `890100${idx + 1}`}
+                      HSN: {hsnCode}{(it.product?.barcode || (it as any).barcode) ? ` · Barcode: ${it.product?.barcode || (it as any).barcode}` : (it.product?.sku ? ` · SKU: ${it.product.sku}` : "")}
                     </span>
                     <span className="text-right font-black">
                       {it.quantity} PC @ ₹{it.price.toFixed(2)}
@@ -383,7 +399,11 @@ function InvoiceContent() {
           <div className="border-t-2 border-b-2 border-black py-2 my-3 text-[11px] font-mono text-black">
             <p className="font-black text-[11px] uppercase mb-1">Tender Detail</p>
             <div className="flex justify-between items-center font-bold">
-              <span className="uppercase">{bill.paymentMode} PAYMENT</span>
+              <span className="uppercase">
+                {bill.paymentMode === "staff_salary"
+                  ? `STAFF SALARY DEDUCTION ${bill.staffBuyerName ? `(${bill.staffBuyerName})` : ""}`
+                  : `${bill.paymentMode} PAYMENT`}
+              </span>
               <span className="font-mono">{customerPhone !== "WALK-IN" ? customerPhone : ""}</span>
               <span className="font-black text-xs">₹{bill.grandTotal.toFixed(2)}</span>
             </div>

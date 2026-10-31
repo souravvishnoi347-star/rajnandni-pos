@@ -52,6 +52,36 @@ export interface StaffMember {
   isActive: boolean;
 }
 
+export interface StaffProductPurchase {
+  id: string;
+  tokenNumber: string;
+  staffId: string;
+  staffName: string;
+  billNo?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  price: number;
+  totalAmount: number;
+  date: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface StaffDepositRecord {
+  id: string;
+  tokenNumber: string;
+  staffId: string;
+  staffName: string;
+  amount: number;
+  paymentMode: "cash_galla" | "online_upi";
+  receivedBy: string;
+  date: string;
+  note?: string;
+  createdAt: string;
+}
+
 export const DEFAULT_STAFF_MEMBERS: StaffMember[] = [
   { id: "staff-1", name: "Ramesh Kumar", phone: "9897123456", role: "Head Staff / Store Manager", monthlySalary: 25000, isActive: true },
   { id: "staff-2", name: "Priya Sharma", phone: "9897654321", role: "Senior Sales Executive", monthlySalary: 18000, isActive: true },
@@ -65,6 +95,8 @@ const LOCAL_STORAGE_KEYS = {
   ADVANCES: "rajnandni_staff_advances",
   ATTENDANCE: "rajnandni_staff_attendance",
   STAFF: "rajnandni_staff_members",
+  PURCHASES: "rajnandni_staff_purchases",
+  DEPOSITS: "rajnandni_staff_deposits",
 };
 
 export const StaffExpenseService = {
@@ -780,5 +812,303 @@ export const StaffExpenseService = {
 
   async toggleStaffStatus(id: string, isActive: boolean): Promise<boolean> {
     return this.updateStaffMember(id, { isActive });
+  },
+
+  // =========================================================================
+  // 5. STAFF GARMENT PURCHASES (SALARY DEDUCTIONS)
+  // =========================================================================
+  async fetchStaffPurchases(): Promise<StaffProductPurchase[]> {
+    let cloudList: StaffProductPurchase[] = [];
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("alterations")
+          .select("*")
+          .eq("customer_name", "STAFF_PURCHASE")
+          .order("created_at", { ascending: false })
+          .limit(1000);
+
+        if (!error && Array.isArray(data)) {
+          cloudList = data.map((row: any) => {
+            let details: any = {};
+            try {
+              details = JSON.parse(row.instructions || "{}");
+            } catch {}
+            return {
+              id: row.id,
+              tokenNumber: row.token_number,
+              staffId: details.staffId || "staff-unknown",
+              staffName: row.item_name || details.staffName || "Staff Member",
+              billNo: details.billNo || "",
+              productId: details.productId || "",
+              productName: details.productName || "Boutique Garment",
+              sku: details.sku || "",
+              quantity: Number(details.quantity) || 1,
+              price: Number(details.price) || 0,
+              totalAmount: Number(details.totalAmount || details.amount) || 0,
+              date: details.date || row.created_at.split("T")[0],
+              note: details.note || "",
+              createdAt: row.created_at,
+            };
+          });
+        }
+      } catch (err) {
+        console.warn("Error fetching staff purchases:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.PURCHASES);
+        const localList: StaffProductPurchase[] = localRaw ? JSON.parse(localRaw) : [];
+        if (cloudList.length > 0) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.PURCHASES, JSON.stringify(cloudList));
+          return cloudList;
+        }
+        return localList;
+      } catch {}
+    }
+    return cloudList;
+  },
+
+  async recordStaffPurchase(item: {
+    staffId: string;
+    staffName: string;
+    billNo?: string;
+    productId: string;
+    productName: string;
+    sku: string;
+    quantity: number;
+    price: number;
+    totalAmount: number;
+    note?: string;
+    date?: string;
+  }): Promise<StaffProductPurchase | null> {
+    const todayStr = item.date || new Date().toISOString().split("T")[0];
+    const token = "STF-PUR-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+
+    const payload = {
+      staffId: item.staffId,
+      staffName: item.staffName.trim(),
+      billNo: item.billNo || "",
+      productId: item.productId,
+      productName: item.productName.trim(),
+      sku: item.sku,
+      quantity: item.quantity,
+      price: item.price,
+      totalAmount: item.totalAmount,
+      date: todayStr,
+      note: item.note?.trim() || "",
+    };
+
+    let newRecord: StaffProductPurchase = {
+      id: "local-" + Date.now(),
+      tokenNumber: token,
+      ...payload,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("alterations")
+          .insert({
+            token_number: token,
+            customer_name: "STAFF_PURCHASE",
+            customer_phone: "salary_deduction",
+            item_name: item.staffName.trim(),
+            instructions: JSON.stringify(payload),
+            tailor_name: item.productName.trim(),
+            status: "active",
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          newRecord.id = data.id;
+        }
+      } catch (err) {
+        console.warn("Error saving staff purchase to Supabase:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.PURCHASES);
+        const list: StaffProductPurchase[] = raw ? JSON.parse(raw) : [];
+        const next = [newRecord, ...list];
+        localStorage.setItem(LOCAL_STORAGE_KEYS.PURCHASES, JSON.stringify(next));
+      } catch {}
+    }
+
+    return newRecord;
+  },
+
+  async deleteStaffPurchase(id: string, tokenNumber?: string): Promise<boolean> {
+    if (supabase) {
+      try {
+        if (id && !id.startsWith("local-")) {
+          await supabase.from("alterations").delete().eq("id", id);
+        } else if (tokenNumber) {
+          await supabase.from("alterations").delete().eq("token_number", tokenNumber);
+        }
+      } catch (e) {
+        console.warn("Delete staff purchase error:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.PURCHASES);
+        const list: StaffProductPurchase[] = raw ? JSON.parse(raw) : [];
+        const next = list.filter((p) => p.id !== id && (!tokenNumber || p.tokenNumber !== tokenNumber));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.PURCHASES, JSON.stringify(next));
+      } catch {}
+    }
+    return true;
+  },
+
+  // =========================================================================
+  // 6. STAFF REPAYMENTS / DEPOSITS (CASH OR ONLINE UPI)
+  // =========================================================================
+  async fetchStaffDeposits(): Promise<StaffDepositRecord[]> {
+    let cloudList: StaffDepositRecord[] = [];
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("alterations")
+          .select("*")
+          .eq("customer_name", "STAFF_DEPOSIT")
+          .order("created_at", { ascending: false })
+          .limit(1000);
+
+        if (!error && Array.isArray(data)) {
+          cloudList = data.map((row: any) => {
+            let details: any = {};
+            try {
+              details = JSON.parse(row.instructions || "{}");
+            } catch {}
+            return {
+              id: row.id,
+              tokenNumber: row.token_number,
+              staffId: details.staffId || "staff-unknown",
+              staffName: row.item_name || details.staffName || "Staff Member",
+              amount: Number(details.amount) || 0,
+              paymentMode: (details.paymentMode || row.customer_phone || "cash_galla") as any,
+              receivedBy: details.receivedBy || row.tailor_name || "Galla Cashier",
+              date: details.date || row.created_at.split("T")[0],
+              note: details.note || "",
+              createdAt: row.created_at,
+            };
+          });
+        }
+      } catch (err) {
+        console.warn("Error fetching staff deposits:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.DEPOSITS);
+        const localList: StaffDepositRecord[] = localRaw ? JSON.parse(localRaw) : [];
+        if (cloudList.length > 0) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.DEPOSITS, JSON.stringify(cloudList));
+          return cloudList;
+        }
+        return localList;
+      } catch {}
+    }
+    return cloudList;
+  },
+
+  async recordStaffDeposit(dep: {
+    staffId: string;
+    staffName: string;
+    amount: number;
+    paymentMode: StaffDepositRecord["paymentMode"];
+    receivedBy?: string;
+    note?: string;
+    date?: string;
+  }): Promise<StaffDepositRecord | null> {
+    const todayStr = dep.date || new Date().toISOString().split("T")[0];
+    const token = "STF-DEP-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+
+    const payload = {
+      staffId: dep.staffId,
+      staffName: dep.staffName.trim(),
+      amount: dep.amount,
+      paymentMode: dep.paymentMode,
+      receivedBy: dep.receivedBy?.trim() || "Galla Cashier",
+      date: todayStr,
+      note: dep.note?.trim() || "",
+    };
+
+    let newRecord: StaffDepositRecord = {
+      id: "local-" + Date.now(),
+      tokenNumber: token,
+      ...payload,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("alterations")
+          .insert({
+            token_number: token,
+            customer_name: "STAFF_DEPOSIT",
+            customer_phone: dep.paymentMode,
+            item_name: dep.staffName.trim(),
+            instructions: JSON.stringify(payload),
+            tailor_name: payload.receivedBy,
+            status: "approved",
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          newRecord.id = data.id;
+        }
+      } catch (err) {
+        console.warn("Error saving staff deposit to Supabase:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.DEPOSITS);
+        const list: StaffDepositRecord[] = raw ? JSON.parse(raw) : [];
+        const next = [newRecord, ...list];
+        localStorage.setItem(LOCAL_STORAGE_KEYS.DEPOSITS, JSON.stringify(next));
+      } catch {}
+    }
+
+    return newRecord;
+  },
+
+  async deleteStaffDeposit(id: string, tokenNumber?: string): Promise<boolean> {
+    if (supabase) {
+      try {
+        if (id && !id.startsWith("local-")) {
+          await supabase.from("alterations").delete().eq("id", id);
+        } else if (tokenNumber) {
+          await supabase.from("alterations").delete().eq("token_number", tokenNumber);
+        }
+      } catch (e) {
+        console.warn("Delete staff deposit error:", e);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.DEPOSITS);
+        const list: StaffDepositRecord[] = raw ? JSON.parse(raw) : [];
+        const next = list.filter((p) => p.id !== id && (!tokenNumber || p.tokenNumber !== tokenNumber));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.DEPOSITS, JSON.stringify(next));
+      } catch {}
+    }
+    return true;
   },
 };
