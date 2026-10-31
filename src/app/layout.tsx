@@ -1,31 +1,9 @@
 import type { Metadata } from "next";
-import { Cinzel, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const cinzel = Cinzel({
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-cinzel",
-  display: "swap",
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "RAJNANDINI | Darshan Enterprises — Luxury Retail POS & Billing",
-  description: "Flagship Retail Billing, Inventory & Barcode Software for Rajnandini (Darshan Enterprises, Haridwar)",
+  title: "RAJNANDINI | Haute Couture & Bridal Atelier POS",
+  description: "Atelier Couture POS & ERP — Flagship Retail Billing, Inventory, Barcode & CRM Suite for Rajnandini (Darshan Enterprises, Haridwar)",
 };
 
 export default function RootLayout({
@@ -34,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased min-h-screen bg-[#f8f5f0] text-stone-900 selection:bg-amber-400 selection:text-stone-950">
+    <html lang="en">
+      <body className="antialiased min-h-screen bg-[#fef8f7] text-[#1d1b1b] selection:bg-[#5a1e2d] selection:text-white">
         {children}
       </body>
     </html>

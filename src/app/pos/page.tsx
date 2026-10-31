@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import {
   Sparkles,
   ShoppingBag,
+  Package,
   Scissors,
   Receipt,
   Printer,
@@ -2928,48 +2929,56 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   }
 
   return (
-    <div className="min-h-screen print:min-h-0 print:h-auto print:block showroom-canvas-bg print:bg-white text-stone-900 flex flex-col font-sans">
+    <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-[#fef8f7] print:bg-white text-[#1d1b1b] flex flex-col font-sans">
       {/* =========================================================
           TOP LUXURY OBSIDIAN & CHAMPAGNE GOLD COMMAND HEADER
           ========================================================= */}
       {/* MAIN SCREEN INTERACTIVE UI (HIDDEN DURING PRINTING) */}
       <div className="no-print flex-1 flex flex-col">
-        <header className="bg-white text-stone-800 shadow-sm border-b border-stone-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 relative">
-          {/* Left: Brand Monogram & Showroom Info */}
+        <header className="sticky top-0 z-40 bg-[#fef8f7]/95 backdrop-blur-xl border-b border-[#e7e1e1] shadow-[0_1px_8px_rgba(90,30,45,0.05)] px-5 py-3 flex flex-wrap items-center justify-between gap-4">
+          {/* Left: Haute Couture Monogram & Cloud Sync */}
           <div className="flex items-center gap-3.5">
-            <img src="/logo.png" alt="Rajnandini Logo" className="w-11 h-11 object-contain bg-white rounded-xl shadow-xs shrink-0" />
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-black tracking-[0.14em] text-stone-900 uppercase font-serif">
+            <img src="/logo.png" alt="Rajnandini Logo" className="w-10 h-10 object-contain bg-white rounded-xl shadow-xs border border-[#ede7e6] shrink-0" />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight text-[#3f0819] uppercase font-outfit leading-none">
                   RAJNANDINI
                 </h1>
-                <span className="text-[10px] bg-stone-100 text-stone-600 border border-stone-200 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-                  Darshan Enterprises
+                <span className="text-[9.5px] uppercase tracking-widest text-[#7c5641] font-semibold bg-[#fdc9af]/40 px-2 py-0.5 rounded-full border border-[#c99a82]/30">
+                  Haute Couture
                 </span>
               </div>
-              <p className="text-[11px] text-stone-500 font-medium flex items-center gap-1.5">
-                <span>Near PSC petrolpump Ranipur goan , haridwar , Uttrakhand  249401</span>
-                <span className="text-stone-300">•</span>
-                <span className="font-mono text-stone-500 font-bold">GSTIN: 05GNZPS9902M1ZR · Ph: +91 7464987898</span>
-              </p>
+              <span className="text-[10px] text-[#534345] font-medium mt-0.5">
+                Flagship Bridal Atelier &amp; Luxury Saree Studio • Haridwar
+              </span>
+            </div>
+
+            {/* Cloud Live Pill */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#f3ecec] border border-[#e7e1e1] shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cba72f] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#735c00]"></span>
+              </span>
+              <span className="text-[10.5px] text-[#1d1b1b] font-semibold">Cloud Live</span>
+              <span className="text-[10px] text-[#534345] font-mono">• {products.length} SKUs</span>
             </div>
           </div>
 
-          {/* Center: Executive Pill Navigation Tabs with Live Badges */}
-          <div className="flex items-center bg-stone-100/80 p-1 rounded-2xl border border-stone-200 text-xs shadow-inner">
+          {/* Center: Executive Atelier Pill Navigation Tabs */}
+          <nav className="flex items-center gap-1 p-1 rounded-2xl bg-[#f8f2f2] border border-[#e7e1e1] text-xs shadow-inner">
             <button
               onClick={() => setActiveTab("pos")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "pos"
-                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
-                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
+                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
-              <Receipt className="w-4 h-4" />
+              <Receipt className="w-3.5 h-3.5" />
               <span>POS Billing</span>
               {cart.length > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === "pos" ? "bg-amber-100 text-amber-800" : "bg-stone-200 text-stone-600"
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black font-mono ${
+                  activeTab === "pos" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-[#ede7e6] text-[#534345]"
                 }`}>
                   {cart.reduce((s, i) => s + i.quantity, 0)}
                 </span>
@@ -2978,38 +2987,19 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
             <button
               onClick={() => setActiveTab("inventory")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "inventory"
-                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
-                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
+                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Inventory &amp; Barcodes</span>
+              <Package className="w-3.5 h-3.5" />
+              <span>Inventory</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                activeTab === "inventory" ? "bg-stone-100 text-stone-700" : "bg-stone-200 text-stone-600"
+                activeTab === "inventory" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-[#ede7e6] text-[#534345]"
               }`}>
                 {products.length}
               </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("alterations")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer relative ${
-                activeTab === "alterations"
-                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
-                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
-              }`}
-            >
-              <Scissors className="w-4 h-4" />
-              <span>Alteration Desk</span>
-              {alterationsList.filter(a => a.status !== "Delivered").length > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === "alterations" ? "bg-rose-100 text-rose-700" : "bg-rose-50 text-rose-600 animate-pulse"
-                }`}>
-                  {alterationsList.filter(a => a.status !== "Delivered").length}
-                </span>
-              )}
             </button>
 
             <button
@@ -3018,17 +3008,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 setReportDateFilter("today");
                 setReportPage(1);
               }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "reports"
-                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
-                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
+                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-3.5 h-3.5" />
               <span>Daily Sales</span>
               {completedBills.length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                  activeTab === "reports" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  activeTab === "reports" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-[#ede7e6] text-[#534345]"
                 }`}>
                   {completedBills.length}
                 </span>
@@ -3038,76 +3028,77 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <button
               onClick={() => {
                 setActiveTab("customers");
-                setCustomerPage(1);
+                setCustomerSearch("");
               }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "customers"
-                  ? "bg-white text-stone-900 font-bold shadow-xs border border-stone-200/60"
-                  : "text-stone-500 hover:text-stone-900 hover:bg-stone-200/50"
+                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
-              <Users className="w-4 h-4" />
-              <span>Customers</span>
-              {customerDirectory.length > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                  activeTab === "customers" ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600 border border-stone-200"
+              <Users className="w-3.5 h-3.5" />
+              <span>Clients (CRM)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("alterations")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer relative ${
+                activeTab === "alterations"
+                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
+              }`}
+            >
+              <Scissors className="w-3.5 h-3.5" />
+              <span>Alterations</span>
+              {alterationsList.filter(a => a.status !== "Delivered").length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeTab === "alterations" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-rose-100 text-rose-700 animate-pulse"
                 }`}>
-                  {customerDirectory.length}
+                  {alterationsList.filter(a => a.status !== "Delivered").length}
                 </span>
               )}
             </button>
-          </div>
+          </nav>
 
-          {/* Right: Cloud Sync + Live Revenue Pill + Lock Terminal */}
+          {/* Right: Quick Exchange, Revenue, Register & Lock */}
           <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setShowDbModal(true)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                supabaseConnected
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                  : "bg-stone-50 border-stone-200 text-stone-600 hover:border-stone-300 hover:text-stone-900"
-              }`}
-              title="Database & Supabase Cloud Sync"
-            >
-              <Database className={`w-3.5 h-3.5 ${supabaseConnected ? "text-emerald-600" : "text-stone-400"}`} />
-              <span className="hidden xl:inline">
-                {supabaseConnected ? "Cloud Live" : "Cloud DB"}
-              </span>
-              <span className={`w-2 h-2 rounded-full ${supabaseConnected ? "bg-emerald-500" : "bg-stone-400"} animate-pulse`} />
-            </button>
-
-            <div className="hidden lg:flex items-center gap-3.5 bg-stone-100 border border-stone-200 px-3.5 py-1.5 rounded-xl">
-              <div className="text-right">
-                <span className="text-[9.5px] text-stone-500 uppercase font-bold tracking-wider block">Today's Collection</span>
-                <p className="text-sm font-black text-emerald-600 font-mono">
-                  ₹{totalTodayRevenue.toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="h-6 w-px bg-stone-300" />
-              <div className="text-right">
-                <span className="text-[9.5px] text-stone-500 uppercase font-bold tracking-wider block">Bills</span>
-                <p className="text-sm font-black text-stone-800 font-mono">{completedBills.length}</p>
-              </div>
-            </div>
-
             <button
               onClick={() => {
                 setExchangePreselectedBill(null);
                 setShowExchangeModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xs active:scale-95 transition cursor-pointer"
-              title="Customer Product Exchange & Replacement Studio (5-Day Window)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#5a1e2d] to-[#7c5641] hover:from-[#3f0819] hover:to-[#5a1e2d] text-white text-xs font-bold shadow-sm active:scale-95 transition cursor-pointer"
+              title="Customer Product Exchange Studio (5-Day Window)"
             >
               <RotateCcw className="w-3.5 h-3.5 text-white" />
-              <span className="hidden md:inline">Exchange</span>
+              <span>Exchange</span>
             </button>
+
+            <div className="hidden 2xl:flex items-center gap-2 bg-[#f8f2f2] border border-[#ede7e6] px-3 py-1.5 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[#534345] font-semibold">Reg #01 Ground Floor</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2.5 bg-white border border-[#ede7e6] px-3 py-1 rounded-xl shadow-2xs">
+              <div className="text-right">
+                <span className="text-[9px] text-[#534345] uppercase font-bold tracking-wider block">Today's Sales</span>
+                <p className="text-xs font-black text-[#3f0819] font-mono tabular-nums">
+                  ₹{totalTodayRevenue.toLocaleString("en-IN")}
+                </p>
+              </div>
+              <div className="h-6 w-px bg-[#ede7e6]" />
+              <div className="text-right">
+                <span className="text-[9px] text-[#534345] uppercase font-bold tracking-wider block">Bills</span>
+                <p className="text-xs font-black text-[#1d1b1b] font-mono">{completedBills.length}</p>
+              </div>
+            </div>
 
             <button
               onClick={handleLogoutLock}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-50 hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-stone-600 hover:text-rose-700 text-xs font-bold transition cursor-pointer"
-              title="Lock POS Screen (Require Password)"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 border border-[#ede7e6] hover:border-rose-200 text-[#534345] hover:text-rose-700 text-xs font-bold transition cursor-pointer shadow-2xs"
+              title="Lock Screen"
             >
-              <Lock className="w-3.5 h-3.5 text-stone-400" />
+              <Lock className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Lock</span>
             </button>
           </div>
@@ -3892,7 +3883,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   className={`w-full py-3.5 ${
                     editingBill
                       ? "bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-700 hover:to-amber-600 text-stone-950 border border-amber-400"
-                      : "bg-gradient-to-r from-[#120e0c] via-[#231b15] to-[#120e0c] hover:from-stone-900 hover:to-stone-800 text-amber-300 border border-amber-500/40"
+                      : "bg-[#3f0819] hover:bg-[#5a1e2d] text-white shadow-lg shadow-[#3f0819]/25 border border-[#5a1e2d]"
                   } disabled:opacity-40 rounded-2xl font-black text-sm shadow-lg shadow-stone-950/15 transition cursor-pointer flex items-center justify-center gap-2 group uppercase tracking-wider`}
                 >
                   <CheckCircle2 className={`w-4 h-4 ${editingBill ? "text-stone-950" : "text-amber-400"} group-hover:scale-110 transition-transform`} />
@@ -3914,15 +3905,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Executive Header & Action Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white text-[#1d1b1b] p-6 rounded-3xl border border-[#ede7e6] shadow-sm">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#7c5641] block mb-1">
                     Showroom Stockroom &amp; Thermal Tag Studio
                   </span>
-                  <h2 className="text-2xl font-black text-white font-serif tracking-wide">
+                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">
                     Product Inventory &amp; Barcode Management
                   </h2>
-                  <p className="text-xs text-stone-300 mt-1">
+                  <p className="text-xs text-[#534345] mt-1">
                     Add new Sarees, Lehengas, Suits, Handbags, Bangles, or Earrings — auto-generate SKU &amp; Barcodes and print 2-Across Thermal Tags.
                   </p>
                 </div>
@@ -4826,7 +4817,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         {activeTab === "alterations" && (
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-5xl mx-auto space-y-6">
-              <div className="bg-gradient-to-r from-[#14100d] via-[#1f1814] to-[#14100d] text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl flex items-center justify-between">
+              <div className="bg-white text-[#1d1b1b] p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
                     Bespoke Bridal &amp; Garment Fitting
@@ -4922,7 +4913,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Executive Header & Quick Actions */}
-              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-stone-900">
+              <div className="bg-white p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-[#1d1b1b]">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500">
@@ -4932,7 +4923,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       {reportDateFilterLabel}
                     </span>
                   </div>
-                  <h2 className="text-2xl font-black text-stone-900 font-serif">Daily Sales &amp; Settlement Suite</h2>
+                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">Daily Sales &amp; Settlement Suite</h2>
                   <p className="text-xs text-stone-500 mt-1">
                     Live breakdown of showroom revenue, wholesale product costs, net profit, UPI vs Cash collections, and customer discounts.
                   </p>
@@ -5741,12 +5732,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Executive Header */}
-              <div className="bg-stone-50 p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-stone-900">
+              <div className="bg-white p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-[#1d1b1b]">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
                     Customer Relationship &amp; VIP Intelligence (Grahak Directory)
                   </span>
-                  <h2 className="text-2xl font-black text-stone-900 font-serif">Customer Directory &amp; Spend Profiles</h2>
+                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">Customer Directory &amp; Spend Profiles</h2>
                   <p className="text-xs text-stone-500 mt-1">
                     Showroom client spend profiles, negotiated bargain history, visit records, and 1-click WhatsApp reconnect.
                   </p>

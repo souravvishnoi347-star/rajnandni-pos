@@ -1,52 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #3f0819;
+  --color-primary-container: #5a1e2d;
+  --color-on-primary: #ffffff;
+  --color-secondary: #7c5641;
+  --color-secondary-container: #fdc9af;
+  --color-on-secondary-container: #79533e;
+  --color-tertiary: #735c00;
+  --color-tertiary-container: #cba72f;
+  --color-surface: #fef8f7;
+  --color-surface-dim: #ded9d8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f8f2f2;
+  --color-surface-container: #f3ecec;
+  --color-surface-container-high: #ede7e6;
+  --color-surface-container-highest: #e7e1e1;
+  --color-on-surface: #1d1b1b;
+  --color-on-surface-variant: #534345;
+  --color-outline: #857275;
+  --color-outline-variant: #d8c1c4;
+}
 
 @layer base {
   body {
-    background-color: #f8f5f0;
-    color: #1c1917;
-    font-family: var(--font-jakarta), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #fef8f7;
+    color: #1d1b1b;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .font-outfit {
+    font-family: 'Outfit', 'Cinzel', system-ui, sans-serif;
   }
 
   .font-serif {
-    font-family: var(--font-cinzel), Georgia, Cambria, "Times New Roman", Times, serif;
+    font-family: 'Cinzel', Georgia, Cambria, "Times New Roman", Times, serif;
   }
 
   .font-mono {
-    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }
 
-/* Luxury Subtle Scrollbar for Catalog & Cart */
+/* Atelier Couture Subtle Luxury Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(231, 229, 228, 0.4);
+  background: rgba(243, 236, 236, 0.6);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(180, 140, 80, 0.35);
+  background: rgba(90, 30, 45, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(180, 140, 80, 0.65);
+  background: rgba(90, 30, 45, 0.55);
 }
 
-/* Royal Gold Shimmer & Glass Surface Helpers */
-.royal-pattern-bg {
-  background-color: #0c0908;
-  background-image: 
-    radial-gradient(at 15% 15%, rgba(245, 158, 11, 0.14) 0px, transparent 50%),
-    radial-gradient(at 85% 85%, rgba(217, 119, 6, 0.12) 0px, transparent 50%),
-    radial-gradient(rgba(245, 158, 11, 0.07) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 24px 24px;
+/* Haute Couture Pattern & Surface Helpers */
+.atelier-header-bg {
+  background-color: rgba(254, 248, 247, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-.showroom-canvas-bg {
-  background-color: #f8f5f0;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(251, 191, 36, 0.07) 0px, transparent 45%),
-    radial-gradient(at 100% 100%, rgba(217, 119, 6, 0.05) 0px, transparent 45%);
+.atelier-card {
+  background-color: #ffffff;
+  border: 1px solid #ede7e6;
+  box-shadow: 0 1px 6px -1px rgba(90, 30, 45, 0.04), 0 2px 4px -1px rgba(29, 27, 27, 0.02);
+}
+
+.atelier-card-elevated {
+  background-color: #ffffff;
+  border: 1px solid #d8c1c4;
+  box-shadow: 0 8px 24px -4px rgba(90, 30, 45, 0.08), 0 2px 6px -1px rgba(29, 27, 27, 0.04);
+}
+
+.champagne-gold-banner {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, rgba(201, 154, 130, 0.18) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
 }
 
 /* Custom Print Optimization for Barcodes & Thermal Receipts */
@@ -66,7 +106,6 @@
     background: #ffffff !important;
   }
 
-  /* Completely eliminate all screen UI so it generates ZERO phantom pages */
   .no-print,
   .no-print * {
     display: none !important;
