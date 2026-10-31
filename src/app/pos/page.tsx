@@ -3436,22 +3436,42 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <div className="bg-[#fef8f7] border border-[#ede7e6] p-3.5 rounded-2xl shadow-2xs flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-full bg-[#fdc9af] flex items-center justify-center text-[#79533e] font-black text-sm shrink-0 shadow-2xs font-serif">
+                      <div className="w-10 h-10 rounded-full bg-[#fdc9af] flex items-center justify-center text-[#79533e] font-bold text-sm shrink-0 shadow-2xs font-serif">
                         {customer.name && customer.name !== "Walk-in Guest" 
-                          ? customer.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
-                          : "RG"}
+                          ? customer.name.split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase()
+                          : <User className="w-5 h-5 text-[#79533e]" />}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="font-bold text-xs sm:text-sm text-[#1d1b1b] truncate">
                             {customer.name || "Walk-in Guest"}
                           </h4>
-                          <span className="bg-[#ffe088] text-[#241a00] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-2xs">
-                            <Crown className="w-3 h-3 text-[#735c00]" /> Gold VIP
-                          </span>
+                          {matchedCustomer ? (
+                            matchedCustomer.totalSpend >= 25000 ? (
+                              <span className="bg-[#ffe088] text-[#241a00] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-2xs">
+                                <Crown className="w-3 h-3 text-[#735c00]" /> Platinum VIP
+                              </span>
+                            ) : matchedCustomer.totalSpend >= 5000 || matchedCustomer.visitCount >= 2 ? (
+                              <span className="bg-[#ffe088] text-[#241a00] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-2xs">
+                                <Crown className="w-3 h-3 text-[#735c00]" /> Gold VIP
+                              </span>
+                            ) : (
+                              <span className="bg-[#fdc9af]/50 text-[#7c5641] px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                Registered Client
+                              </span>
+                            )
+                          ) : (
+                            <span className="bg-[#ede7e6] text-[#534345] px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                              Walk-in Guest
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-[#534345] truncate font-medium">
-                          {customer.phone ? `+91 ${customer.phone} • Flagship Patron` : "Flagship Bridal Patron • Haridwar"}
+                          {matchedCustomer 
+                            ? `+91 ${customer.phone} • ${matchedCustomer.visitCount} orders recorded` 
+                            : customer.phone 
+                            ? `+91 ${customer.phone} • New Guest` 
+                            : "Counter Billing • Haridwar"}
                         </span>
                       </div>
                     </div>
@@ -3459,7 +3479,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <button
                       type="button"
                       onClick={() => setActiveTab("customers")}
-                      className="p-1.5 rounded-xl bg-white border border-[#ede7e6] text-[#534345] hover:text-[#5a1e2d] hover:bg-[#ede7e6] transition"
+                      className="p-1.5 rounded-xl bg-white border border-[#ede7e6] text-[#534345] hover:text-[#5a1e2d] hover:bg-[#ede7e6] transition cursor-pointer"
                       title="Search Customer in CRM Directory"
                     >
                       <User className="w-4 h-4" />
@@ -3496,17 +3516,23 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     />
                   </div>
 
-                  {/* VIP Metrics Bar */}
+                  {/* VIP Metrics Bar (Real Data Only) */}
                   <div className="grid grid-cols-2 gap-2 pt-2 bg-white p-2.5 rounded-xl border border-[#ede7e6] text-[11px]">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-[#857275] uppercase font-bold tracking-wider">Lifetime Spend</span>
                       <span className="font-bold text-[#5a1e2d] font-mono">
-                        ₹{(matchedCustomer?.totalSpend || 48500).toLocaleString("en-IN")} ({matchedCustomer?.visitCount || 1} Orders)
+                        {matchedCustomer 
+                          ? `₹${matchedCustomer.totalSpend.toLocaleString("en-IN")} (${matchedCustomer.visitCount} Orders)`
+                          : "₹0 (0 Orders)"}
                       </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-[#857275] uppercase font-bold tracking-wider">Store Credit Balance</span>
-                      <span className="font-bold text-[#735c00] font-mono">₹1,200 Avail.</span>
+                      <span className="text-[10px] text-[#857275] uppercase font-bold tracking-wider">Client Status</span>
+                      <span className="font-bold text-[#735c00] font-mono">
+                        {matchedCustomer 
+                          ? (matchedCustomer.totalDiscount > 0 ? `₹${matchedCustomer.totalDiscount.toLocaleString("en-IN")} Savings` : "Verified Client")
+                          : "New Walk-in"}
+                      </span>
                     </div>
                   </div>
                 </div>
