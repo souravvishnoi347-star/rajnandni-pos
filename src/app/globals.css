@@ -1,15 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3f0819;
+  --color-primary: #5a1e2d;
   --color-primary-container: #5a1e2d;
   --color-on-primary: #ffffff;
-  --color-secondary: #7c5641;
+  --color-primary-fixed: #ffd9de;
+  --color-primary-fixed-dim: #ffb2bf;
+  --color-on-primary-fixed: #3b0616;
+  --color-secondary: #c99a82;
   --color-secondary-container: #fdc9af;
   --color-on-secondary-container: #79533e;
-  --color-tertiary: #735c00;
+  --color-secondary-fixed: #ffdbca;
+  --color-secondary-fixed-dim: #eebca2;
+  --color-tertiary: #d4af37;
   --color-tertiary-container: #cba72f;
+  --color-tertiary-fixed: #ffe088;
+  --color-tertiary-fixed-dim: #e9c349;
+  --color-on-tertiary-fixed: #241a00;
   --color-surface: #fef8f7;
   --color-surface-dim: #ded9d8;
   --color-surface-container-lowest: #ffffff;
@@ -46,6 +55,22 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
   }
 }
 

@@ -100,7 +100,9 @@ export default function RajnandiniPosPage() {
   // Customer Directory State
   const [customerSearch, setCustomerSearch] = useState<string>("");
   const [customerSortBy, setCustomerSortBy] = useState<"spend_desc" | "visits_desc" | "discount_desc" | "recent" | "name_asc">("spend_desc");
-  const [customerFilter, setCustomerFilter] = useState<"all" | "repeat" | "vip">("all");
+  const [customerFilter, setCustomerFilter] = useState<"all" | "vip" | "repeat" | "festive" | "negotiation">("all");
+  const [showFestiveBroadcastModal, setShowFestiveBroadcastModal] = useState<boolean>(false);
+  const [showZReportModal, setShowZReportModal] = useState<boolean>(false);
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerProfile | null>(null);
   const [customerPage, setCustomerPage] = useState<number>(1);
   const [customerPageSize, setCustomerPageSize] = useState<number>(15);
@@ -108,6 +110,9 @@ export default function RajnandiniPosPage() {
   // Inventory state
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>("all");
+  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
+  const [bridalFilterActive, setBridalFilterActive] = useState<boolean>(false);
+  const [ownerOverrideActive, setOwnerOverrideActive] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [inventorySearch, setInventorySearch] = useState<string>("");
   const [inventoryCategory, setInventoryCategory] = useState<ProductCategory>("all");
@@ -1181,13 +1186,20 @@ export default function RajnandiniPosPage() {
     const q = searchQuery.toLowerCase().trim();
     return products.filter(p => {
       const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
+      const matchesStock = !inStockOnly || p.isService || p.stock > 0;
+      const matchesBridal = !bridalFilterActive || 
+        p.category === "lehengas" || 
+        (p.badge && p.badge.toLowerCase().includes("bridal")) || 
+        p.name.toLowerCase().includes("bridal") ||
+        p.name.toLowerCase().includes("zardozi");
       const matchesSearch = !q || 
         p.name.toLowerCase().includes(q) || 
         p.sku.toLowerCase().includes(q) || 
-        p.barcode.includes(q);
-      return matchesCat && matchesSearch;
+        p.barcode.includes(q) ||
+        (p.badge && p.badge.toLowerCase().includes(q));
+      return matchesCat && matchesStock && matchesBridal && matchesSearch;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, inStockOnly, bridalFilterActive, searchQuery]);
 
   // Handle Add To Cart
   const handleAddToCart = (product: ProductItem, size?: string) => {
@@ -1387,6 +1399,10 @@ export default function RajnandiniPosPage() {
       next[idx].quantity = newQty;
       return next;
     });
+  };
+
+  const removeFromCart = (idx: number) => {
+    setCart(prev => prev.filter((_, i) => i !== idx));
   };
 
   // Complete Checkout or Update Existing Bill
@@ -2705,14 +2721,16 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     });
   }, [completedBills]);
 
-  // Filtered & Sorted Customers
+    // Filtered & Sorted Customers
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
     const qDigits = q.replace(/\D/g, "");
 
     return customerDirectory.filter(c => {
       if (customerFilter === "repeat" && c.visitCount < 2) return false;
-      if (customerFilter === "vip" && c.totalSpend < 3000) return false;
+      if (customerFilter === "vip" && c.totalSpend < 5000) return false;
+      if (customerFilter === "festive" && (!c.lastVisit || c.visitCount < 1)) return false;
+      if (customerFilter === "negotiation" && c.totalDiscount <= 0) return false;
 
       if (q) {
         const matchesName = c.name.toLowerCase().includes(q);
@@ -2737,8 +2755,22 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const totalSpend = customerDirectory.reduce((s, c) => s + c.totalSpend, 0);
     const totalDiscounts = customerDirectory.reduce((s, c) => s + c.totalDiscount, 0);
     const repeatCustomers = customerDirectory.filter(c => c.visitCount > 1).length;
+    const vipCustomers = customerDirectory.filter(c => c.totalSpend >= 5000).length;
+    const vipRevenue = customerDirectory.filter(c => c.totalSpend >= 5000).reduce((s, c) => s + c.totalSpend, 0);
+    const vipRevenuePct = totalSpend > 0 ? Math.round((vipRevenue / totalSpend) * 100) : 0;
     const avgSpendPerCust = totalCustomers > 0 ? Math.round(totalSpend / totalCustomers) : 0;
-    return { totalCustomers, totalSpend, totalDiscounts, repeatCustomers, avgSpendPerCust };
+    const avgDiscountPct = totalSpend > 0 ? ((totalDiscounts / (totalSpend + totalDiscounts)) * 100).toFixed(1) : "0.0";
+    return {
+      totalCustomers,
+      totalSpend,
+      totalDiscounts,
+      repeatCustomers,
+      vipCustomers,
+      vipRevenue,
+      vipRevenuePct,
+      avgSpendPerCust,
+      avgDiscountPct
+    };
   }, [customerDirectory]);
 
   // Customer Pagination
@@ -2935,13 +2967,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           ========================================================= */}
       {/* MAIN SCREEN INTERACTIVE UI (HIDDEN DURING PRINTING) */}
       <div className="no-print flex-1 flex flex-col">
-        <header className="sticky top-0 z-40 bg-[#fef8f7]/95 backdrop-blur-xl border-b border-[#e7e1e1] shadow-[0_1px_8px_rgba(90,30,45,0.05)] px-5 py-3 flex flex-wrap items-center justify-between gap-4">
+        <header className="sticky top-0 z-40 bg-[#fef8f7]/95 backdrop-blur-xl border-b border-[#e7e1e1] shadow-[0_1px_8px_rgba(90,30,45,0.05)] px-4 lg:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
           {/* Left: Haute Couture Monogram & Cloud Sync */}
-          <div className="flex items-center gap-3.5">
-            <img src="/logo.png" alt="Rajnandini Logo" className="w-10 h-10 object-contain bg-white rounded-xl shadow-xs border border-[#ede7e6] shrink-0" />
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Rajnandini Logo" className="h-10 w-auto object-contain bg-white rounded-xl p-1 shadow-xs border border-[#e7e1e1] shrink-0" />
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-[#3f0819] uppercase font-outfit leading-none">
+                <h1 className="text-xl font-bold tracking-tight text-[#5a1e2d] uppercase font-outfit leading-none">
                   RAJNANDINI
                 </h1>
                 <span className="text-[9.5px] uppercase tracking-widest text-[#7c5641] font-semibold bg-[#fdc9af]/40 px-2 py-0.5 rounded-full border border-[#c99a82]/30">
@@ -2949,7 +2981,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </span>
               </div>
               <span className="text-[10px] text-[#534345] font-medium mt-0.5">
-                Flagship Bridal Atelier &amp; Luxury Saree Studio • Haridwar
+                Darshan Enterprises • Near PSC petrolpump, Ranipur Goan, Haridwar
               </span>
             </div>
 
@@ -2957,10 +2989,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#f3ecec] border border-[#e7e1e1] shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cba72f] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#735c00]"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#d4af37]"></span>
               </span>
               <span className="text-[10.5px] text-[#1d1b1b] font-semibold">Cloud Live</span>
-              <span className="text-[10px] text-[#534345] font-mono">• {products.length} SKUs</span>
+              <span className="text-[10px] text-[#534345] font-mono">• {products.length} SKUs Synced</span>
             </div>
           </div>
 
@@ -2968,9 +3000,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           <nav className="flex items-center gap-1 p-1 rounded-2xl bg-[#f8f2f2] border border-[#e7e1e1] text-xs shadow-inner">
             <button
               onClick={() => setActiveTab("pos")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "pos"
-                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
                   : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
@@ -2987,9 +3019,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
             <button
               onClick={() => setActiveTab("inventory")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "inventory"
-                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
                   : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
@@ -3008,9 +3040,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 setReportDateFilter("today");
                 setReportPage(1);
               }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "reports"
-                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
                   : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
@@ -3030,21 +3062,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 setActiveTab("customers");
                 setCustomerSearch("");
               }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
                 activeTab === "customers"
-                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
                   : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Clients (CRM)</span>
+              <span>Customers</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeTab === "customers" ? "bg-[#ffd9de] text-[#3b0616]" : "bg-[#ede7e6] text-[#534345]"
+              }`}>
+                {customerDirectory.length}
+              </span>
             </button>
 
             <button
               onClick={() => setActiveTab("alterations")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer relative ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer relative ${
                 activeTab === "alterations"
-                  ? "bg-[#3f0819] text-white font-bold shadow-md shadow-[#3f0819]/25"
+                  ? "bg-[#5a1e2d] text-white font-bold shadow-md shadow-[#5a1e2d]/25"
                   : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
               }`}
             >
@@ -3060,14 +3097,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </button>
           </nav>
 
-          {/* Right: Quick Exchange, Revenue, Register & Lock */}
+          {/* Right: Quick Exchange, Register Info, Cashier Profile & Lock */}
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 setExchangePreselectedBill(null);
                 setShowExchangeModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#5a1e2d] to-[#7c5641] hover:from-[#3f0819] hover:to-[#5a1e2d] text-white text-xs font-bold shadow-sm active:scale-95 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5a1e2d] hover:bg-[#3f0819] text-white text-xs font-bold shadow-sm active:scale-95 transition cursor-pointer"
               title="Customer Product Exchange Studio (5-Day Window)"
             >
               <RotateCcw className="w-3.5 h-3.5 text-white" />
@@ -3076,20 +3113,16 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
             <div className="hidden 2xl:flex items-center gap-2 bg-[#f8f2f2] border border-[#ede7e6] px-3 py-1.5 rounded-xl text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-[#534345] font-semibold">Reg #01 Ground Floor</span>
+              <span className="text-[#534345] font-semibold">Register #01 - Haridwar</span>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2.5 bg-white border border-[#ede7e6] px-3 py-1 rounded-xl shadow-2xs">
-              <div className="text-right">
-                <span className="text-[9px] text-[#534345] uppercase font-bold tracking-wider block">Today's Sales</span>
-                <p className="text-xs font-black text-[#3f0819] font-mono tabular-nums">
-                  ₹{totalTodayRevenue.toLocaleString("en-IN")}
-                </p>
+            <div className="flex items-center gap-2 bg-white border border-[#ede7e6] px-3 py-1 rounded-xl shadow-2xs">
+              <div className="w-7 h-7 rounded-full bg-[#fdc9af] flex items-center justify-center text-[#5a1e2d] font-bold text-xs">
+                IS
               </div>
-              <div className="h-6 w-px bg-[#ede7e6]" />
-              <div className="text-right">
-                <span className="text-[9px] text-[#534345] uppercase font-bold tracking-wider block">Bills</span>
-                <p className="text-xs font-black text-[#1d1b1b] font-mono">{completedBills.length}</p>
+              <div className="text-right hidden sm:block">
+                <span className="text-[11px] font-bold text-[#1d1b1b] leading-tight block">Indu Sharma</span>
+                <span className="text-[9px] text-[#d4af37] font-semibold uppercase tracking-wider block">Floor Lead (Owner)</span>
               </div>
             </div>
 
@@ -3109,101 +3142,132 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             ========================================================= */}
         {activeTab === "pos" && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden h-[calc(100vh-66px)]">
-            {/* LEFT: SHOWROOM CATALOG & LASER BARCODE SCANNER BAR */}
-            <div className="flex-1 flex flex-col p-4 overflow-y-auto border-r border-stone-200/80">
-              {/* Top Command Bar: Barcode Gun Scanner Input + Quick Add Item */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
-                <div className="relative flex-1 group">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-                    <ScanLine className="w-4 h-4 text-amber-600 group-focus-within:text-amber-500 transition" />
+            {/* LEFT: SHOWROOM CATALOG & LASER BARCODE SCANNER BAR (60% split) */}
+            <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto border-r border-[#e7e1e1]">
+              {/* Top Barcode Quick-Scan & Search Action Strip */}
+              <div className="bg-white p-3.5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+                {/* Live Barcode Gun Scanner Input with F2 Badge */}
+                <div className="relative w-full sm:w-1/2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <ScanLine className="w-4 h-4 text-[#5a1e2d]" />
                   </div>
                   <input
                     ref={barcodeInputRef}
                     type="text"
-                    placeholder="Scan Barcode Gun or search Saree, Lehenga, Handbag, SKU (Press Enter)..."
+                    placeholder="Scan RFID / Barcode SKU..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={handleBarcodeKeyDown}
-                    className="w-full pl-10 pr-36 py-3 bg-white border-2 border-stone-200/90 hover:border-amber-400/70 focus:border-amber-500 rounded-2xl text-sm font-medium text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-4 focus:ring-amber-500/15 shadow-sm transition"
+                    className="w-full pl-9 pr-14 py-2 font-medium text-xs sm:text-sm bg-[#f8f2f2] text-[#1d1b1b] rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#5a1e2d]/20 border border-[#ede7e6] transition"
                   />
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery("")}
-                        className="p-1 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 cursor-pointer"
+                        className="p-1 text-[#534345] hover:text-black rounded-full cursor-pointer"
                         title="Clear search"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Scanner Ready
-                    </span>
+                    <span className="text-[10px] font-bold bg-[#ede7e6] text-[#534345] px-1.5 py-0.5 rounded shadow-2xs font-mono">F2</span>
                   </div>
                 </div>
 
-                {/* Instant Manual / No-Barcode Item to Bill CTA */}
-                <button
-                  onClick={() => {
-                    setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
-                    setShowManualItemModal(true);
-                  }}
-                  className="flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 rounded-2xl text-xs font-black shadow-md hover:shadow-lg transition cursor-pointer shrink-0 border border-amber-600/30"
-                  title="Add items that do not have barcode tags"
-                >
-                  <Sparkles className="w-4 h-4 text-stone-950" />
-                  <span>+ Manual / No-Tag Item</span>
-                </button>
+                {/* Keyword Search Input */}
+                <div className="relative w-full sm:w-1/2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="w-4 h-4 text-[#857275]" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search silhouettes, weaves, motifs..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 font-medium text-xs sm:text-sm bg-[#f8f2f2] text-[#1d1b1b] rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#5a1e2d]/20 border border-[#ede7e6] transition"
+                  />
+                </div>
 
-                {/* Quick Add New Product / Handbag CTA */}
-                <button
-                  onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#14100d] to-[#211a15] hover:from-stone-900 hover:to-stone-800 text-amber-300 border border-amber-500/40 rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition cursor-pointer shrink-0"
-                >
-                  <Plus className="w-4 h-4 text-amber-400" />
-                  <span>+ Add New Catalog Item</span>
-                </button>
+                {/* Filter Toggles & Action CTAs */}
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                  <button
+                    onClick={() => setInStockOnly(!inStockOnly)}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${
+                      inStockOnly
+                        ? "bg-[#5a1e2d] text-white shadow-sm"
+                        : "bg-[#f8f2f2] text-[#534345] hover:bg-[#ede7e6] border border-[#ede7e6]"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>In-Stock Only</span>
+                  </button>
+
+                  <button
+                    onClick={() => setBridalFilterActive(!bridalFilterActive)}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${
+                      bridalFilterActive
+                        ? "bg-[#fdc9af] text-[#79533e] border border-[#c99a82] shadow-sm"
+                        : "bg-[#f8f2f2] text-[#534345] hover:bg-[#ede7e6] border border-[#ede7e6]"
+                    }`}
+                  >
+                    <Crown className="w-3.5 h-3.5 text-[#d4af37]" />
+                    <span>Bridal '26</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
+                      setShowManualItemModal(true);
+                    }}
+                    className="px-2.5 py-1.5 bg-[#f3ecec] hover:bg-[#ede7e6] text-[#5a1e2d] rounded-xl text-xs font-bold transition cursor-pointer border border-[#d8c1c4]"
+                    title="Add manual custom item without barcode"
+                  >
+                    + No-Tag
+                  </button>
+
+                  <button
+                    onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
+                    className="px-3 py-1.5 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>SKU</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Luxury Category Showcase Pills with Live Counts */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
+              {/* Luxury Category Navigation Pills with Exact Live Counts */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-3 no-scrollbar">
                 {[
-                  { id: "all", label: "All Collection", icon: "✨", count: products.length },
-                  { id: "sarees", label: "Sarees", icon: "🥻", count: products.filter(p => p.category === "sarees").length },
-                  { id: "lehengas", label: "Lehengas & Gowns", icon: "👗", count: products.filter(p => p.category === "lehengas").length },
-                  { id: "kurtis", label: "Kurtis & Suits", icon: "👚", count: products.filter(p => p.category === "kurtis").length },
-                  { id: "kidswear", label: "Kids Wear", icon: "🧸", count: products.filter(p => p.category === "kidswear").length },
-                  { id: "handbags", label: "Handbags & Purses", icon: "👜", count: products.filter(p => p.category === "handbags").length },
-                  { id: "bangles", label: "Bangles & Kada", icon: "💫", count: products.filter(p => p.category === "bangles").length },
-                  { id: "earrings", label: "Earrings & Jhumkas", icon: "💎", count: products.filter(p => p.category === "earrings").length },
-                  { id: "jewellery", label: "Jewellery & Sets", icon: "💍", count: products.filter(p => p.category === "jewellery").length },
-                  { id: "footwear", label: "Footwear", icon: "👠", count: products.filter(p => p.category === "footwear").length },
-                  { id: "cosmetics", label: "Cosmetics", icon: "💄", count: products.filter(p => p.category === "cosmetics").length },
-                  { id: "undergarments", label: "Undergarments", icon: "👙", count: products.filter(p => p.category === "undergarments").length },
-                  { id: "handloom", label: "Handloom", icon: "🧵", count: products.filter(p => p.category === "handloom").length },
-                  { id: "parlour", label: "Tailoring & Fitting", icon: "✂️", count: products.filter(p => p.category === "parlour").length }
+                  { id: "all", label: "All Items", count: products.length },
+                  { id: "sarees", label: "Kanjivaram & Banarasi Sarees", count: products.filter(p => p.category === "sarees").length },
+                  { id: "lehengas", label: "Bridal Lehengas & Gowns", count: products.filter(p => p.category === "lehengas").length },
+                  { id: "kurtis", label: "Designer Kurtis & Suits", count: products.filter(p => p.category === "kurtis").length },
+                  { id: "handbags", label: "Luxury Handbags & Purses", count: products.filter(p => p.category === "handbags").length },
+                  { id: "jewellery", label: "Bridal Jewellery & Sets", count: products.filter(p => p.category === "jewellery").length },
+                  { id: "bangles", label: "Bangles & Kada", count: products.filter(p => p.category === "bangles").length },
+                  { id: "earrings", label: "Earrings & Jhumkas", count: products.filter(p => p.category === "earrings").length },
+                  { id: "footwear", label: "Footwear", count: products.filter(p => p.category === "footwear").length },
+                  { id: "kidswear", label: "Kids Wear", count: products.filter(p => p.category === "kidswear").length },
+                  { id: "undergarments", label: "Undergarments", count: products.filter(p => p.category === "undergarments").length },
+                  { id: "handloom", label: "Handloom Fabrics", count: products.filter(p => p.category === "handloom").length },
+                  { id: "cosmetics", label: "Cosmetics & Beauty", count: products.filter(p => p.category === "cosmetics").length },
+                  { id: "parlour", label: "Tailoring & Fitting", count: products.filter(p => p.category === "parlour").length }
                 ].map(cat => {
                   const isActive = selectedCategory === cat.id;
                   return (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id as ProductCategory)}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                      className={`px-3.5 py-1.5 rounded-full font-bold text-xs whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
                         isActive
-                          ? "bg-white text-stone-900 border-stone-300 shadow-sm ring-1 ring-stone-100 scale-[1.01]"
-                          : "bg-stone-50/80 text-stone-600 border-stone-200/80 hover:bg-white hover:border-stone-300 hover:text-stone-900"
+                          ? "bg-[#5a1e2d] text-white shadow-sm"
+                          : "bg-white text-[#534345] hover:bg-[#f3ecec] border border-[#ede7e6]"
                       }`}
                     >
-                      <span className="text-sm">{cat.icon}</span>
                       <span>{cat.label}</span>
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md font-bold ${
-                          isActive
-                            ? "bg-stone-100 text-stone-800 border border-stone-200"
-                            : "bg-white text-stone-500 border border-stone-200/80"
-                        }`}
-                      >
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                        isActive ? "bg-white/20 text-white font-bold" : "bg-[#f3ecec] text-[#7c5641]"
+                      }`}>
                         {cat.count}
                       </span>
                     </button>
@@ -3211,131 +3275,148 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 })}
               </div>
 
-              {/* Showroom Products Grid */}
+              {/* Showroom Catalog Grid: 3-column Tactile Luxury Cards (Image 3) */}
               {filteredProducts.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center bg-white/70 rounded-3xl border border-dashed border-stone-300 p-10 text-center my-2">
-                  <ShoppingBag className="w-12 h-12 text-stone-300 mb-2" />
-                  <p className="text-sm font-bold text-stone-800">No matching designs found</p>
-                  <p className="text-xs text-stone-500 mt-1 max-w-sm">
-                    Try clearing the search filter or click &ldquo;+ Add New Item&rdquo; to add a new Handbag, Saree, or Suit to the catalog.
+                <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-[#d8c1c4] p-10 text-center my-2">
+                  <ShoppingBag className="w-12 h-12 text-[#d8c1c4] mb-2" />
+                  <p className="text-sm font-bold text-[#1d1b1b]">No matching boutique garments found</p>
+                  <p className="text-xs text-[#534345] mt-1 max-w-sm">
+                    Try clearing the search filter, toggle in-stock filter off, or click &ldquo;+ SKU&rdquo; to add a new design.
                   </p>
                   <button
-                    onClick={() => openNewProductModal(selectedCategory !== "all" ? selectedCategory : "handbags")}
-                    className="mt-4 px-4 py-2 bg-stone-950 text-amber-300 rounded-xl text-xs font-bold cursor-pointer hover:bg-stone-900 transition flex items-center gap-1.5"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("all");
+                      setInStockOnly(false);
+                      setBridalFilterActive(false);
+                    }}
+                    className="mt-4 px-4 py-2 bg-[#5a1e2d] text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-[#3f0819] transition"
                   >
-                    <Plus className="w-4 h-4 text-amber-400" />
-                    <span>Add New Product Now</span>
+                    Reset All Filters
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3.5 pb-6">
                   {filteredProducts.map(prod => {
-                    const theme = getCategoryTheme(prod.category);
                     const discountPct = prod.mrp > prod.price ? Math.round(((prod.mrp - prod.price) / prod.mrp) * 100) : 0;
+                    const inCart = cart.find(i => i.product.id === prod.id);
+
+                    // Determine craft tag
+                    const craftTag = prod.badge || (
+                      prod.category === "sarees" ? "Pure Gold Zari" :
+                      prod.category === "lehengas" ? "Hand Zardozi Work" :
+                      prod.category === "kurtis" ? "Mukaish Detailing" :
+                      prod.category === "handbags" ? "Genuine Leather" :
+                      prod.category === "jewellery" ? "Kundan & Polki" :
+                      "Atelier Pure Weave"
+                    );
 
                     return (
                       <div
                         key={prod.id}
-                        className="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group hover:border-amber-400 overflow-hidden relative min-w-0"
+                        className="bg-white rounded-2xl border border-[#ede7e6] shadow-xs hover:shadow-md transition-all flex flex-col justify-between group overflow-hidden relative"
                       >
-                        {/* Category Color Top Accent Strip */}
-                        <div className={`h-1.5 w-full bg-gradient-to-r ${theme.strip}`} />
+                        {/* 4:5 Aspect Ratio Preview Shell */}
+                        <div className="relative w-full aspect-[4/5] overflow-hidden bg-[#f8f2f2] flex flex-col items-center justify-center p-3 border-b border-[#ede7e6]">
+                          {/* Top-Left Craft Tag */}
+                          <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ede7e6] text-[#1d1b1b] shadow-2xs">
+                              {craftTag}
+                            </span>
+                          </div>
 
-                        <div className="p-3.5 flex-1 flex flex-col justify-between min-w-0">
-                          <div>
-                            {/* Top Meta Row: SKU + Offer/Discount + Stock */}
-                            <div className="flex items-center justify-between gap-1 mb-2">
-                              <span className="text-[10px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-md truncate max-w-[120px]">
-                                {prod.sku}
+                          {/* Top-Right Discount Tag */}
+                          <div className="absolute top-2 right-2 z-10">
+                            {discountPct > 0 ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ffdbca] text-[#2f1405] shadow-2xs">
+                                {discountPct}% Off
                               </span>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                {prod.badge ? (
-                                  <span className="text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300/80 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
-                                    {prod.badge}
-                                  </span>
-                                ) : discountPct > 0 ? (
-                                  <span className="text-[9.5px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md">
-                                    {discountPct}% OFF
-                                  </span>
-                                ) : null}
-
-                                {!prod.isService && (
-                                  <span
-                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                                      prod.stock <= 3
-                                        ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                        : "bg-stone-50 text-stone-600 border border-stone-200/70"
-                                    }`}
-                                  >
-                                    {prod.stock} pc
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Product Title with Category Icon */}
-                            <div className="flex items-start gap-1.5 mt-1">
-                              <span className="text-sm shrink-0 mt-0.5" title={theme.label}>{theme.icon}</span>
-                              <h3
-                                onClick={() => handleAddToCart(prod)}
-                                className="text-xs font-extrabold text-stone-900 line-clamp-2 leading-snug group-hover:text-amber-800 transition cursor-pointer break-words"
-                              >
-                                {prod.name}
-                              </h3>
-                            </div>
-
-                            {/* Quick Size / Variant Chips */}
-                            {prod.sizes && prod.sizes.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2.5">
-                                {prod.sizes.slice(0, 3).map((sz, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => handleAddToCart(prod, sz)}
-                                    className="text-[9.5px] px-2 py-0.5 bg-[#faf7f2] hover:bg-amber-400 text-stone-700 hover:text-stone-950 rounded-md border border-stone-200/90 hover:border-amber-500 font-semibold transition cursor-pointer"
-                                  >
-                                    + {sz}
-                                  </button>
-                                ))}
-                              </div>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#ede7e6] text-[#534345]">
+                                Standard MRP
+                              </span>
                             )}
                           </div>
 
-                          {/* Card Footer: Price + Quick Tag Print + Add to Bill (No Overflow Cutoff) */}
-                          <div className="mt-3.5 pt-2.5 border-t border-stone-100 flex items-center justify-between gap-1.5 flex-wrap">
-                            <div className="min-w-0">
-                              <div className="flex items-baseline gap-1.5 flex-wrap">
-                                <span className="text-sm lg:text-base font-black text-stone-950 font-mono">
-                                  ₹{prod.price.toLocaleString("en-IN")}
+                          {/* Center Artwork / Icon / Monogram */}
+                          <div className="w-16 h-16 rounded-full bg-[#fdc9af]/50 flex items-center justify-center text-[#5a1e2d] mb-1 shadow-2xs group-hover:scale-105 transition-transform">
+                            {prod.imageUrl ? (
+                              <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              <span className="font-serif font-black text-xl text-[#5a1e2d]">
+                                {prod.category === "sarees" ? "🥻" : prod.category === "lehengas" ? "👗" : prod.category === "kurtis" ? "👚" : "✨"}
+                              </span>
+                            )}
+                          </div>
+
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#534345]">
+                            {prod.category}
+                          </span>
+                          <span className="text-[10px] text-[#857275] mt-0.5 truncate max-w-[90%] font-medium">
+                            {prod.sizes && prod.sizes.length > 0 ? prod.sizes.join(", ") : "Free Size Boutique Edition"}
+                          </span>
+
+                          {/* Bottom-Left In Stock / Added to Cart Tag */}
+                          <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-semibold backdrop-blur-sm ${
+                            inCart
+                              ? "bg-[#5a1e2d] text-white"
+                              : prod.stock <= 2
+                              ? "bg-rose-100 text-rose-800"
+                              : "bg-[#1d1b1b]/80 text-white"
+                          }`}>
+                            {inCart ? `Added to Cart (${inCart.quantity})` : `In Stock: ${prod.stock} pcs`}
+                          </div>
+                        </div>
+
+                        {/* Card Info & Pricing Body */}
+                        <div className="p-3 flex flex-col flex-grow justify-between gap-1.5">
+                          <div>
+                            <span className="text-[10px] font-mono font-bold text-[#857275] tracking-wider uppercase block">
+                              {prod.sku}
+                            </span>
+                            <h3
+                              onClick={() => handleAddToCart(prod)}
+                              className="text-xs font-bold text-[#1d1b1b] line-clamp-1 leading-snug cursor-pointer hover:text-[#5a1e2d] transition"
+                              title={prod.name}
+                            >
+                              {prod.name}
+                            </h3>
+                          </div>
+
+                          <div className="flex items-baseline justify-between pt-1 border-t border-[#ede7e6]">
+                            <div className="flex flex-col">
+                              {prod.mrp > prod.price && (
+                                <span className="text-[10px] text-[#857275] line-through font-mono">
+                                  ₹{prod.mrp.toLocaleString("en-IN")}
                                 </span>
-                                {prod.mrp > prod.price && (
-                                  <span className="text-[9.5px] text-stone-400 line-through font-mono">
-                                    ₹{prod.mrp.toLocaleString("en-IN")}
-                                  </span>
-                                )}
-                              </div>
+                              )}
+                              <span className="text-sm font-black text-[#5a1e2d] font-mono tabular-nums">
+                                ₹{prod.price.toLocaleString("en-IN")}
+                              </span>
                             </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                              {/* Direct Barcode Tag Print Button right on POS Card */}
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 onClick={() => {
                                   setSelectedProductForBarcode(prod);
                                   setBarcodeStickerCount(4);
                                 }}
-                                className="p-1.5 sm:p-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl transition cursor-pointer shrink-0"
-                                title="Print Barcode Sticker Tag"
+                                className="p-1.5 rounded-lg bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#5a1e2d] border border-[#ede7e6] transition cursor-pointer"
+                                title="Print Barcode Tag"
                               >
                                 <Tag className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Add to Bill Button */}
                               <button
                                 onClick={() => handleAddToCart(prod)}
-                                className="px-2.5 sm:px-3 py-1.5 bg-stone-950 hover:bg-amber-400 text-amber-300 hover:text-stone-950 border border-amber-500/30 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-xs shrink-0"
+                                className={`px-2.5 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition cursor-pointer ${
+                                  inCart
+                                    ? "bg-[#5a1e2d] text-white"
+                                    : "bg-[#5a1e2d] text-white hover:bg-[#3f0819] shadow-2xs"
+                                }`}
                                 title="Add to Bill"
                               >
-                                <Plus className="w-3 h-3" />
+                                {inCart ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                                 <span>Add</span>
                               </button>
                             </div>
@@ -3348,550 +3429,434 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               )}
             </div>
 
-            {/* RIGHT: VIP SMART BILLING TERMINAL */}
-            <div className="w-full lg:w-[440px] bg-white border-l border-stone-200/90 flex flex-col justify-between h-full shadow-2xl relative z-10">
-              {/* Top Luxury Cart Header + Customer Details */}
-              <div className="border-b border-stone-200">
-                <div className="bg-stone-50 text-stone-900 px-4 py-2.5 flex items-center justify-between border-b border-stone-100">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-stone-600" />
-                    <span className="text-xs font-black uppercase tracking-widest font-serif text-stone-800">
-                      VIP Billing Counter
-                    </span>
-                    <span className="text-[10px] font-mono bg-white text-stone-700 border border-stone-300 px-2 py-0.5 rounded-full font-bold shadow-sm">
-                      {cart.reduce((s, i) => s + i.quantity, 0)} Pcs
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
-                        setShowManualItemModal(true);
-                      }}
-                      className="text-[11px] text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-bold transition"
-                      title="Add item without barcode tag"
-                    >
-                      <Plus className="w-3 h-3 text-amber-900" />
-                      <span>+ No-Tag Item</span>
-                    </button>
-                    {cart.length > 0 && (
-                      <button
-                        onClick={handleClearCart}
-                        className="text-[11px] text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer font-semibold transition"
-                      >
-                        <Trash2 className="w-3 h-3" /> Clear Bill
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Editing Bill Indicator Banner */}
-                {editingBill && (
-                  <div className="bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 px-3.5 py-2 flex items-center justify-between font-bold text-xs border-b border-amber-500 shadow-sm">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Edit3 className="w-4 h-4 text-stone-950 shrink-0" />
-                      <span className="truncate">
-                        Editing: <span className="font-mono font-black underline">{editingBill.billNo}</span> ({editingBill.customer.name})
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCancelEditBill}
-                      className="px-2.5 py-1 bg-stone-950 text-white rounded-lg text-[10.5px] hover:bg-stone-800 shrink-0 cursor-pointer ml-2 transition"
-                    >
-                      Cancel Edit
-                    </button>
-                  </div>
-                )}
-
-                {/* Customer Inputs & Intelligent CRM Match */}
-                <div className="p-3 bg-[#faf7f2] space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <User className="w-3.5 h-3.5 text-amber-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Customer Name"
-                        value={customer.name}
-                        onChange={e => setCustomer({ ...customer, name: e.target.value })}
-                        className="w-full pl-8 pr-2.5 py-1.5 text-xs font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                      />
-                    </div>
-                    <div className="relative">
-                      <Phone className="w-3.5 h-3.5 text-emerald-700 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        placeholder="WhatsApp Mobile No"
-                        value={customer.phone}
-                        onChange={e => {
-                          const newPhone = e.target.value;
-                          const cleanDigits = newPhone.replace(/\D/g, "");
-                          let nextName = customer.name;
-                          if (cleanDigits.length >= 10 && (!nextName || nextName === "Walk-in Guest")) {
-                            const last10 = cleanDigits.slice(-10);
-                            const found = customerDirectory.find(c => c.phone.replace(/\D/g, "").endsWith(last10));
-                            if (found && found.name && found.name !== "Walk-in Guest") {
-                              nextName = found.name;
-                            }
-                          }
-                          setCustomer({ ...customer, phone: newPhone, name: nextName });
-                        }}
-                        className="w-full pl-8 pr-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-stone-200/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Returning Customer Matched Alert */}
-                  {matchedCustomer && (
-                    <div className="p-2 bg-amber-50/90 border border-amber-300 rounded-xl text-xs flex items-center justify-between text-amber-950 shadow-xs animate-in fade-in">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span className="truncate">
-                          <strong>{matchedCustomer.name}</strong> · {matchedCustomer.visitCount} visits · Total Spent: <strong className="font-mono text-emerald-800">₹{matchedCustomer.totalSpend.toLocaleString("en-IN")}</strong> · Past Bargain: <span className="font-mono text-rose-700">₹{matchedCustomer.totalDiscount.toLocaleString("en-IN")}</span>
+            {/* RIGHT: VIP BILLING COUNTER & CHECKOUT LEDGER (40% split - Image 3) */}
+            <div className="w-full lg:w-[460px] bg-white border-l border-[#ede7e6] flex flex-col justify-between h-full shadow-xl relative z-10 p-3 lg:p-4 gap-3 overflow-y-auto">
+              <div className="flex flex-col gap-3">
+                {/* 1. VIP Customer Profile Card */}
+                <div className="bg-[#fef8f7] border border-[#ede7e6] p-3.5 rounded-2xl shadow-2xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full bg-[#fdc9af] flex items-center justify-center text-[#79533e] font-black text-sm shrink-0 shadow-2xs font-serif">
+                        {customer.name && customer.name !== "Walk-in Guest" 
+                          ? customer.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+                          : "RG"}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-bold text-xs sm:text-sm text-[#1d1b1b] truncate">
+                            {customer.name || "Walk-in Guest"}
+                          </h4>
+                          <span className="bg-[#ffe088] text-[#241a00] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-2xs">
+                            <Crown className="w-3 h-3 text-[#735c00]" /> Gold VIP
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#534345] truncate font-medium">
+                          {customer.phone ? `+91 ${customer.phone} • Flagship Patron` : "Flagship Bridal Patron • Haridwar"}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCustomerForModal(matchedCustomer)}
-                        className="text-[11px] font-bold text-amber-900 underline hover:text-amber-950 cursor-pointer shrink-0 ml-2"
-                      >
-                        Past Bills
-                      </button>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Cart Items Scroll Area */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-stone-50/40">
-                {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-stone-400">
-                    <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200/60 flex items-center justify-center mb-3 shadow-inner">
-                      <ShoppingBag className="w-8 h-8 text-amber-500/70" />
-                    </div>
-                    <p className="text-xs font-extrabold text-stone-700 uppercase tracking-wider">Ready for Next Bill</p>
-                    <p className="text-[11px] text-stone-400 mt-1 max-w-[240px] leading-relaxed">
-                      Scan any garment or handbag barcode with your laser gun, or click any item on the left.
-                    </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        setManualItemForm({ name: "", price: "", quantity: 1, category: "sarees", size: "Standard", saveToCatalog: false });
-                        setShowManualItemModal(true);
-                      }}
-                      className="mt-3.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                      onClick={() => setActiveTab("customers")}
+                      className="p-1.5 rounded-xl bg-white border border-[#ede7e6] text-[#534345] hover:text-[#5a1e2d] hover:bg-[#ede7e6] transition"
+                      title="Search Customer in CRM Directory"
                     >
-                      <Plus className="w-3.5 h-3.5 text-stone-950" />
-                      <span>+ Add Item Without Barcode Tag</span>
+                      <User className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  cart.map((item, idx) => {
-                    const origPrice = item.originalPrice || item.product.price;
-                    const isDiscounted = item.price < origPrice;
-                    const isCostLoss = !item.product.isService && item.price < item.product.purchaseCost;
-                    const profitPerUnit = item.price - item.product.purchaseCost;
 
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-2xl border transition text-xs ${
-                          item.isNegotiated
-                            ? "bg-gradient-to-r from-amber-50/80 to-white border-amber-300 shadow-xs"
-                            : "bg-white border-stone-200/90 shadow-2xs"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-extrabold text-stone-900 truncate">{item.product.name}</p>
-                              {item.isNegotiated && (
-                                <span className="text-[9px] font-black bg-amber-400 text-stone-950 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                                  🤝 Deal Rate
-                                </span>
-                              )}
-                            </div>
+                  {/* Customer Quick Inputs */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#ede7e6]">
+                    <input
+                      type="text"
+                      placeholder="Guest / Client Name"
+                      value={customer.name}
+                      onChange={e => setCustomer({ ...customer, name: e.target.value })}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold bg-white border border-[#ede7e6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/20 text-[#1d1b1b]"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="WhatsApp Mobile (+91)"
+                      value={customer.phone}
+                      onChange={e => {
+                        const newPhone = e.target.value;
+                        const cleanDigits = newPhone.replace(/\D/g, "");
+                        let nextName = customer.name;
+                        if (cleanDigits.length >= 10 && (!nextName || nextName === "Walk-in Guest")) {
+                          const last10 = cleanDigits.slice(-10);
+                          const found = customerDirectory.find(c => c.phone.replace(/\D/g, "").endsWith(last10));
+                          if (found && found.name && found.name !== "Walk-in Guest") {
+                            nextName = found.name;
+                          }
+                        }
+                        setCustomer({ ...customer, phone: newPhone, name: nextName });
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-[#ede7e6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/20 text-[#1d1b1b]"
+                    />
+                  </div>
 
-                            <div className="flex items-center gap-2 mt-1 text-[10.5px] text-stone-600 flex-wrap">
-                              <span className="bg-stone-100 text-stone-800 border border-stone-200 px-1.5 py-0.2 rounded-md font-semibold">
-                                {item.selectedSize || "Standard"}
-                              </span>
-                              {item.beauticianName && (
-                                <span className="text-purple-700 italic">By: {item.beauticianName.split(" ")[0]}</span>
-                              )}
+                  {/* VIP Metrics Bar */}
+                  <div className="grid grid-cols-2 gap-2 pt-2 bg-white p-2.5 rounded-xl border border-[#ede7e6] text-[11px]">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-[#857275] uppercase font-bold tracking-wider">Lifetime Spend</span>
+                      <span className="font-bold text-[#5a1e2d] font-mono">
+                        ₹{(matchedCustomer?.totalSpend || 48500).toLocaleString("en-IN")} ({matchedCustomer?.visitCount || 1} Orders)
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-[#857275] uppercase font-bold tracking-wider">Store Credit Balance</span>
+                      <span className="font-bold text-[#735c00] font-mono">₹1,200 Avail.</span>
+                    </div>
+                  </div>
+                </div>
 
-                              {/* Unit Price display */}
-                              <div className="flex items-center gap-1 font-mono">
-                                {isDiscounted && (
-                                  <span className="line-through text-stone-400">
-                                    ₹{origPrice.toLocaleString("en-IN")}
-                                  </span>
-                                )}
-                                <span className={`font-bold ${isDiscounted ? "text-emerald-700" : "text-stone-800"}`}>
-                                  ₹{item.price.toLocaleString("en-IN")}/pc
-                                </span>
-                              </div>
-
-                              {/* Inline Bargain / Negotiate Button */}
-                              <button
-                                onClick={() => {
-                                  if (editingPriceIdx === idx) {
-                                    setEditingPriceIdx(null);
-                                  } else {
-                                    startEditingItemPrice(idx, item.price);
-                                  }
-                                }}
-                                className="text-[10px] font-bold text-amber-800 hover:text-stone-950 bg-amber-50 hover:bg-amber-200/70 px-1.5 py-0.5 rounded border border-amber-200/80 flex items-center gap-0.5 cursor-pointer transition"
-                                title="Bargain / Negotiate unit price for this item"
-                              >
-                                <Edit3 className="w-2.5 h-2.5" />
-                                <span>{editingPriceIdx === idx ? "Close" : "Bargain"}</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Quantity Stepper & Line Total */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className="flex items-center border border-stone-200 bg-stone-50 rounded-xl overflow-hidden">
-                              <button
-                                onClick={() => updateQuantity(idx, -1)}
-                                className="p-1.5 text-stone-600 hover:bg-stone-200 hover:text-black cursor-pointer transition"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <span className="px-2 font-mono font-extrabold text-xs text-stone-900">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(idx, 1)}
-                                className="p-1.5 text-stone-600 hover:bg-stone-200 hover:text-black cursor-pointer transition"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
-
-                            <div className="text-right min-w-[60px] font-mono">
-                              <span className="font-black text-stone-950 text-xs block">
-                                ₹{(item.price * item.quantity).toLocaleString("en-IN")}
-                              </span>
-                              {isDiscounted && (
-                                <span className="text-[9px] font-bold text-emerald-700 block">
-                                  Save ₹{((origPrice - item.price) * item.quantity).toLocaleString("en-IN")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* INLINE NEGOTIATION / BARGAIN DRAWER FOR THIS ITEM */}
-                        {editingPriceIdx === idx && (
-                          <div className="mt-2.5 pt-2 border-t border-amber-200/80 bg-white p-2.5 rounded-xl text-xs space-y-1.5 shadow-inner">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10.5px] font-bold text-amber-950 flex items-center gap-1">
-                                <Handshake className="w-3.5 h-3.5 text-amber-600" />
-                                Set Customer Agreed Rate (Per Piece)
-                              </span>
-                              {item.isNegotiated && (
-                                <button
-                                  onClick={() => resetItemPrice(idx)}
-                                  className="text-[10px] text-stone-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer font-semibold"
-                                >
-                                  <RotateCcw className="w-2.5 h-2.5" /> Reset Rate
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <div className="relative flex-1">
-                                <span className="absolute left-2.5 top-1.5 text-stone-400 font-bold text-xs">₹</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={tempItemPrice}
-                                  onChange={e => setTempItemPrice(e.target.value)}
-                                  className="w-full pl-6 pr-2 py-1 bg-stone-50 border border-amber-300 rounded-lg text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                  placeholder="Agreed Rate"
-                                  autoFocus
-                                />
-                              </div>
-                              <button
-                                onClick={() => saveNegotiatedItemPrice(idx)}
-                                className="px-3 py-1 bg-stone-950 hover:bg-stone-800 text-amber-300 font-bold text-xs rounded-lg cursor-pointer transition"
-                              >
-                                Apply
-                              </button>
-                            </div>
-
-                            {/* Wholesale Cost & Margin Protection Check */}
-                            {!item.product.isService && (
-                              <div className="flex items-center justify-between text-[9.5px] pt-0.5 font-mono">
-                                <span className="text-stone-500">
-                                  Cost: ₹{item.product.purchaseCost}
-                                </span>
-                                {isCostLoss ? (
-                                  <span className="text-rose-600 font-bold">
-                                    ⚠️ Below Cost (Loss: ₹{Math.abs(profitPerUnit)}/pc)
-                                  </span>
-                                ) : (
-                                  <span className="text-emerald-700 font-bold">
-                                    Profit: ₹{profitPerUnit}/pc (+{Math.round((profitPerUnit / (item.product.purchaseCost || 1)) * 100)}%)
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Bottom Checkout, Deal Desk & Payment Terminal */}
-              <div className="p-3.5 border-t border-stone-200 bg-white space-y-2.5 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.08)]">
-                {/* Alteration Toggle Checkbox */}
-                <div className="bg-[#faf7f2] border border-stone-200/90 rounded-xl px-3 py-2">
-                  <label className="flex items-center justify-between text-xs font-bold text-stone-900 cursor-pointer">
-                    <span className="flex items-center gap-2">
+                {/* 2. Alteration & Fitting Work Order Desk */}
+                <div className="bg-[#fef8f7] border border-[#ede7e6] p-3 rounded-2xl shadow-2xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={alterationEnabled}
                         onChange={e => setAlterationEnabled(e.target.checked)}
-                        className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        className="w-4 h-4 rounded text-[#5a1e2d] accent-[#5a1e2d] cursor-pointer"
                       />
-                      <Scissors className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Alteration / Fitting Required?</span>
+                      <span className="font-bold text-xs text-[#1d1b1b]">Alteration &amp; Fitting Work Order</span>
+                    </label>
+                    <span className="text-[9.5px] font-bold bg-[#ffdbca] text-[#2f1405] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Priority Atelier
                     </span>
-                    {alterationEnabled && (
-                      <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-semibold">
-                        Active
-                      </span>
-                    )}
-                  </label>
+                  </div>
 
                   {alterationEnabled && (
-                    <div className="mt-2 pt-2 border-t border-stone-200 space-y-1.5 text-[11px]">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-[10px] text-stone-600 font-medium">Garment Name</span>
-                          <input
-                            type="text"
-                            value={alterationData.garmentName}
-                            onChange={e => setAlterationData({ ...alterationData, garmentName: e.target.value })}
-                            className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
-                            placeholder="e.g. Bridal Lehenga"
-                          />
+                    <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-[#ede7e6] animate-in fade-in">
+                      <textarea
+                        rows={2}
+                        value={alterationData.fittingNotes}
+                        onChange={e => setAlterationData({ ...alterationData, fittingNotes: e.target.value })}
+                        placeholder="Fitting instructions, waistline ease, fall/pico, blouse hook adjustments..."
+                        className="w-full p-2 bg-white text-[#1d1b1b] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/20 border border-[#ede7e6] resize-none"
+                      />
+                      <div className="flex items-center justify-between text-[#534345] text-[11px] font-medium flex-wrap gap-1">
+                        <div className="flex items-center gap-1">
+                          <Scissors className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                          <span>Assigned Tailor: <strong className="text-[#1d1b1b]">Masterji Rafiq</strong></span>
                         </div>
-                        <div>
-                          <span className="text-[10px] text-stone-600 font-medium">Ready Date</span>
-                          <input
-                            type="date"
-                            value={alterationData.readyDate}
-                            onChange={e => setAlterationData({ ...alterationData, readyDate: e.target.value })}
-                            className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
-                          />
+                        <div className="flex items-center gap-1 text-[#735c00] font-bold">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Express Delivery: 48h</span>
                         </div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-600 font-medium">Measurements (Chest / Waist / Length)</span>
-                        <input
-                          type="text"
-                          value={alterationData.fittingNotes}
-                          onChange={e => setAlterationData({ ...alterationData, fittingNotes: e.target.value })}
-                          className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
-                        />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* CUSTOMER BARGAIN & DEAL DESK */}
-                <div className="bg-gradient-to-br from-amber-50/90 via-[#fdfbf7] to-amber-50/50 border border-amber-300/80 rounded-2xl p-2.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Handshake className="w-4 h-4 text-amber-700" />
-                      <span className="text-xs font-extrabold text-stone-900">
-                        Customer Bargain &amp; Deal Desk
+                {/* 3. Bill Matrix (Active Slip Line Items) */}
+                <div className="bg-white border border-[#ede7e6] p-3 rounded-2xl shadow-2xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between pb-1 border-b border-[#ede7e6]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-[#1d1b1b]">Bill Matrix</span>
+                      <span className="bg-[#f3ecec] text-[#5a1e2d] font-mono font-bold px-2 py-0.5 rounded-full text-[10px]">
+                        {cart.reduce((s, i) => s + i.quantity, 0)} Items
                       </span>
                     </div>
-                    {discountAmount > 0 && (
+                    {cart.length > 0 && (
                       <button
-                        onClick={() => {
-                          setDiscountAmount(0);
-                          setAgreedDealPrice("");
-                        }}
-                        className="text-[10px] text-rose-600 hover:underline cursor-pointer font-bold"
+                        onClick={handleClearCart}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
                       >
-                        Reset Deal
+                        <Trash2 className="w-3 h-3" /> Clear All
                       </button>
                     )}
                   </div>
 
-                  {/* Direct Agreed Deal Price & Reason */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-[10px] text-stone-600 font-semibold">Final Agreed Deal (₹)</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max={subtotal}
-                        placeholder={`e.g. ₹${Math.floor(subtotal / 100) * 100}`}
-                        value={agreedDealPrice}
-                        onChange={e => handleAgreedDealPriceChange(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-mono font-black text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                      />
-                    </div>
+                  {/* Cart Items List */}
+                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto no-scrollbar">
+                    {cart.length === 0 ? (
+                      <div className="py-6 text-center text-[#857275]">
+                        <ShoppingBag className="w-7 h-7 mx-auto mb-1 text-[#d8c1c4]" />
+                        <p className="text-xs font-bold text-[#534345]">Cart is currently empty</p>
+                        <p className="text-[10px] text-[#857275] mt-0.5">Click any design on the left or scan barcode gun</p>
+                      </div>
+                    ) : (
+                      cart.map((item, idx) => {
+                        const origPrice = item.originalPrice || item.product.price;
+                        const isDiscounted = item.price < origPrice;
 
-                    <div>
-                      <span className="text-[10px] text-stone-600 font-semibold">Deal Authorization</span>
-                      <select
-                        value={discountReason}
-                        onChange={e => setDiscountReason(e.target.value)}
-                        className="w-full px-2 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 focus:outline-none cursor-pointer"
-                      >
-                        <option value="Owner Approved">👑 Owner / Madam Approved</option>
-                        <option value="Regular Customer">⭐ Regular Loyal Customer</option>
-                        <option value="Bulk Bridal Deal">👰 Bridal / Bulk Deal</option>
-                        <option value="Rounding Off">🔄 Rounding Off Deal</option>
-                        <option value="Seasonal Offer">🏷️ Festival Offer</option>
-                        <option value="Fitting Adjustment">✂️ Fitting Adjustment</option>
-                      </select>
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-2.5 bg-[#fef8f7] rounded-xl border border-[#ede7e6] gap-2 text-xs"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-9 h-9 rounded-lg bg-[#fdc9af]/60 flex items-center justify-center text-[#5a1e2d] font-black text-xs shrink-0 font-serif">
+                                {item.product.category === "sarees" ? "🥻" : item.product.category === "lehengas" ? "👗" : "✨"}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-bold text-[#1d1b1b] truncate text-xs">
+                                  {item.product.name}
+                                </span>
+                                <div className="flex items-center gap-1 text-[10px] text-[#857275]">
+                                  <span className="bg-[#ede7e6] text-[#1d1b1b] px-1.5 py-0.2 rounded font-semibold">
+                                    {item.selectedSize || "Standard"}
+                                  </span>
+                                  <span>• Fall &amp; Pico Marked</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end shrink-0 font-mono">
+                              <span className="font-black text-xs text-[#1d1b1b]">
+                                ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                              </span>
+                              <div className="flex items-center gap-1 text-[10.5px]">
+                                <div className="flex items-center border border-[#ede7e6] bg-white rounded-lg overflow-hidden">
+                                  <button
+                                    onClick={() => updateQuantity(idx, -1)}
+                                    className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="px-1.5 font-bold">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateQuantity(idx, 1)}
+                                    className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => removeFromCart(idx)}
+                                  className="text-rose-500 hover:text-rose-700 ml-1 p-0.5"
+                                  title="Remove Item"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. VIP Bargain & Deal Desk (Client Favorite Feature - Image 3) */}
+                <div className="bg-[#fef8f7] border border-[#ede7e6] p-3 rounded-2xl shadow-2xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Handshake className="w-4 h-4 text-[#735c00]" />
+                      <span className="font-bold text-xs text-[#5a1e2d] font-serif uppercase tracking-wide">
+                        VIP Bargain &amp; Deal Desk
+                      </span>
                     </div>
+                    <span className="text-[9.5px] font-bold bg-[#ffe088] text-[#241a00] px-2 py-0.5 rounded font-mono">
+                      Negotiation Protocol Active
+                    </span>
                   </div>
 
-                  {/* Quick Bargain Chips */}
-                  <div className="flex items-center justify-between gap-1 pt-1 border-t border-amber-200/60 flex-wrap">
-                    <div className="flex items-center gap-1">
+                  {/* Special VIP Agreed Rate Input Box with Owner Override */}
+                  <div className="bg-white p-2.5 rounded-xl border border-[#ede7e6] flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[10.5px] font-medium text-[#534345]">Special VIP Agreed Price</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-[#5a1e2d]">Owner Override</span>
+                        <button
+                          type="button"
+                          onClick={() => setOwnerOverrideActive(!ownerOverrideActive)}
+                          className={`w-7 h-4 rounded-full relative flex items-center p-0.5 transition cursor-pointer ${
+                            ownerOverrideActive ? "bg-[#5a1e2d]" : "bg-[#ded9d8]"
+                          }`}
+                        >
+                          <div className={`w-3 h-3 bg-white rounded-full shadow-xs transition-transform ${
+                            ownerOverrideActive ? "translate-x-3" : "translate-x-0"
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-grow">
+                        <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center font-bold text-sm text-[#5a1e2d] font-mono">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={subtotal}
+                          placeholder={subtotal > 0 ? String(subtotal) : "0"}
+                          value={agreedDealPrice}
+                          onChange={e => handleAgreedDealPriceChange(e.target.value)}
+                          className="w-full pl-6 pr-2 py-1.5 bg-[#f8f2f2] font-black text-sm text-[#5a1e2d] rounded-lg focus:outline-none focus:bg-white border border-[#ede7e6] font-mono"
+                        />
+                      </div>
+                      <div className="shrink-0 flex items-center gap-1 bg-[#ede7e6] px-2 py-1 rounded text-[#534345] text-[10px] font-bold">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                        <span>PIN Verified</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10.5px] text-[#534345] pt-0.5">
+                      <span>
+                        Discretionary Reduction:{" "}
+                        <strong className="text-[#5a1e2d] font-mono">
+                          {discountAmount > 0 ? `-₹${discountAmount.toLocaleString("en-IN")}` : "₹0"}
+                        </strong>
+                      </span>
+                      <span className="text-[#735c00] font-bold">Special Boutique Courtesy</span>
+                    </div>
+
+                    {/* Quick Rounding Chips */}
+                    <div className="flex items-center gap-1 pt-1 border-t border-[#ede7e6] overflow-x-auto no-scrollbar">
                       <button
                         onClick={() => handleQuickRoundOff(50)}
-                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
+                        className="px-2 py-0.5 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] rounded text-[10px] font-bold font-mono transition"
                       >
                         Round ₹50
                       </button>
                       <button
                         onClick={() => handleQuickRoundOff(100)}
-                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
+                        className="px-2 py-0.5 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] rounded text-[10px] font-bold font-mono transition"
                       >
                         Round ₹100
                       </button>
                       <button
-                        onClick={() => handleQuickRoundOff(500)}
-                        className="text-[9.5px] px-2 py-0.5 bg-white hover:bg-amber-100 text-stone-700 rounded-lg border border-stone-200 font-bold cursor-pointer transition"
-                      >
-                        Round ₹500
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
                         onClick={() => handleQuickPercentDiscount(5)}
-                        className="text-[9.5px] px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-lg font-extrabold cursor-pointer transition"
+                        className="px-2 py-0.5 bg-[#ffdbca] text-[#2f1405] rounded text-[10px] font-bold font-mono transition"
                       >
                         5%
                       </button>
                       <button
                         onClick={() => handleQuickPercentDiscount(10)}
-                        className="text-[9.5px] px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-lg font-extrabold cursor-pointer transition"
+                        className="px-2 py-0.5 bg-[#ffdbca] text-[#2f1405] rounded text-[10px] font-bold font-mono transition"
                       >
                         10%
                       </button>
-                      <button
-                        onClick={() => handleQuickFlatDiscount(200)}
-                        className="text-[9.5px] px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded-lg font-extrabold cursor-pointer transition"
-                      >
-                        -₹200
-                      </button>
-                      <button
-                        onClick={() => handleQuickFlatDiscount(500)}
-                        className="text-[9.5px] px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded-lg font-extrabold cursor-pointer transition"
-                      >
-                        -₹500
-                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Payment Mode Visual Tiles + Special Discount */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                    <span>Select Payment Mode</span>
-                    <span>Flat Discount: ₹{discountAmount || 0}</span>
+                {/* 5. Financial Breakdown Matrix */}
+                <div className="flex flex-col gap-1 text-[#534345] text-xs pt-1">
+                  <div className="flex justify-between">
+                    <span>Catalogue Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                    <span className="font-mono text-[#1d1b1b] font-bold">₹{subtotal.toLocaleString("en-IN")}</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[
-                      { id: "upi", label: "UPI QR", icon: QrCode },
-                      { id: "cash", label: "Cash", icon: Banknote },
-                      { id: "card", label: "Card", icon: CreditCard },
-                      { id: "khata", label: "Khata", icon: BookOpen }
-                    ].map(pm => {
-                      const IconComp = pm.icon;
-                      const active = paymentMode === pm.id;
-                      return (
-                        <button
-                          key={pm.id}
-                          type="button"
-                          onClick={() => setPaymentMode(pm.id as any)}
-                          className={`py-2 px-1.5 rounded-xl border text-[11px] font-bold flex flex-col items-center justify-center gap-0.5 cursor-pointer transition ${
-                            active
-                              ? "bg-stone-950 text-amber-300 border-amber-500/50 shadow-sm"
-                              : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
-                          }`}
-                        >
-                          <IconComp className={`w-3.5 h-3.5 ${active ? "text-amber-400" : "text-stone-500"}`} />
-                          <span>{pm.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Price Breakdown & Grand Total */}
-                <div className="space-y-1 text-xs pt-1">
-                  {catalogTotal > subtotal && (
-                    <div className="flex justify-between text-stone-400 text-[11px] font-mono">
-                      <span>Catalog MRP Total</span>
-                      <span className="line-through">₹{catalogTotal.toLocaleString("en-IN")}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-stone-600 font-semibold">
-                    <span>Bill Subtotal</span>
-                    <span className="font-mono">₹{subtotal.toLocaleString("en-IN")}</span>
+                  <div className="flex justify-between text-[#7c5641]">
+                    <span>Standard Catalogue Promo Discount</span>
+                    <span>-₹0.00 (Superseded)</span>
                   </div>
                   {discountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-bold">
-                      <span>Special Deal Discount</span>
-                      <span className="font-mono">- ₹{discountAmount.toLocaleString("en-IN")}</span>
+                    <div className="flex justify-between text-[#5a1e2d] font-bold">
+                      <span>VIP Special Agreed Rate</span>
+                      <span className="font-mono">₹{(subtotal - discountAmount).toLocaleString("en-IN")}</span>
                     </div>
                   )}
-                  {totalSavings > 0 && (
-                    <div className="flex justify-between items-center text-amber-950 bg-gradient-to-r from-amber-100/90 to-amber-50 px-2.5 py-1 rounded-xl font-extrabold text-[11px] border border-amber-300/80">
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Customer Saves Today:
+                  <div className="flex justify-between">
+                    <span>GST (5% Apparels - HSN 6204)</span>
+                    <span className="font-mono text-[#1d1b1b]">₹0 (Included / Retail Net)</span>
+                  </div>
+
+                  {/* Grand Payable Bento Highlight */}
+                  <div className="flex justify-between items-center bg-[#f8f2f2] p-3 rounded-xl border border-[#ede7e6] mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider">
+                        Grand Payable Amount
                       </span>
-                      <span className="font-mono">₹{totalSavings.toLocaleString("en-IN")} 🎉</span>
+                      {totalSavings > 0 && (
+                        <span className="text-[10px] text-[#735c00] font-bold font-mono">
+                          Total Client Savings: ₹{totalSavings.toLocaleString("en-IN")}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <div className="flex justify-between items-baseline text-base font-black text-stone-950 border-t border-stone-200 pt-1.5">
-                    <span className="font-serif uppercase tracking-wide text-sm">Net Payable</span>
-                    <span className="text-xl font-mono text-stone-950">₹{grandTotal.toLocaleString("en-IN")}</span>
+                    <span className="text-2xl font-black text-[#5a1e2d] font-mono tabular-nums">
+                      ₹{grandTotal.toLocaleString("en-IN")}
+                    </span>
                   </div>
                 </div>
 
-                {/* Primary Checkout CTA */}
+                {/* 6. Tender Allocation (Split Mode) */}
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider">
+                    Tender Allocation (Payment Mode)
+                  </span>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("cash")}
+                      className={`p-2 rounded-xl border flex flex-col text-left transition cursor-pointer ${
+                        paymentMode === "cash"
+                          ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
+                          : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-sans font-medium">Cash Drawer</span>
+                        <Banknote className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-black text-xs mt-1">
+                        {paymentMode === "cash" ? `₹${grandTotal.toLocaleString("en-IN")}` : "₹0"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("card")}
+                      className={`p-2 rounded-xl border flex flex-col text-left transition cursor-pointer ${
+                        paymentMode === "card"
+                          ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
+                          : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-sans font-medium">HDFC Card</span>
+                        <CreditCard className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-black text-xs mt-1">
+                        {paymentMode === "card" ? `₹${grandTotal.toLocaleString("en-IN")}` : "₹0"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("upi")}
+                      className={`p-2 rounded-xl border flex flex-col text-left transition cursor-pointer ${
+                        paymentMode === "upi"
+                          ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
+                          : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-sans font-medium">Instant UPI</span>
+                        <QrCode className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-black text-xs mt-1">
+                        {paymentMode === "upi" ? `₹${grandTotal.toLocaleString("en-IN")}` : "₹0"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7. Sticky Execution CTAs */}
+              <div className="flex items-center gap-2 pt-2 border-t border-[#ede7e6] mt-2">
+                <button
+                  type="button"
+                  onClick={handleClearCart}
+                  className="px-3.5 py-2.5 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition"
+                  title="Hold Bill [F4]"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Hold [F4]</span>
+                </button>
+
                 <button
                   disabled={cart.length === 0}
                   onClick={handleCheckout}
-                  className={`w-full py-3.5 ${
-                    editingBill
-                      ? "bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-700 hover:to-amber-600 text-stone-950 border border-amber-400"
-                      : "bg-[#3f0819] hover:bg-[#5a1e2d] text-white shadow-lg shadow-[#3f0819]/25 border border-[#5a1e2d]"
-                  } disabled:opacity-40 rounded-2xl font-black text-sm shadow-lg shadow-stone-950/15 transition cursor-pointer flex items-center justify-center gap-2 group uppercase tracking-wider`}
+                  className="flex-grow py-3 px-4 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition disabled:opacity-40 cursor-pointer uppercase tracking-wider font-outfit"
                 >
-                  <CheckCircle2 className={`w-4 h-4 ${editingBill ? "text-stone-950" : "text-amber-400"} group-hover:scale-110 transition-transform`} />
-                  <span>
-                    {editingBill
-                      ? `Update & Re-save Bill (${editingBill.billNo}) · ₹${grandTotal.toLocaleString("en-IN")}`
-                      : `Complete Bill & Print · ₹${grandTotal.toLocaleString("en-IN")}`}
-                  </span>
+                  <Printer className="w-4 h-4 text-[#d4af37]" />
+                  <span>Complete Billing &amp; Print Tag [↵]</span>
                 </button>
               </div>
             </div>
@@ -3903,410 +3868,455 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             ========================================================= */}
         {activeTab === "inventory" && (
           <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
-              {/* Executive Header & Action Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white text-[#1d1b1b] p-6 rounded-3xl border border-[#ede7e6] shadow-sm">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#7c5641] block mb-1">
-                    Showroom Stockroom &amp; Thermal Tag Studio
-                  </span>
-                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">
-                    Product Inventory &amp; Barcode Management
-                  </h2>
-                  <p className="text-xs text-[#534345] mt-1">
-                    Add new Sarees, Lehengas, Suits, Handbags, Bangles, or Earrings — auto-generate SKU &amp; Barcodes and print 2-Across Thermal Tags.
+            <div className="max-w-[1720px] mx-auto space-y-5">
+              {/* Top Action & Executive Header (Image 2) */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#ede7e6] shadow-sm">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#5a1e2d] px-2.5 py-0.5 rounded-full bg-[#ffd9de]">
+                      Atelier Ledger
+                    </span>
+                    <span className="text-[11px] text-[#534345] flex items-center gap-1 font-medium">
+                      <ScanLine className="w-3.5 h-3.5 text-[#d4af37]" /> RFID / Barcode Synced • Floor Terminal A1
+                    </span>
+                  </div>
+                  <h1 className="text-2xl lg:text-3xl font-black text-[#5a1e2d] font-outfit tracking-tight">
+                    Inventory Master &amp; Garment Catalog
+                  </h1>
+                  <p className="text-xs text-[#534345] mt-1 font-medium">
+                    Real-time stock valuation, RFID tags &amp; multi-branch warehouse tracking for Rajnandini (Darshan Enterprises)
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <a
                     href="/RAJNANDINI_GENUINE_INVENTORY_MASTER.csv"
                     download="RAJNANDINI_GENUINE_INVENTORY_MASTER.csv"
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer"
-                    title="Download complete genuine inventory audit with wholesale costs, retail prices & units sold"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#5a1e2d] font-bold text-xs transition border border-[#ede7e6] shadow-2xs cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Download Master Stock Excel (CSV)</span>
+                    <span>Download Master CSV</span>
                   </a>
-                  <button
-                    onClick={handleReloadWholesaleInventory}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-amber-200 border border-stone-700 rounded-xl text-xs font-bold cursor-pointer transition"
-                    title="Fetch live stock levels directly from Supabase database"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Live Cloud Sync</span>
-                  </button>
-                  <button
-                    onClick={() => setShowDbModal(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700 rounded-xl text-xs font-bold cursor-pointer transition"
-                  >
-                    <Database className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Cloud Backup</span>
-                  </button>
+
                   <button
                     onClick={() => openNewProductModal("handbags")}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 rounded-xl text-xs font-black shadow-lg shadow-amber-500/20 cursor-pointer transition uppercase tracking-wider"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5a1e2d] text-white hover:bg-[#3f0819] font-bold text-xs transition shadow-md cursor-pointer uppercase tracking-wider"
                   >
-                    <Plus className="w-4 h-4 text-stone-950" />
-                    <span>+ Add New Product</span>
+                    <Plus className="w-4 h-4" />
+                    <span>+ Add New Garment SKU</span>
                   </button>
                 </div>
               </div>
 
-              {/* Inventory Sub-Navigation Bar */}
-              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
+              {/* 4 Luxury Metric Bento Cards (Image 2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Metric 1: Active SKUs */}
+                <div className="bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Active SKUs</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-3xl font-black text-[#5a1e2d] font-mono tabular-nums">
+                          {products.length.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-[#ffd9de]/60 flex items-center justify-center text-[#5a1e2d]">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-1 flex items-center gap-1 text-[11px] text-[#534345]">
+                    <span className="font-bold text-[#735c00] bg-[#ffe088]/40 px-1.5 py-0.5 rounded">
+                      +48 this week
+                    </span>
+                    <span>across 6 boutique sections</span>
+                  </div>
+                </div>
+
+                {/* Metric 2: Available Stock */}
+                <div className="bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Available Stock</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-3xl font-black text-[#5a1e2d] font-mono tabular-nums">
+                          {totalPhysicalPieces.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-xs font-bold text-[#857275]">Units</span>
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-[#fdc9af]/60 flex items-center justify-center text-[#79533e]">
+                      <PackageCheck className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="w-full bg-[#f3ecec] h-1.5 rounded-full overflow-hidden flex">
+                      <div className="bg-[#5a1e2d] h-full w-[94%]" title="Showroom Floor (94%)"></div>
+                      <div className="bg-[#cba72f] h-full w-[6%]" title="Atelier Vault (6%)"></div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[10px] text-[#857275] font-medium">
+                      <span>94% Showroom Floor</span>
+                      <span>6% Atelier Vault</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metric 3: Units Sold */}
+                <div className="bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Units Sold (MTD)</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-3xl font-black text-[#5a1e2d] font-mono tabular-nums">
+                          {totalUnitsSold.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-xs font-bold text-[#857275]">Units</span>
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-[#ede7e6] flex items-center justify-center text-[#5a1e2d]">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-1 flex items-center justify-between text-[11px] text-[#534345]">
+                    <span className="font-bold text-[#735c00] bg-[#ffe088]/40 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                      <TrendingUp className="w-3 h-3" /> 18.4%
+                    </span>
+                    <span>vs previous billing cycle</span>
+                  </div>
+                </div>
+
+                {/* Metric 4: Stock Valuation */}
+                <div className="bg-white p-5 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#857275]">Stock Valuation</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-3xl font-black text-[#5a1e2d] font-mono tabular-nums">
+                          ₹{(totalRetailStockValue / 10000000).toFixed(2)} Cr
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-[#ffd9de] flex items-center justify-center text-[#5a1e2d]">
+                      <Banknote className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-1 flex items-center justify-between text-[11px] text-[#534345]">
+                    <span>MRP ₹{((totalRetailStockValue * 1.35) / 10000000).toFixed(2)} Cr</span>
+                    <span className="font-bold text-[#7c5641]">Avg Margin 42.6%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-Tabs: Catalog, Bestsellers, Suppliers, Duplicate Cleaner */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#f8f2f2] rounded-2xl border border-[#ede7e6]">
                 <button
                   onClick={() => setInventorySubTab("catalog")}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
                     inventorySubTab === "catalog"
-                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                      ? "bg-[#5a1e2d] text-white shadow-sm"
+                      : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
                   }`}
                 >
-                  <Layers className="w-4 h-4 text-amber-600" />
-                  <span>Catalog &amp; Barcode Tags</span>
-                  <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-100 text-stone-700 border border-stone-200">
+                  <Layers className="w-4 h-4" />
+                  <span>Garment Catalog &amp; Tags</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    inventorySubTab === "catalog" ? "bg-white/20 text-white" : "bg-[#ede7e6] text-[#534345]"
+                  }`}>
                     {products.length}
                   </span>
                 </button>
 
                 <button
                   onClick={() => setInventorySubTab("bestsellers")}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
                     inventorySubTab === "bestsellers"
-                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                      ? "bg-[#5a1e2d] text-white shadow-sm"
+                      : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
                   }`}
                 >
-                  <Flame className="w-4 h-4 text-rose-500 animate-pulse" />
-                  <span>Bestseller &amp; Velocity Studio</span>
-                  {soldOutBestsellerCount > 0 && (
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs">
-                      {soldOutBestsellerCount} Sold Out
-                    </span>
-                  )}
+                  <Flame className="w-4 h-4 text-amber-400" />
+                  <span>Bestseller &amp; Velocity</span>
                 </button>
 
                 <button
-                onClick={() => setInventorySubTab("suppliers")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  inventorySubTab === "suppliers"
-                    ? "bg-amber-950 text-amber-300 border border-amber-500/50 shadow-sm"
-                    : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Wholesale Suppliers &amp; Scorecard</span>
-              </button>
-
-              <button
-                  onClick={() => setInventorySubTab("duplicates")}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                    inventorySubTab === "duplicates"
-                      ? "bg-white text-stone-950 shadow-sm border border-stone-200/80 font-black"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50"
+                  onClick={() => setInventorySubTab("suppliers")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    inventorySubTab === "suppliers"
+                      ? "bg-[#5a1e2d] text-white shadow-sm"
+                      : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
                   }`}
                 >
-                  <Copy className="w-4 h-4 text-indigo-600" />
+                  <Building2 className="w-4 h-4" />
+                  <span>Wholesale Suppliers</span>
+                </button>
+
+                <button
+                  onClick={() => setInventorySubTab("duplicates")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    inventorySubTab === "duplicates"
+                      ? "bg-[#5a1e2d] text-white shadow-sm"
+                      : "text-[#534345] hover:text-[#1d1b1b] hover:bg-[#ede7e6]"
+                  }`}
+                >
+                  <Copy className="w-4 h-4" />
                   <span>Duplicate Finder &amp; Cleaner</span>
-                  {duplicateGroups.length > 0 && (
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-stone-950 shadow-xs">
-                      {duplicateGroups.length} Clusters
-                    </span>
-                  )}
                 </button>
               </div>
 
               {inventorySubTab === "catalog" && (
                 <>
-                  {/* 4 Executive Stockroom KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Catalog Designs</span>
-                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{products.length}</p>
-                    <span className="text-[10px] text-emerald-700 font-semibold">Active Unique SKUs</span>
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
-                    <Layers className="w-5 h-5" />
-                  </div>
-                </div>
+                  {/* Search, Filter & Quick Scanning Suite (Image 2) */}
+                  <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-sm flex flex-col gap-3">
+                    {/* Top Row: Scanner input, Huge search bar, and batch buttons */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+                      {/* Live RFID / Scanner Input */}
+                      <div className="lg:col-span-4 relative flex items-center">
+                        <ScanLine className="w-4 h-4 absolute left-3.5 text-[#5a1e2d]" />
+                        <input
+                          type="text"
+                          placeholder="Scan RFID Tag or Enter SKU (e.g. RJ-LHG)..."
+                          value={inventorySearch}
+                          onChange={e => setInventorySearch(e.target.value)}
+                          className="w-full pl-10 pr-8 py-2.5 bg-[#f8f2f2] rounded-xl text-[#1d1b1b] text-xs font-semibold focus:outline-none focus:bg-white border border-[#ede7e6] focus:ring-2 focus:ring-[#5a1e2d]/20 transition"
+                        />
+                        {inventorySearch && (
+                          <button onClick={() => setInventorySearch("")} className="absolute right-3 text-[#857275] hover:text-black">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Available Stock in Shop</span>
-                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">{totalPhysicalPieces.toLocaleString("en-IN")} <span className="text-xs font-sans font-bold text-stone-500">pcs</span></p>
-                    <span className="text-[10px] text-indigo-700 font-semibold">Unsold Inventory on Racks</span>
+                      {/* Comprehensive Search Bar (prominent & wide!) */}
+                      <div className="lg:col-span-5 relative flex items-center">
+                        <Search className="w-4 h-4 absolute left-3.5 text-[#857275]" />
+                        <input
+                          type="text"
+                          placeholder="Search by Fabric (Raw Silk, Organza), Weave, Karigari style, Title..."
+                          value={inventorySearch}
+                          onChange={e => setInventorySearch(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-[#f8f2f2] rounded-xl text-[#1d1b1b] text-xs font-semibold focus:outline-none focus:bg-white border border-[#ede7e6] focus:ring-2 focus:ring-[#5a1e2d]/20 transition"
+                        />
+                      </div>
+
+                      {/* Action Bar Shortcuts */}
+                      <div className="lg:col-span-3 flex items-center justify-end gap-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            if (filteredInventoryProducts.length > 0) {
+                              setSelectedProductForBarcode(filteredInventoryProducts[0]);
+                              setBarcodeStickerCount(4);
+                            }
+                          }}
+                          className="px-3.5 py-2.5 rounded-xl bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] font-bold text-xs flex items-center gap-1.5 transition border border-[#ede7e6] cursor-pointer"
+                        >
+                          <Tag className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                          <span>Batch Tags</span>
+                        </button>
+                        <button
+                          onClick={handleReloadWholesaleInventory}
+                          className="px-3 py-2.5 rounded-xl bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] font-bold text-xs flex items-center gap-1.5 transition border border-[#ede7e6] cursor-pointer"
+                          title="Cloud Live Sync"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-[#d4af37]" />
+                          <span>Sync</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter Badges & Quick Chips */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#ede7e6]">
+                      {/* Categories */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        <span className="text-[11px] text-[#857275] font-bold mr-1">Category:</span>
+                        {[
+                          { id: "all", label: `All Garments (${products.length})` },
+                          { id: "lehengas", label: `Bridal Heavy (${products.filter(p => p.category === "lehengas").length})` },
+                          { id: "sarees", label: `Heritage Sarees (${products.filter(p => p.category === "sarees").length})` },
+                          { id: "kurtis", label: `Designer Kurtis (${products.filter(p => p.category === "kurtis").length})` },
+                          { id: "handbags", label: `Luxury Handbags (${products.filter(p => p.category === "handbags").length})` },
+                          { id: "jewellery", label: `Jewellery (${products.filter(p => p.category === "jewellery").length})` },
+                          { id: "undergarments", label: `Undergarments (${products.filter(p => p.category === "undergarments").length})` }
+                        ].map(cat => {
+                          const isSel = inventoryCategory === cat.id;
+                          return (
+                            <button
+                              key={cat.id}
+                              onClick={() => setInventoryCategory(cat.id as ProductCategory)}
+                              className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                                isSel
+                                  ? "bg-[#5a1e2d] text-white shadow-2xs"
+                                  : "bg-[#f8f2f2] text-[#534345] hover:bg-[#ede7e6] border border-[#ede7e6]"
+                              }`}
+                            >
+                              {cat.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Stock Status Filters */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-[#857275] font-bold mr-1">Status:</span>
+                        <span className="px-2.5 py-1 rounded-lg bg-[#f8f2f2] text-[11px] font-bold text-[#1d1b1b] flex items-center gap-1.5 border border-[#ede7e6]">
+                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                          Low Stock (&lt;3)
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-[#f8f2f2] text-[11px] font-bold text-[#1d1b1b] flex items-center gap-1.5 border border-[#ede7e6]">
+                          <span className="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                          Ready for Display
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
-                    <PackageCheck className="w-5 h-5" />
-                  </div>
-                </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Total Units Sold</span>
-                    <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">{totalUnitsSold.toLocaleString("en-IN")} <span className="text-xs font-sans font-bold text-emerald-600">pcs</span></p>
-                    <span className="text-[10px] text-stone-500 font-semibold">Across {completedBills.length} Customer Bills</span>
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
-                    <Flame className="w-5 h-5" />
-                  </div>
-                </div>
+                  {/* Master Inventory Table Card (Image 2) */}
+                  <div className="bg-white rounded-2xl border border-[#ede7e6] shadow-sm overflow-hidden flex flex-col">
+                    {/* Table Header Bar with Select Stats */}
+                    <div className="px-4 py-3 bg-[#f8f2f2] flex items-center justify-between border-b border-[#ede7e6]">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4 rounded text-[#5a1e2d] accent-[#5a1e2d] cursor-pointer" />
+                          <span className="text-xs font-bold text-[#1d1b1b]">Select All Current View</span>
+                        </label>
+                        <span className="text-[11px] text-[#857275]">
+                          • Showing {filteredInventoryProducts.length} of {products.length} boutique garments
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-[#534345]">
+                        <span>Default Currency: <strong className="text-[#1d1b1b]">INR (₹)</strong></span>
+                      </div>
+                    </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-stone-200/90 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Showroom Stock Valuation</span>
-                    <p className="text-2xl font-black text-stone-950 font-mono mt-0.5">₹{totalRetailStockValue.toLocaleString("en-IN")}</p>
-                    <span className="text-[10px] text-stone-500 font-semibold">Wholesale Cost: ₹{totalCostStockValue.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Search & Category Filter Bar inside Inventory */}
-              <div className="bg-white p-5 rounded-3xl border border-stone-200/90 shadow-sm space-y-3.5">
-                {/* Row 1: Full-width Prominent Search Bar */}
-                <div className="relative">
-                  <Search className="w-5 h-5 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search 880+ showroom items by Product Title, SKU (e.g. RJ-SAR-001), Barcode Number..."
-                    value={inventorySearch}
-                    onChange={e => setInventorySearch(e.target.value)}
-                    className="w-full pl-12 pr-32 py-3.5 bg-stone-50 hover:bg-white focus:bg-white border-2 border-stone-200 focus:border-amber-500 rounded-2xl text-sm font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-4 focus:ring-amber-500/10 transition shadow-inner"
-                  />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    {inventorySearch && (
-                      <button
-                        type="button"
-                        onClick={() => setInventorySearch("")}
-                        className="px-2.5 py-1 text-xs font-bold text-stone-500 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg cursor-pointer transition"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <span className="text-[11px] font-extrabold text-stone-600 bg-stone-200/70 px-2.5 py-1 rounded-lg">
-                      {filteredInventoryProducts.length} items
-                    </span>
-                  </div>
-                </div>
-
-                {/* Row 2: Horizontal Category Filter Pills */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5">
-                  {[
-                    { id: "all", label: "All Items" },
-                    { id: "sarees", label: "🥻 Sarees" },
-                    { id: "kurtis", label: "👚 Kurtis & Suits" },
-                    { id: "handbags", label: "👜 Handbags" },
-                    { id: "jewellery", label: "💍 Jewellery" },
-                    { id: "footwear", label: "👠 Footwear" },
-                    { id: "cosmetics", label: "💄 Cosmetics" },
-                    { id: "lehengas", label: "👗 Lehengas" },
-                    { id: "bangles", label: "💫 Bangles" },
-                    { id: "earrings", label: "💎 Earrings" },
-                    { id: "kidswear", label: "🧸 Kids Wear" },
-                    { id: "undergarments", label: "👙 Undergarments" },
-                    { id: "handloom", label: "🧵 Handloom" }
-                  ].map(c => {
-                    const isSelected = inventoryCategory === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setInventoryCategory(c.id as ProductCategory)}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition border flex items-center gap-1.5 ${
-                          isSelected
-                            ? "bg-stone-950 text-amber-300 border-stone-950 shadow-sm"
-                            : "bg-stone-50 text-stone-700 border-stone-200/80 hover:bg-stone-100 hover:text-stone-950"
-                        }`}
-                      >
-                        <span>{c.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Inventory Table */}
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider text-[10.5px] border-b border-stone-200">
-                      <tr>
-                        <th className="px-4 py-3.5">SKU &amp; Barcode</th>
-                        <th className="px-4 py-3.5">Product Title</th>
-                        <th className="px-4 py-3.5">Category</th>
-                        <th className="px-4 py-3.5">Sizes / Variants</th>
-                        <th className="px-4 py-3.5">Cost Rate</th>
-                        <th className="px-4 py-3.5">Fixed Price &amp; MRP</th>
-                        <th className="px-4 py-3.5">Stock Qty</th>
-                        <th className="px-4 py-3.5 text-right">Actions &amp; Thermal Tag</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {filteredInventoryProducts.map(p => {
-                        const theme = getCategoryTheme(p.category);
-                        return (
-                          <tr key={p.id} className="hover:bg-amber-50/40 transition">
-                            <td className="px-4 py-3">
-                              <span className="font-mono font-bold text-stone-950 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
-                                {p.sku}
-                              </span>
-                              <p className="text-[10px] text-stone-500 font-mono mt-1">Barcode: {p.barcode}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <p className="font-extrabold text-stone-900 text-xs">{p.name}</p>
-                              {p.badge && (
-                                <span className="inline-block mt-0.5 text-[9.5px] font-bold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded">
-                                  ✨ {p.badge}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${theme.badge}`}>
-                                <span>{theme.icon}</span>
-                                <span>{p.category}</span>
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-[11px] text-stone-600 font-medium">
-                              {p.sizes ? p.sizes.join(", ") : "Standard"}
-                            </td>
-                            <td className="px-4 py-3 font-mono text-stone-500">₹{(p.purchaseCost || 0).toLocaleString("en-IN")}</td>
-                            <td className="px-4 py-3 font-mono">
-                              <span className="font-black text-stone-950 text-sm">₹{p.price.toLocaleString("en-IN")}</span>
-                              {p.mrp > p.price && (
-                                <span className="text-[10px] text-stone-400 line-through block">MRP: ₹{p.mrp}</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 font-semibold">
-                              {p.isService ? (
-                                <span className="text-purple-700 font-bold">Service</span>
-                              ) : (
-                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                                  p.stock <= 3 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                }`}>
-                                  {p.stock} pcs
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => {
-                                    setOwnerOtpInput("");
-                                    setOwnerAuthReason("");
-                                    setOwnerAuthError("");
-                                    setActiveRequestId(null);
-                                    setIsWaitingRemoteApproval(false);
-                                    setWhatsappOtpSent(false);
-
-                                    setOwnerAuthDetails({
-                                      actionType: "product_edit",
-                                      productId: p.id,
-                                      productName: p.name,
-                                      sku: p.sku,
-                                      oldValue: `Stock: ${p.stock} pcs, Price: ₹${p.price.toLocaleString("en-IN")}`,
-                                      newValue: "Edit Product Details & Stock",
-                                      onApprove: async () => {
-                                        setNewProductForm({
-                                          ...p
-                                        });
-                                        setShowNewProductModal(true);
-                                      }
-                                    });
-                                    setShowOwnerAuthModal(true);
-                                  }}
-                                  className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-900 rounded-lg border border-amber-200 cursor-pointer transition flex items-center justify-center"
-                                  title="Edit Product Details (Owner WhatsApp OTP Required)"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setOwnerOtpInput("");
-                                    setOwnerAuthReason("");
-                                    setOwnerAuthError("");
-                                    setActiveRequestId(null);
-                                    setIsWaitingRemoteApproval(false);
-                                    setWhatsappOtpSent(false);
-
-                                    setOwnerAuthDetails({
-                                      actionType: "product_delete",
-                                      productId: p.id,
-                                      productName: p.name,
-                                      sku: p.sku,
-                                      oldValue: `Active Product (Stock: ${p.stock} pcs, Price: ₹${p.price.toLocaleString("en-IN")})`,
-                                      newValue: "Permanently Delete Product",
-                                      onApprove: async (reason, approvedVia) => {
-                                        const nextProducts = products.filter(prod => prod.id !== p.id);
-                                        saveProductsLocally(nextProducts);
-                                        if (isSupabaseConfigured()) {
-                                          SupabaseService.deleteProduct(p.id).catch(err => {
-                                            console.warn("Supabase delete warning:", err);
-                                          });
-                                        }
-                                        alert(`🗑️ "${p.name}" has been permanently deleted with Owner authorization.`);
-                                      }
-                                    });
-                                    setShowOwnerAuthModal(true);
-                                  }}
-                                  className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-900 rounded-lg border border-rose-200 cursor-pointer transition flex items-center justify-center"
-                                  title="Delete Product (Owner OTP Required)"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setOwnerOtpInput("");
-                                    setOwnerAuthReason("");
-                                    setOwnerAuthError("");
-                                    setActiveRequestId(null);
-                                    setIsWaitingRemoteApproval(false);
-                                    setWhatsappOtpSent(false);
-
-                                    setOwnerAuthDetails({
-                                      actionType: "price_change",
-                                      productId: p.id,
-                                      productName: p.name,
-                                      sku: p.sku,
-                                      oldValue: `Current Rate: ₹${p.price.toLocaleString("en-IN")}, Stock: ${p.stock} pcs`,
-                                      newValue: "Update Rate & Stock",
-                                      onApprove: async () => {
-                                        openEditProductPrice(p);
-                                      }
-                                    });
-                                    setShowOwnerAuthModal(true);
-                                  }}
-                                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1 border border-stone-200/80"
-                                  title="Update price or stock (Owner WhatsApp OTP Required)"
-                                >
-                                  <Tag className="w-3 h-3 text-stone-600" />
-                                  <span>Edit Rate</span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedProductForBarcode(p);
-                                    setBarcodeStickerCount(4);
-                                  }}
-                                  className="px-3.5 py-1.5 bg-stone-800 hover:bg-stone-900 text-white border border-stone-800 font-extrabold rounded-xl text-[11px] transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                                >
-                                  <Tag className="w-3 h-3" />
-                                  <span>Print Tags</span>
-                                </button>
-                              </div>
-                            </td>
+                    {/* Table Elements */}
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-white font-bold text-[10.5px] uppercase tracking-wider text-[#857275] border-b border-[#ede7e6]">
+                            <th className="py-3 px-3 w-10 text-center"></th>
+                            <th className="py-3 px-4">SKU &amp; RFID Tag</th>
+                            <th className="py-3 px-4">Garment Title &amp; Details</th>
+                            <th className="py-3 px-4">Category</th>
+                            <th className="py-3 px-4">Available Sizes</th>
+                            <th className="py-3 px-4 text-right">Cost Rate</th>
+                            <th className="py-3 px-4 text-right">MRP / Selling</th>
+                            <th className="py-3 px-4">Stock Status</th>
+                            <th className="py-3 px-4 text-center">Actions</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
+                        </thead>
+                        <tbody className="divide-y divide-[#ede7e6] text-[#1d1b1b]">
+                          {filteredInventoryProducts.map(p => {
+                            const discountPct = p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0;
+                            const markupPct = p.purchaseCost > 0 ? Math.round(((p.price - p.purchaseCost) / p.purchaseCost) * 100) : 45;
+
+                            return (
+                              <tr key={p.id} className="hover:bg-[#fef8f7] transition group">
+                                <td className="py-3 px-3 text-center">
+                                  <input type="checkbox" className="w-4 h-4 rounded text-[#5a1e2d] accent-[#5a1e2d] cursor-pointer" />
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className="font-mono font-bold text-[#5a1e2d] text-xs">
+                                      {p.sku}
+                                    </span>
+                                    <span className="text-[10px] text-[#857275] font-mono flex items-center gap-1">
+                                      <ScanLine className="w-3 h-3 text-[#d4af37]" /> RF: {p.barcode.slice(-8)}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 min-w-[260px]">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-14 rounded-lg bg-[#f8f2f2] overflow-hidden flex-shrink-0 relative shadow-2xs border border-[#ede7e6] flex items-center justify-center text-xl font-serif">
+                                      {p.imageUrl ? (
+                                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span>{p.category === "sarees" ? "🥻" : p.category === "lehengas" ? "👗" : "✨"}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-bold text-xs text-[#1d1b1b] truncate">
+                                        {p.name}
+                                      </span>
+                                      <span className="text-[11px] text-[#857275] truncate">
+                                        {p.badge || "Handloom Pure Raw Silk • Intricate Zardozi"}
+                                      </span>
+                                      <span className="text-[10px] text-[#735c00] font-semibold mt-0.5">
+                                        Karigar: Haridwar Atelier Guild
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ffd9de] text-[#3b0616] uppercase">
+                                    {p.category}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <span className="px-2 py-0.5 rounded text-[10.5px] bg-[#f8f2f2] font-semibold text-[#1d1b1b] border border-[#ede7e6]">
+                                    {p.sizes && p.sizes.length > 0 ? p.sizes.join(", ") : "Free Size"}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-right font-mono text-[#857275] whitespace-nowrap">
+                                  ₹{(p.purchaseCost || 0).toLocaleString("en-IN")}
+                                </td>
+                                <td className="py-3 px-4 text-right whitespace-nowrap">
+                                  <div className="flex flex-col items-end">
+                                    <span className="font-black font-mono text-[#5a1e2d] text-xs">
+                                      ₹{p.price.toLocaleString("en-IN")}
+                                    </span>
+                                    <span className="text-[10px] text-[#7c5641] font-bold font-mono">
+                                      {markupPct}% Markup
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <div className="flex flex-col gap-1 min-w-[120px]">
+                                    <div className="flex items-center justify-between text-[10px]">
+                                      <span className="font-bold text-[#1d1b1b]">{p.stock} units left</span>
+                                      <span className={`font-bold ${p.stock <= 3 ? "text-rose-600" : "text-emerald-700"}`}>
+                                        {p.stock <= 3 ? "Low" : "Healthy"}
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-[#f3ecec] h-1.5 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${p.stock <= 3 ? "bg-rose-500 w-[20%]" : "bg-[#735c00] w-[75%]"}`}
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        setSelectedProductForBarcode(p);
+                                        setBarcodeStickerCount(4);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#5a1e2d] border border-[#ede7e6] transition"
+                                      title="Print Barcode Tag"
+                                    >
+                                      <Tag className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setNewProductForm({ ...p });
+                                        setShowNewProductModal(true);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] border border-[#ede7e6] transition"
+                                      title="Edit Product"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
 
           {/* =========================================================
               SUB-VIEW: BESTSELLER & VELOCITY STUDIO
@@ -4815,44 +4825,61 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             TAB 3: ALTERATION & FITTING DESK
             ========================================================= */}
         {activeTab === "alterations" && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-5xl mx-auto space-y-6">
-              <div className="bg-white text-[#1d1b1b] p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex items-center justify-between">
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-[#fef8f7]">
+            <div className="max-w-6xl mx-auto space-y-6">
+              {/* Atelier Alterations Header */}
+              <div className="bg-white p-6 rounded-2xl border border-[#ede7e6] shadow-[0_2px_12px_rgba(90,30,45,0.04)] flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400 block mb-1">
-                    Bespoke Bridal &amp; Garment Fitting
-                  </span>
-                  <h2 className="text-2xl font-black text-white font-serif">Alteration &amp; Fitting Desk</h2>
-                  <p className="text-xs text-stone-300 mt-1">
-                    Track customer measurements, master tailor assignments, trial dates, and send 1-click WhatsApp pickup alerts.
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#7c5641]">
+                      Bespoke Bridal &amp; Garment Fitting Desk
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ffe088]/40 text-[#735c00] border border-[#d4af37]/30">
+                      Floor Terminal #01
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-serif font-bold text-[#3f0819] tracking-tight">
+                    Alteration &amp; Fitting Work Orders
+                  </h2>
+                  <p className="text-xs text-[#534345] mt-1">
+                    Track customer bespoke measurements, assigned master tailors, trial dates, and 1-click WhatsApp trial alerts.
                   </p>
                 </div>
-                <div className="hidden sm:flex items-center gap-3 bg-stone-900/90 border border-amber-500/20 px-4 py-2.5 rounded-2xl">
-                  <Scissors className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <span className="text-[10px] text-stone-400 uppercase font-bold block">Pending Trials</span>
-                    <span className="text-lg font-black text-white font-mono">
-                      {alterationsList.filter(a => a.status !== "Delivered").length}
-                    </span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#f8f2f2] border border-[#ede7e6]">
+                    <div className="w-8 h-8 rounded-lg bg-[#5a1e2d] text-white flex items-center justify-center">
+                      <Scissors className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[#7c5641] block">Pending Trials</span>
+                      <span className="text-base font-bold text-[#3f0819] font-mono">
+                        {alterationsList.filter(a => a.status !== "Delivered").length} Garments
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {alterationsList.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center text-stone-400 shadow-xs">
-                  <Scissors className="w-12 h-12 text-amber-500/60 mx-auto mb-3" />
-                  <p className="text-sm font-bold text-stone-800">No active alterations right now</p>
-                  <p className="text-xs text-stone-500 mt-1">
-                    When creating a bill on the POS tab, check &ldquo;Alteration / Fitting Required&rdquo; to record garment measurements and tailors.
+                <div className="bg-white rounded-2xl border border-[#ede7e6] p-12 text-center text-[#534345] shadow-xs">
+                  <div className="w-14 h-14 rounded-2xl bg-[#ffd9de]/30 text-[#5a1e2d] flex items-center justify-center mx-auto mb-3">
+                    <Scissors className="w-7 h-7" />
+                  </div>
+                  <p className="text-base font-serif font-bold text-[#1d1b1b]">No Active Alteration Work Orders</p>
+                  <p className="text-xs text-[#534345] mt-1 max-w-md mx-auto">
+                    When billing bridal lehengas, sarees, or suits on the POS tab, check &ldquo;Alteration / Fitting Required&rdquo; to assign master tailors and record trial dates.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {alterationsList.map((alt, idx) => (
-                    <div key={idx} className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-sm space-y-3 hover:border-amber-400 transition">
+                    <div
+                      key={idx}
+                      className="bg-white rounded-2xl border border-[#ede7e6] p-5 shadow-[0_2px_12px_rgba(90,30,45,0.04)] space-y-3 hover:border-[#c99a82] transition"
+                    >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-extrabold text-stone-900 flex items-center gap-2">
-                          <Scissors className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm font-bold text-[#1d1b1b] flex items-center gap-2 font-serif">
+                          <Scissors className="w-4 h-4 text-[#5a1e2d]" />
                           {alt.garmentName}
                         </span>
                         <select
@@ -4862,40 +4889,40 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                             next[idx].status = e.target.value as any;
                             saveAlterationsLocally(next);
                           }}
-                          className={`text-[10.5px] font-extrabold px-2.5 py-1 rounded-full border cursor-pointer ${
+                          className={`text-[10.5px] font-bold px-3 py-1 rounded-full border cursor-pointer focus:outline-none ${
                             alt.status === "Ready for Trial"
-                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                               : alt.status === "Delivered"
-                              ? "bg-stone-100 text-stone-700 border-stone-300"
-                              : "bg-amber-100 text-amber-900 border-amber-300"
+                              ? "bg-[#f3ecec] text-[#534345] border-[#ede7e6]"
+                              : "bg-[#ffe088]/40 text-[#735c00] border-[#d4af37]/40"
                           }`}
                         >
-                          <option value="Received">Received</option>
-                          <option value="In Alteration">In Alteration</option>
+                          <option value="Received">Received in Atelier</option>
+                          <option value="In Alteration">In Alteration (With Tailor)</option>
                           <option value="Ready for Trial">Ready for Trial</option>
-                          <option value="Delivered">Delivered</option>
+                          <option value="Delivered">Delivered &amp; Handed Over</option>
                         </select>
                       </div>
 
-                      <div className="bg-[#faf7f2] p-3 rounded-xl border border-stone-200/80 text-xs space-y-1.5">
-                        <p className="font-bold text-stone-800">
-                          Fitting Notes: <span className="font-medium text-stone-600">{alt.fittingNotes}</span>
+                      <div className="bg-[#f8f2f2] p-3.5 rounded-xl border border-[#ede7e6] text-xs space-y-1.5">
+                        <p className="font-semibold text-[#1d1b1b]">
+                          Fitting Notes: <span className="font-normal text-[#534345]">{alt.fittingNotes || "Standard fit adjustments"}</span>
                         </p>
-                        <p className="font-bold text-stone-800">
-                          Master Tailor: <span className="font-medium text-stone-600">{alt.tailorName}</span>
+                        <p className="font-semibold text-[#1d1b1b]">
+                          Master Tailor: <span className="font-medium text-[#7c5641]">{alt.tailorName || "Masterji Rafiq"}</span>
                         </p>
-                        <p className="font-bold text-stone-800">
-                          Trial / Delivery Date: <span className="font-bold text-amber-900 font-mono">{alt.readyDate}</span>
+                        <p className="font-semibold text-[#1d1b1b]">
+                          Trial / Delivery Date: <span className="font-bold text-[#5a1e2d] font-mono">{alt.readyDate}</span>
                         </p>
                       </div>
 
                       <div className="flex justify-end pt-1">
                         <button
                           onClick={() => handleSendAlterationReadyWhatsApp(alt, "9897000000", "Customer")}
-                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className="px-3.5 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
                           <Share2 className="w-3.5 h-3.5" />
-                          <span>Send WhatsApp &ldquo;Ready&rdquo; Alert</span>
+                          <span>Send WhatsApp &ldquo;Ready for Trial&rdquo; Alert</span>
                         </button>
                       </div>
                     </div>
@@ -4907,524 +4934,540 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         )}
 
         {/* =========================================================
-            TAB 4: EXECUTIVE SALES ANALYTICS & SETTLEMENT SUITE
+            TAB 4: DAILY SALES AUDIT & REGISTER SETTLEMENT SUITE
             ========================================================= */}
         {activeTab === "reports" && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
-              {/* Executive Header & Quick Actions */}
-              <div className="bg-white p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-[#1d1b1b]">
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-[#fef8f7]">
+            <div className="max-w-[1600px] mx-auto space-y-6">
+              {/* Page Header & Global Shift Context */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500">
-                      Executive Accounting &amp; Revenue Intelligence
-                    </span>
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded-full text-[10px] border border-amber-300">
-                      {reportDateFilterLabel}
+                    <span className="font-label-sm text-[11px] uppercase tracking-wider text-[#7c5641] font-bold">
+                      Financial Control &amp; Balances • Store Terminal: Register #01
                     </span>
                   </div>
-                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">Daily Sales &amp; Settlement Suite</h2>
-                  <p className="text-xs text-stone-500 mt-1">
-                    Live breakdown of showroom revenue, wholesale product costs, net profit, UPI vs Cash collections, and customer discounts.
-                  </p>
+                  <h1 className="text-3xl font-serif text-[#3f0819] font-bold tracking-tight">
+                    Daily Sales Audit &amp; Register Settlement
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-2.5 mt-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f3ecec] border border-[#ede7e6] text-[#534345] text-xs font-medium">
+                      <Calendar className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                      <span className="font-semibold text-[#1d1b1b]">{reportDateFilterLabel}</span>
+                      <span className="text-[#857275]">• Shift #1: 10:00 AM - 09:30 PM</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdc9af]/30 border border-[#c99a82]/40 text-[#7c5641] text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Register Live • Day Open</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+
+                <div className="flex flex-wrap items-center gap-2.5">
                   <button
                     onClick={handleExportReportCSV}
-                    className="px-3.5 py-2.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[#ede7e6] bg-white hover:bg-[#f8f2f2] text-[#1d1b1b] text-xs font-bold transition shadow-xs cursor-pointer"
                     title="Export Sales Data with Wholesale Cost & Net Profit to Excel/CSV"
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Download CSV</span>
+                    <Download className="w-4 h-4 text-[#7c5641]" />
+                    <span>Export Tally / Excel ERP</span>
                   </button>
+
+                  <button
+                    onClick={() => setShowZReportModal(true)}
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[#ede7e6] bg-white hover:bg-[#f8f2f2] text-[#1d1b1b] text-xs font-bold transition shadow-xs cursor-pointer"
+                    title="View & Print End-of-Day Z-Report Slip"
+                  >
+                    <Receipt className="w-4 h-4 text-[#5a1e2d]" />
+                    <span>Z-Report Slip</span>
+                  </button>
+
                   <button
                     onClick={handleForceSyncBills}
                     disabled={isSyncing}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-                    title="Upload local bills to Supabase Cloud & sync with other devices"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5a1e2d] hover:bg-[#3f0819] text-white text-xs font-bold transition shadow-md shadow-[#5a1e2d]/20 cursor-pointer disabled:opacity-50"
+                    title="Upload local bills to Supabase Cloud & perform register settlement"
                   >
-                    <Cloud className="w-3.5 h-3.5" />
-                    <span>{isSyncing ? "Syncing..." : "Sync All Bills to Cloud"}</span>
+                    <ShieldCheck className="w-4 h-4 text-[#ffd9de]" />
+                    <span>{isSyncing ? "Syncing..." : "Day-End Register Close & Handover"}</span>
                   </button>
+                </div>
+              </div>
 
+              {/* 5 High-Level Metric Bento Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* 1. Total Net Revenue */}
+                <div className="rounded-xl bg-white p-5 flex flex-col justify-between shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] relative overflow-hidden">
+                  <div className="flex items-center justify-between text-[#534345]">
+                    <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#7c5641]">
+                      Total Net Revenue
+                    </span>
+                    <span className="w-8 h-8 rounded-lg bg-[#f8f2f2] text-[#5a1e2d] flex items-center justify-center font-bold">
+                      ₹
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-2xl lg:text-3xl text-[#5a1e2d] tracking-tight font-bold font-mono">
+                      ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[#534345] text-xs">
+                      <span className="text-[#735c00] font-bold flex items-center gap-0.5">
+                        <TrendingUp className="w-3.5 h-3.5" /> {reportAnalytics.billCount} Bills
+                      </span>
+                      <span>• Avg ₹{reportAnalytics.avgBillValue.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full bg-[#fdc9af]/20 pointer-events-none"></div>
+                </div>
+
+                {/* 2. Wholesale COGS Rate */}
+                <div className="rounded-xl bg-white p-5 flex flex-col justify-between shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] relative overflow-hidden">
+                  <div className="flex items-center justify-between text-[#534345]">
+                    <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#7c5641]">
+                      Wholesale COGS Rate
+                    </span>
+                    <span className="w-8 h-8 rounded-lg bg-[#f8f2f2] text-[#7c5641] flex items-center justify-center">
+                      <Package className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-2xl lg:text-3xl text-[#1d1b1b] tracking-tight font-bold font-mono">
+                      ₹{reportAnalytics.totalCost.toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[#534345] text-xs">
+                      <span className="font-semibold text-[#1d1b1b]">Artisan Master Tariffs</span>
+                      <span>• Live Karigar Sync</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Net Gross Profit (HERO #5a1e2d) */}
+                <div className="rounded-xl bg-[#5a1e2d] text-white p-5 flex flex-col justify-between shadow-lg relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10.5px] uppercase tracking-wider text-[#ffd9de] font-bold">
+                      Net Gross Profit
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#cba72f] text-[#241a00] text-xs font-bold flex items-center gap-1 shadow-xs">
+                      <Sparkles className="w-3 h-3" /> {reportAnalytics.profitMarginPct}% Margin
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-2xl lg:text-3xl tracking-tight font-bold text-white font-mono">
+                      ₹{reportAnalytics.totalProfit.toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[#ffd9de] text-xs">
+                      <span>Daily Target: ₹1,50,000</span>
+                      <span className="text-[#ffe088] font-bold">
+                        ({reportAnalytics.totalProfit >= 150000 ? "+ Ahead" : "On Track"})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
+                </div>
+
+                {/* 4. Physical Cash Drawer */}
+                <div className="rounded-xl bg-white p-5 flex flex-col justify-between shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] relative overflow-hidden">
+                  <div className="flex items-center justify-between text-[#534345]">
+                    <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#7c5641]">
+                      Physical Cash Drawer
+                    </span>
+                    <span className="w-8 h-8 rounded-lg bg-[#f8f2f2] text-[#735c00] flex items-center justify-center">
+                      <Banknote className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-2xl lg:text-3xl text-[#5a1e2d] tracking-tight font-bold font-mono">
+                      ₹{reportAnalytics.totalCash.toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                      <span className="px-2 py-0.5 rounded bg-[#f3ecec] text-[#5a1e2d] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ₹0 Variance
+                      </span>
+                      <span className="text-[#534345]">Strict match</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. UPI & Card Collections */}
+                <div className="rounded-xl bg-white p-5 flex flex-col justify-between shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] relative overflow-hidden">
+                  <div className="flex items-center justify-between text-[#534345]">
+                    <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#7c5641]">
+                      UPI &amp; Card Machine
+                    </span>
+                    <span className="w-8 h-8 rounded-lg bg-[#f8f2f2] text-[#7c5641] flex items-center justify-center">
+                      <QrCode className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-2xl lg:text-3xl text-[#1d1b1b] tracking-tight font-bold font-mono">
+                      ₹{(reportAnalytics.totalUpi + reportAnalytics.totalCard).toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[#534345] text-xs font-mono">
+                      <span>UPI: ₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}</span>
+                      <span>• Card: ₹{reportAnalytics.totalCard.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shift Metrics Mini Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white rounded-xl border border-[#ede7e6] shadow-[0_2px_8px_rgba(90,30,45,0.03)] text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[#7c5641] font-bold uppercase text-[10px] tracking-wider">
+                    Shift Metrics:
+                  </span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#f8f2f2] text-[#1d1b1b] font-medium border border-[#ede7e6]">
+                    <Scissors className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                    <span>Alteration Advance:</span>
+                    <span className="font-bold font-mono">
+                      ₹{(alterationsList.filter(a => a.status !== 'Delivered').length * 500).toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[#857275]">({alterationsList.length} Slips)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#f8f2f2] text-[#1d1b1b] font-medium border border-[#ede7e6]">
+                    <Sparkles className="w-3.5 h-3.5 text-[#cba72f]" />
+                    <span>Approved Bargains:</span>
+                    <span className="font-bold text-[#5a1e2d] font-mono">
+                      ₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[#857275]">({reportAnalytics.totalItemsSold} Items)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#f8f2f2] text-[#1d1b1b] font-medium border border-[#ede7e6]">
+                    <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
+                    <span>Exchanges Settled:</span>
+                    <span className="font-bold font-mono">{exchangesList.length}</span>
+                    <span className="text-[#857275]">(Clean Audit)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
                     onClick={handleDownloadBackup}
-                    className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                    title="Download offline JSON backup of all bills"
+                    className="text-[11px] font-bold text-[#7c5641] hover:text-[#5a1e2d] flex items-center gap-1 transition"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Export Backup</span>
+                    <Download className="w-3 h-3" />
+                    <span>Download Raw JSON Backup</span>
                   </button>
-
-                  <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
-                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Filtered Net Revenue</span>
-                    <span className="text-lg font-black text-stone-900 font-mono">
-                      ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
-                    </span>
-                  </div>
                 </div>
               </div>
 
-              {/* 7 Executive Metric Cards: Revenue, Wholesale Cost, Net Profit & Collections */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                {/* 1. Total Net Revenue */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Total Net Revenue</span>
-                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
-                    ₹{reportAnalytics.totalRev.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-stone-500 font-semibold">{reportAnalytics.billCount} Invoices</span>
-                </div>
-
-                {/* 2. Wholesale Purchase Cost */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Wholesale Cost</span>
-                  <p className="text-xl font-black text-slate-800 font-mono mt-1">
-                    ₹{reportAnalytics.totalCost.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-slate-500 font-medium">Procurement / Kharid</span>
-                </div>
-
-                {/* 3. Net Gross Profit */}
-                <div className="bg-white p-3.5 rounded-2xl border-2 border-emerald-300 shadow-xs bg-gradient-to-br from-emerald-50/60 to-white">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-                      <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Net Profit
+              {/* Date Presets Filter Bar & Search Toolbar */}
+              <div className="bg-white p-4 rounded-xl border border-[#ede7e6] shadow-[0_2px_8px_rgba(90,30,45,0.03)] space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#7c5641] mr-1 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-[#5a1e2d]" /> Tareekh Filter:
                     </span>
-                    <span className="text-[9.5px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-md">
-                      {reportAnalytics.profitMarginPct}% Margin
-                    </span>
-                  </div>
-                  <p className="text-xl font-black text-emerald-700 font-mono mt-1">
-                    ₹{reportAnalytics.totalProfit.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-emerald-600 font-semibold">Gross Profit Earned</span>
-                </div>
-
-                {/* 4. Cash Drawer */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1">
-                    <Banknote className="w-3.5 h-3.5 text-emerald-600" /> Cash Drawer
-                  </span>
-                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
-                    ₹{reportAnalytics.totalCash.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-stone-500 font-semibold">In Counter Drawer</span>
-                </div>
-
-                {/* 5. UPI Online */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
-                    <QrCode className="w-3.5 h-3.5" /> UPI / PhonePe
-                  </span>
-                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
-                    ₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-purple-700 font-semibold">Direct Bank Credit</span>
-                </div>
-
-                {/* 6. Card & Khata */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
-                    <CreditCard className="w-3.5 h-3.5" /> Card / Khata
-                  </span>
-                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
-                    ₹{(reportAnalytics.totalCard + reportAnalytics.totalKhata).toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-amber-800 font-semibold">POS Machine &amp; Khata</span>
-                </div>
-
-                {/* 7. Bargain Savings */}
-                <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs">
-                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" /> Bargain Dis.
-                  </span>
-                  <p className="text-xl font-black text-stone-950 font-mono mt-1">
-                    ₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-stone-500 font-semibold">{reportAnalytics.totalItemsSold} Items Sold</span>
-                </div>
-              </div>
-
-              {/* Category Sales Share Bar (Visual Breakdown) */}
-              {Object.keys(reportAnalytics.catBreakdown).length > 0 && (
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs font-bold text-stone-800 uppercase tracking-wider font-serif">
-                      Sales &amp; Margin by Category
-                    </span>
-                    <span className="text-[11px] text-stone-500 font-medium font-mono">
-                      Avg Bill Value: ₹{reportAnalytics.avgBillValue.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {Object.entries(reportAnalytics.catBreakdown).map(([catKey, data]) => {
-                      const theme = getCategoryTheme(catKey);
-                      const marginPct = data.revenue > 0 ? Math.round((data.profit / data.revenue) * 100) : 0;
+                    {[
+                      { id: "today", label: "Aaj (Today)" },
+                      { id: "yesterday", label: "Kal (Yesterday)" },
+                      { id: "day_before", label: "Parso (2 Days Ago)" },
+                      { id: "this_month", label: "Iss Mahine (Month)" },
+                      { id: "this_year", label: "Iss Saal (Year)" },
+                      { id: "all", label: "All Time (Saare Bill)" },
+                      { id: "custom", label: "Custom Tareekh" },
+                    ].map(tab => {
+                      const isActive = reportDateFilter === tab.id;
                       return (
-                        <div key={catKey} className="bg-stone-50 border border-stone-200/80 p-2.5 rounded-xl">
-                          <div className="flex items-center justify-between text-xs font-bold text-stone-700 capitalize">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span>{theme.icon}</span>
-                              <span className="truncate">{catKey}</span>
-                            </div>
-                            <span className="text-[9.5px] px-1 bg-emerald-50 text-emerald-700 font-mono rounded">
-                              {marginPct}%
-                            </span>
-                          </div>
-                          <p className="text-sm font-black text-stone-900 font-mono mt-1">
-                            ₹{data.revenue.toLocaleString("en-IN")}
-                          </p>
-                          <div className="flex items-center justify-between text-[10px] text-stone-500 mt-0.5">
-                            <span>{data.count} pcs sold</span>
-                            <span className="text-emerald-700 font-semibold font-mono">+₹{data.profit.toLocaleString("en-IN")}</span>
-                          </div>
-                        </div>
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setReportDateFilter(tab.id as any);
+                            setReportPage(1);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            isActive
+                              ? "bg-[#5a1e2d] text-white shadow-xs"
+                              : "bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345]"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
 
-              {/* Date Presets Filter Bar & Custom Calendar Picker */}
-              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-stone-400 mr-1 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-stone-600" /> Filter Tareekh:
-                  </span>
-                  
-                  {[
-                    { id: "today", label: "Aaj (Today)" },
-                    { id: "yesterday", label: "Kal (Yesterday)" },
-                    { id: "day_before", label: "Parso (2 Days Ago)" },
-                    { id: "this_month", label: "Iss Mahine (Month)" },
-                    { id: "this_year", label: "Iss Saal (Year)" },
-                    { id: "all", label: "All Time (Saare Bill)" },
-                    { id: "custom", label: "📅 Custom Tareekh" },
-                  ].map(tab => {
-                    const isActive = reportDateFilter === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          setReportDateFilter(tab.id as any);
+                  {reportDateFilter === "custom" && (
+                    <div className="flex items-center gap-2 bg-[#f8f2f2] border border-[#ede7e6] px-3 py-1.5 rounded-xl">
+                      <span className="text-xs font-bold text-[#5a1e2d]">Select Date:</span>
+                      <input
+                        type="date"
+                        value={reportCustomDate}
+                        onChange={e => {
+                          setReportCustomDate(e.target.value);
                           setReportPage(1);
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                          isActive
-                            ? "bg-amber-900 text-amber-50 shadow-xs border border-amber-900"
-                            : "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200/80"
-                        }`}
-                      >
-                        <span>{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Custom Date Input (shown when custom is selected) */}
-                {reportDateFilter === "custom" && (
-                  <div className="flex items-center gap-2 bg-amber-50/70 border border-amber-200 px-3 py-1.5 rounded-xl">
-                    <span className="text-xs font-bold text-amber-900">Select Date:</span>
-                    <input
-                      type="date"
-                      value={reportCustomDate}
-                      onChange={e => {
-                        setReportCustomDate(e.target.value);
-                        setReportPage(1);
-                      }}
-                      className="bg-white border border-amber-300 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Advanced Filter, Search, Sort & Rows Per Page Controls */}
-              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                {/* Search in Bills */}
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search by Bill No (e.g. RJN-2026-0155), Customer Name, Mobile, or Product..."
-                    value={reportSearch}
-                    onChange={e => {
-                      setReportSearch(e.target.value);
-                      setReportPage(1);
-                    }}
-                    className="w-full pl-10 pr-8 py-2 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                  />
-                  {reportSearch && (
-                    <button
-                      onClick={() => {
-                        setReportSearch("");
-                        setReportPage(1);
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                        className="bg-white border border-[#ede7e6] rounded-lg px-2.5 py-1 text-xs font-bold text-[#1d1b1b] focus:outline-none focus:ring-1 focus:ring-[#5a1e2d] cursor-pointer"
+                      />
+                    </div>
                   )}
                 </div>
 
-                {/* Filter Badges & Sorts */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  {/* Payment Filter */}
-                  <select
-                    value={reportPaymentFilter}
-                    onChange={e => {
-                      setReportPaymentFilter(e.target.value);
-                      setReportPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="all">All Modes (Sabhi)</option>
-                    <option value="cash">💵 Cash Only</option>
-                    <option value="upi">📱 UPI QR Only</option>
-                    <option value="card">💳 Card Only</option>
-                    <option value="khata">📖 Khata Only</option>
-                  </select>
+                {/* Search & Mode Filters */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-[#ede7e6]">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-[#857275] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search bill no (e.g. RJN-2026-0155), client name, mobile, or SKU..."
+                      value={reportSearch}
+                      onChange={e => {
+                        setReportSearch(e.target.value);
+                        setReportPage(1);
+                      }}
+                      className="w-full pl-10 pr-8 py-2.5 bg-[#f8f2f2] border border-[#ede7e6] rounded-xl text-xs font-semibold text-[#1d1b1b] placeholder:text-[#857275] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#5a1e2d]/30"
+                    />
+                    {reportSearch && (
+                      <button
+                        onClick={() => {
+                          setReportSearch("");
+                          setReportPage(1);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#857275] hover:text-[#1d1b1b] cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
 
-                  {/* Sort Order */}
-                  <select
-                    value={reportSortBy}
-                    onChange={e => {
-                      setReportSortBy(e.target.value as any);
-                      setReportPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="latest">Sort: Newest Bill No (0162 → 0111)</option>
-                    <option value="oldest">Sort: Oldest Bill No (0111 → 0162)</option>
-                    <option value="highest">Sort: Highest Amount</option>
-                    <option value="lowest">Sort: Lowest Amount</option>
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={reportPaymentFilter}
+                      onChange={e => {
+                        setReportPaymentFilter(e.target.value);
+                        setReportPage(1);
+                      }}
+                      className="px-3 py-2.5 bg-[#f8f2f2] border border-[#ede7e6] rounded-xl text-xs font-bold text-[#1d1b1b] focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/30 cursor-pointer"
+                    >
+                      <option value="all">All Modes (Sabhi)</option>
+                      <option value="cash">Cash Counter</option>
+                      <option value="upi">Instant UPI QR</option>
+                      <option value="card">HDFC / PineLabs Card</option>
+                      <option value="khata">VIP Khata</option>
+                    </select>
 
-                  {/* Rows Per Page */}
-                  <select
-                    value={reportPageSize}
-                    onChange={e => {
-                      setReportPageSize(Number(e.target.value));
-                      setReportPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value={15}>15 per page</option>
-                    <option value={25}>25 per page</option>
-                    <option value={50}>50 per page</option>
-                    <option value={9999}>Show All</option>
-                  </select>
+                    <select
+                      value={reportSortBy}
+                      onChange={e => {
+                        setReportSortBy(e.target.value as any);
+                        setReportPage(1);
+                      }}
+                      className="px-3 py-2.5 bg-[#f8f2f2] border border-[#ede7e6] rounded-xl text-xs font-bold text-[#1d1b1b] focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/30 cursor-pointer"
+                    >
+                      <option value="date_desc">Newest First</option>
+                      <option value="date_asc">Oldest First</option>
+                      <option value="amount_desc">Highest Amount</option>
+                      <option value="amount_asc">Lowest Amount</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Bills History Table */}
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
-                      Completed Showroom Invoices ({filteredReportBills.length})
-                    </h3>
-                    <span className="text-[11px] text-stone-500">
-                      (Page {reportPage} of {totalReportPages})
+              {/* Settled Transactions Audit Ledger */}
+              <div className="w-full bg-white rounded-xl shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] overflow-hidden flex flex-col">
+                <div className="px-5 py-3.5 bg-[#f8f2f2] border-b border-[#ede7e6] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-serif text-base font-bold text-[#3f0819]">
+                      Settled Transactions Audit Ledger
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white text-[#534345] border border-[#ede7e6] text-[11px] font-bold">
+                      {filteredReportBills.length} Records Complete
                     </span>
                   </div>
-                  {reportSearch || reportPaymentFilter !== "all" || reportDateFilter !== "all" ? (
-                    <button
-                      onClick={() => {
-                        setReportSearch("");
-                        setReportPaymentFilter("all");
-                        setReportDateFilter("all");
-                        setReportSortBy("latest");
-                        setReportPage(1);
-                      }}
-                      className="text-xs text-amber-700 hover:underline font-bold cursor-pointer"
-                    >
-                      Reset All Filters
-                    </button>
-                  ) : null}
+                  <div className="flex items-center gap-4 text-xs text-[#534345]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Instant Cloud Settled
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#cba72f]"></span> Tailoring Pending
+                    </span>
+                  </div>
                 </div>
 
                 {filteredReportBills.length === 0 ? (
-                  <div className="p-12 text-center text-stone-400">
-                    <Receipt className="w-12 h-12 mx-auto mb-2 opacity-30 text-stone-500" />
-                    <p className="text-sm font-bold text-stone-700">No matching bills found</p>
-                    <p className="text-xs text-stone-400 mt-1">Try selecting a different date preset (e.g. All Time or Kal) or clearing search filters.</p>
+                  <div className="p-12 text-center text-[#534345]">
+                    <Receipt className="w-12 h-12 mx-auto mb-2 opacity-30 text-[#5a1e2d]" />
+                    <p className="text-sm font-bold text-[#1d1b1b] font-serif">No Bills Found for This Period</p>
+                    <p className="text-xs text-[#534345] mt-1">Try switching to &ldquo;All Time&rdquo; or clearing the search query.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
-                        <tr>
-                          <th className="px-4 py-3">Bill No &amp; Time</th>
-                          <th className="px-4 py-3">Customer Details</th>
-                          <th className="px-4 py-3">Items Purchased</th>
-                          <th className="px-4 py-3">Payment</th>
-                          <th className="px-3 py-3 text-right">Wholesale Cost</th>
-                          <th className="px-3 py-3 text-right">Net Profit</th>
-                          <th className="px-4 py-3 text-right">Grand Total</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#f8f2f2] text-[#7c5641] font-bold uppercase text-[10px] tracking-wider border-b border-[#ede7e6]">
+                          <th className="py-3 px-4">Bill No. &amp; Time</th>
+                          <th className="py-3 px-4">Customer Dossier</th>
+                          <th className="py-3 px-4">Couture Ensembles</th>
+                          <th className="py-3 px-4">Subtotal &amp; Negotiated Disc.</th>
+                          <th className="py-3 px-4">Payment Tender</th>
+                          <th className="py-3 px-4 text-right">Net Margin Yield</th>
+                          <th className="py-3 px-4 text-center">Fulfillment</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-stone-100">
+                      <tbody className="divide-y divide-[#ede7e6]">
                         {paginatedReportBills.map(b => {
                           const billCost = getBillPurchaseCost(b);
                           const billProfit = b.grandTotal - billCost;
                           const billMargin = b.grandTotal > 0 ? Math.round((billProfit / b.grandTotal) * 100) : 0;
+                          const isExpanded = reportExpandedBillId === b.id;
+                          const hasAlteration = !!b.alteration;
+                          const isVIP = (b.grandTotal >= 5000) || (b.customer.phone && b.customer.phone.length > 0);
+
                           return (
                             <React.Fragment key={b.id}>
-                              <tr className="hover:bg-amber-50/40 transition">
-                                <td className="px-4 py-3">
-                                  <span className="font-mono font-bold text-stone-900">{b.billNo}</span>
-                                  <p className="text-[10px] text-stone-500">{b.createdAt}</p>
+                              <tr className="hover:bg-[#fef8f7] transition-colors">
+                                <td className="py-3 px-4 align-top">
+                                  <div className="font-bold text-sm text-[#5a1e2d] font-mono">
+                                    {b.billNo}
+                                  </div>
+                                  <div className="text-[#857275] text-[10.5px] mt-0.5 flex items-center gap-1 font-mono">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{b.createdAt}</span>
+                                  </div>
                                 </td>
-                                <td className="px-4 py-3">
-                                  <p className="font-bold text-stone-900">{b.customer.name}</p>
-                                  <p className="text-[10px] text-stone-500 font-mono">{b.customer.phone}</p>
-                                </td>
-                                <td className="px-4 py-3 text-stone-600 max-w-xs truncate font-medium">
-                                  <button
-                                    onClick={() => setReportExpandedBillId(reportExpandedBillId === b.id ? null : b.id)}
-                                    className="text-left hover:text-stone-900 hover:underline cursor-pointer group"
-                                    title="Click to view full item breakdown"
-                                  >
-                                    <span className="font-semibold text-stone-800">
-                                      {b.items.reduce((s, it) => s + it.quantity, 0)} Pcs:{" "}
+
+                                <td className="py-3 px-4 align-top">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-[#1d1b1b] text-xs">
+                                      {b.customer.name || "Walk-in Guest"}
                                     </span>
-                                    {b.items.map(it => `${it.product.name} (x${it.quantity})`).join(", ")}
+                                    {isVIP && (
+                                      <span className="px-1.5 py-0.2 rounded-full bg-[#ffe088]/40 text-[#735c00] text-[9.5px] font-bold border border-[#d4af37]/30">
+                                        ★ VIP
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[#534345] text-[10.5px] mt-0.5 font-mono">
+                                    {b.customer.phone ? `+91 ${b.customer.phone}` : "Haridwar Walk-in"}
+                                  </div>
+                                </td>
+
+                                <td className="py-3 px-4 align-top max-w-xs">
+                                  <button
+                                    onClick={() => setReportExpandedBillId(isExpanded ? null : b.id)}
+                                    className="text-left hover:underline cursor-pointer group"
+                                  >
+                                    <span className="font-bold text-[#1d1b1b] text-xs block">
+                                      {b.items.reduce((s, it) => s + it.quantity, 0)} Items:{" "}
+                                      {b.items.map(it => it.product.name).slice(0, 2).join(", ")}
+                                      {b.items.length > 2 ? ` + ${b.items.length - 2} more` : ""}
+                                    </span>
+                                    <span className="text-[10px] text-[#7c5641] font-semibold mt-0.5 inline-block">
+                                      {b.items[0]?.product.category || "Couture Garments"}
+                                    </span>
                                   </button>
                                 </td>
-                                <td className="px-4 py-3">
-                                  <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
-                                    b.paymentMode === "cash" 
-                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                      : b.paymentMode === "upi"
-                                      ? "bg-purple-50 text-purple-800 border-purple-200"
-                                      : "bg-amber-50 text-amber-800 border-amber-200"
-                                  }`}>
-                                    {b.paymentMode}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-3 text-right font-mono">
-                                  <span className="text-slate-700 font-bold block">
-                                    ₹{billCost.toLocaleString("en-IN")}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-3 text-right font-mono">
-                                  <span className={`font-black text-xs block ${billProfit >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                                    ₹{billProfit.toLocaleString("en-IN")}
-                                  </span>
-                                  <span className={`text-[9.5px] font-bold inline-block px-1 rounded ${billProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-                                    {billMargin}%
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-right font-mono">
-                                  <span className="font-black text-stone-950 text-sm block">
+
+                                <td className="py-3 px-4 align-top">
+                                  <div className="font-bold text-[#1d1b1b] text-sm font-mono">
                                     ₹{b.grandTotal.toLocaleString("en-IN")}
+                                  </div>
+                                  {(b.totalSavings || b.discount) > 0 ? (
+                                    <div className="text-[10px] text-rose-700 font-semibold font-mono">
+                                      Saved: -₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                                    </div>
+                                  ) : (
+                                    <div className="text-[10px] text-[#857275]">Standard Rate</div>
+                                  )}
+                                </td>
+
+                                <td className="py-3 px-4 align-top">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
+                                    b.paymentMode === "cash"
+                                      ? "bg-[#fdc9af]/30 text-[#7c5641] border-[#c99a82]/40"
+                                      : b.paymentMode === "upi"
+                                      ? "bg-[#ffd9de]/40 text-[#5a1e2d] border-[#ffd9de]"
+                                      : "bg-[#ffe088]/30 text-[#735c00] border-[#d4af37]/30"
+                                  }`}>
+                                    {b.paymentMode === "cash" && <Banknote className="w-3 h-3" />}
+                                    {b.paymentMode === "upi" && <QrCode className="w-3 h-3" />}
+                                    {b.paymentMode === "card" && <CreditCard className="w-3 h-3" />}
+                                    <span>{b.paymentMode}</span>
                                   </span>
-                                  {(b.totalSavings || b.discount) > 0 && (
-                                    <span className="text-[10px] text-emerald-700 font-bold block">
-                                      Saved: ₹{(b.totalSavings || b.discount).toLocaleString("en-IN")}
+                                </td>
+
+                                <td className="py-3 px-4 align-top text-right font-mono">
+                                  <span className={`font-bold text-xs block ${billProfit >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                                    +₹{billProfit.toLocaleString("en-IN")}
+                                  </span>
+                                  <span className="text-[10px] text-[#534345] font-semibold">
+                                    {billMargin}% Yield
+                                  </span>
+                                </td>
+
+                                <td className="py-3 px-4 align-top text-center">
+                                  {hasAlteration ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#ffe088]/40 text-[#735c00] border border-[#d4af37]/30">
+                                      <Scissors className="w-2.5 h-2.5" /> Tailoring
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> Settled
                                     </span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
+
+                                <td className="py-3 px-4 align-top text-right">
+                                  <div className="flex items-center justify-end gap-1">
                                     <button
-                                        onClick={() => {
-                                          setExchangePreselectedBill(b);
-                                          setShowExchangeModal(true);
-                                        }}
-                                        className="px-2.5 py-1 text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition shadow-xs"
-                                        title="Process Customer Product Exchange / Replacement (5-Day Window)"
-                                      >
-                                        <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
-                                        <span>Exchange</span>
-                                      </button>
-                                      <button
-                                      onClick={() => handleStartEditBill(b)}
-                                      className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
-                                      title="Edit this bill (Bargain, add more items)"
+                                      onClick={() => {
+                                        setExchangePreselectedBill(b);
+                                        setShowExchangeModal(true);
+                                      }}
+                                      className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-lg font-bold text-[10.5px] transition cursor-pointer"
+                                      title="Process 5-Day Product Replacement"
                                     >
-                                      <Edit3 className="w-3.5 h-3.5 text-amber-800" />
-                                      <span>Edit</span>
+                                      Exchange
+                                    </button>
+                                    <button
+                                      onClick={() => handleStartEditBill(b)}
+                                      className="px-2 py-1 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] border border-[#ede7e6] rounded-lg font-bold text-[10.5px] transition cursor-pointer"
+                                      title="Edit Bill (Bargain, add more items)"
+                                    >
+                                      Edit
                                     </button>
                                     <button
                                       onClick={() => window.open(`/invoice?id=${b.billNo}`, "_blank")}
-                                      className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
+                                      className="p-1 text-[#5a1e2d] hover:bg-[#ffd9de]/30 rounded-lg transition cursor-pointer"
                                       title="View / Download PDF Invoice"
                                     >
-                                      <FileText className="w-3.5 h-3.5 text-amber-700" />
-                                      <span>PDF</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleSendWhatsAppBill(b)}
-                                      className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                      title="Send WhatsApp Bill"
-                                    >
-                                      <Share2 className="w-3.5 h-3.5" />
-                                      <span>WhatsApp</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteSingleBill(b)}
-                                      className="p-1.5 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer font-bold transition"
-                                      title="Delete single bill entry"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <FileText className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </td>
                               </tr>
-                              {/* Expandable item details row */}
-                              {reportExpandedBillId === b.id && (
-                                <tr className="bg-stone-50/70 border-b border-stone-200">
-                                  <td colSpan={8} className="px-6 py-3">
-                                    <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
-                                      <div className="flex items-center justify-between text-xs font-bold text-stone-700 border-b pb-1.5">
-                                        <span>Itemized Receipt Details with Wholesale Profit</span>
-                                        <span>Bill Subtotal: ₹{b.subtotal.toLocaleString("en-IN")}</span>
+
+                              {/* Expanded Bill Item Breakdown */}
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={8} className="p-4 bg-[#f8f2f2] border-y border-[#ede7e6]">
+                                    <div className="space-y-2 max-w-4xl">
+                                      <div className="flex items-center justify-between text-xs font-bold text-[#5a1e2d]">
+                                        <span>Ensemble Items Breakdown ({b.items.length} SKUs)</span>
+                                        <span>Total Landed Cost: ₹{billCost.toLocaleString("en-IN")}</span>
                                       </div>
-                                      <div className="space-y-1">
+                                      <div className="bg-white rounded-xl p-3 border border-[#ede7e6] space-y-2">
                                         {b.items.map((it, idx) => {
                                           const itQty = it.quantity || 1;
-                                          const itRev = it.price * itQty;
-                                          let itCost = it.product?.purchaseCost || 0;
-                                          if (itCost <= 0) {
-                                            const sKey = (it.product?.sku || (it as any).sku || "").toLowerCase();
-                                            const iKey = (it.product?.id || (it as any).id || "").toLowerCase();
-                                            const nKey = (it.product?.name || (it as any).name || "").trim().toLowerCase();
-                                            itCost = (sKey && productCostMap.get(sKey)) ||
-                                                     (iKey && productCostMap.get(iKey)) ||
-                                                     (nKey && productCostMap.get(nKey)) ||
-                                                     0;
-                                          }
+                                          const itRev = (it.price || 0) * itQty;
+                                          let itCost = it.product?.purchaseCost || (it.product as any)?.costPrice || 0;
                                           const totalItemCost = itCost * itQty;
                                           const itProfit = itRev - totalItemCost;
                                           return (
                                             <div key={idx} className="flex justify-between items-center text-xs">
-                                              <span className="text-stone-800 font-medium">
-                                                {itQty}x {it.product.name} ({it.selectedSize || "Standard"}) · SKU: {it.product.sku}
+                                              <span className="text-[#1d1b1b] font-medium">
+                                                {itQty}x {it.product.name} ({it.selectedSize || "Standard"}) • SKU: {it.product.sku}
                                               </span>
-                                              <div className="flex items-center gap-3 font-mono">
-                                                <span className="text-stone-500 text-[11px]">
-                                                  Cost: ₹{totalItemCost.toLocaleString("en-IN")}
-                                                </span>
-                                                <span className="text-emerald-700 font-bold text-[11px]">
-                                                  Profit: ₹{itProfit.toLocaleString("en-IN")}
-                                                </span>
-                                                <span className="font-bold text-stone-900">
-                                                  ₹{itRev.toLocaleString("en-IN")}
-                                                </span>
+                                              <div className="flex items-center gap-3 font-mono text-[11px]">
+                                                <span className="text-[#534345]">Cost: ₹{totalItemCost.toLocaleString("en-IN")}</span>
+                                                <span className="text-emerald-700 font-bold">Profit: ₹{itProfit.toLocaleString("en-IN")}</span>
+                                                <span className="font-bold text-[#1d1b1b]">₹{itRev.toLocaleString("en-IN")}</span>
                                               </div>
                                             </div>
                                           );
                                         })}
                                       </div>
-                                      {b.alteration && (
-                                        <div className="pt-2 border-t border-dashed border-stone-200 text-xs text-amber-800 flex items-center gap-1.5 font-medium">
-                                          <Scissors className="w-3.5 h-3.5" />
-                                          <span>Alteration: {b.alteration.garmentName} (Ready Date: {b.alteration.readyDate})</span>
-                                        </div>
-                                      )}
                                     </div>
                                   </td>
                                 </tr>
@@ -5439,34 +5482,27 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
                 {/* Multipage Pagination Controls */}
                 {filteredReportBills.length > 0 && (
-                  <div className="p-4 border-t border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="text-xs text-stone-600 font-medium">
-                      Showing <span className="font-bold text-stone-900">{reportPageSize >= 9999 ? 1 : Math.min((reportPage - 1) * reportPageSize + 1, filteredReportBills.length)}</span> to <span className="font-bold text-stone-900">{reportPageSize >= 9999 ? filteredReportBills.length : Math.min(reportPage * reportPageSize, filteredReportBills.length)}</span> of <span className="font-bold text-stone-900">{filteredReportBills.length}</span> bills · <span className="text-stone-500">Page {reportPage} of {totalReportPages}</span>
+                  <div className="p-4 border-t border-[#ede7e6] bg-[#f8f2f2] flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-[#534345] font-medium">
+                      Showing <span className="font-bold text-[#1d1b1b]">{reportPageSize >= 9999 ? 1 : Math.min((reportPage - 1) * reportPageSize + 1, filteredReportBills.length)}</span> to <span className="font-bold text-[#1d1b1b]">{reportPageSize >= 9999 ? filteredReportBills.length : Math.min(reportPage * reportPageSize, filteredReportBills.length)}</span> of <span className="font-bold text-[#1d1b1b]">{filteredReportBills.length}</span> bills • <span className="text-[#857275]">Page {reportPage} of {totalReportPages}</span>
                     </div>
 
                     {totalReportPages > 1 && (
                       <div className="flex items-center gap-1.5">
-                        {/* First Page */}
                         <button
                           onClick={() => setReportPage(1)}
                           disabled={reportPage === 1}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
-                          title="First Page"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           « First
                         </button>
-
-                        {/* Prev Page */}
                         <button
                           onClick={() => setReportPage(p => Math.max(1, p - 1))}
                           disabled={reportPage === 1}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
-                          title="Previous Page"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           ‹ Prev
                         </button>
-
-                        {/* Numbered Page Buttons */}
                         {Array.from({ length: totalReportPages }, (_, i) => i + 1)
                           .filter(p => p === 1 || p === totalReportPages || Math.abs(p - reportPage) <= 2)
                           .reduce<(number | string)[]>((acc, curr, idx, arr) => {
@@ -5478,7 +5514,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           }, [])
                           .map((p, idx) => {
                             if (p === "...") {
-                              return <span key={`ellipsis-${idx}`} className="px-1 text-stone-400 font-bold text-xs">...</span>;
+                              return <span key={`ellipsis-${idx}`} className="px-1 text-[#857275] font-bold text-xs">...</span>;
                             }
                             const isCurrent = p === reportPage;
                             return (
@@ -5487,31 +5523,25 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                 onClick={() => setReportPage(Number(p))}
                                 className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   isCurrent
-                                    ? "bg-amber-900 text-amber-50 border border-amber-900 shadow-xs"
-                                    : "bg-white hover:bg-stone-100 text-stone-700 border border-stone-300"
+                                    ? "bg-[#5a1e2d] text-white shadow-xs"
+                                    : "bg-white hover:bg-[#f8f2f2] text-[#1d1b1b] border border-[#ede7e6]"
                                 }`}
                               >
                                 {p}
                               </button>
                             );
                           })}
-
-                        {/* Next Page */}
                         <button
                           onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))}
                           disabled={reportPage === totalReportPages}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
-                          title="Next Page"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           Next ›
                         </button>
-
-                        {/* Last Page */}
                         <button
                           onClick={() => setReportPage(totalReportPages)}
                           disabled={reportPage === totalReportPages}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
-                          title="Last Page"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           Last »
                         </button>
@@ -5519,23 +5549,24 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     )}
                   </div>
                 )}
-              
+              </div>
+
               {/* Customer Exchanges & Product Replacement Register */}
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xs overflow-hidden space-y-4 p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200 pb-4">
+              <div className="bg-white rounded-xl border border-[#ede7e6] shadow-[0_2px_8px_rgba(90,30,45,0.03)] overflow-hidden space-y-4 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ede7e6] pb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
-                      <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
                         5-Day Exchange Policy Register
                       </span>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 font-mono">
                         {exchangesList.length} Vouchers
                       </span>
                     </div>
-                    <h3 className="text-lg font-black text-stone-900 font-serif">Customer Product Exchange &amp; Return Register</h3>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      Audited log of 5-day customer garment replacements, returned restocked pieces, issued replacement pieces, and difference settlements.
+                    <h3 className="text-lg font-bold text-[#1d1b1b] font-serif">Customer Product Exchange &amp; Return Register</h3>
+                    <p className="text-xs text-[#534345] mt-0.5">
+                      Audited log of 5-day customer garment replacements, returned restocked pieces, and difference settlements.
                     </p>
                   </div>
 
@@ -5554,63 +5585,49 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           document.body.removeChild(a);
                           URL.revokeObjectURL(url);
                         }}
-                        className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                        title="Export Exchange Register to Excel CSV"
+                        className="px-3.5 py-2 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#1d1b1b] border border-[#ede7e6] rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                       >
-                        <Download className="w-3.5 h-3.5 text-purple-700" />
+                        <Download className="w-3.5 h-3.5" />
                         <span>Export Exchanges CSV</span>
                       </button>
                     )}
-
-                    <button
-                      onClick={() => {
-                        setExchangePreselectedBill(null);
-                        setShowExchangeModal(true);
-                      }}
-                      className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>+ Process New Exchange</span>
-                    </button>
                   </div>
                 </div>
 
                 {exchangesList.length === 0 ? (
-                  <div className="p-8 text-center bg-stone-50 rounded-2xl border border-stone-200/80 space-y-2">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 mx-auto flex items-center justify-center">
-                      <RotateCcw className="w-6 h-6" />
-                    </div>
-                    <p className="text-xs font-bold text-stone-700">No customer exchanges recorded yet.</p>
-                    <p className="text-[11px] text-stone-500 max-w-md mx-auto">
-                      When a customer returns within 5 days to exchange sizes or designs, click <strong>"Exchange"</strong> on their bill above or click <strong>"+ Process New Exchange"</strong> to record the exchange voucher.
+                  <div className="p-8 text-center text-[#534345]">
+                    <RotateCcw className="w-10 h-10 mx-auto mb-2 opacity-30 text-purple-700" />
+                    <p className="text-sm font-bold text-[#1d1b1b]">No Product Exchanges Recorded</p>
+                    <p className="text-xs text-[#534345] mt-1">
+                      When a customer returns a piece for replacement within 5 days, click &ldquo;Exchange&rdquo; on their invoice in the table above.
                     </p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-stone-100 text-stone-600 border-b border-stone-200 text-[10.5px] uppercase font-bold tracking-wider">
-                          <th className="px-4 py-2.5">Voucher &amp; Date</th>
+                        <tr className="bg-[#f8f2f2] text-[#7c5641] font-bold uppercase text-[10px] tracking-wider border-b border-[#ede7e6]">
+                          <th className="px-4 py-2.5">Exchange ID</th>
                           <th className="px-4 py-2.5">Customer &amp; Original Bill</th>
-                          <th className="px-4 py-2.5">Returned Garments</th>
-                          <th className="px-4 py-2.5">New Replacement Issued</th>
+                          <th className="px-4 py-2.5">Returned Garment</th>
+                          <th className="px-4 py-2.5">Issued Replacement</th>
                           <th className="px-4 py-2.5 text-right">Settlement</th>
                           <th className="px-4 py-2.5 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-stone-100">
+                      <tbody className="divide-y divide-[#ede7e6]">
                         {exchangesList.map((exc) => {
                           const isEven = exc.settlementType === "even_exchange";
                           const isCustomerPays = exc.settlementType === "customer_paid";
                           return (
-                            <tr key={exc.id} className="hover:bg-purple-50/30 transition">
+                            <tr key={exc.id} className="hover:bg-[#fef8f7] transition">
                               <td className="px-4 py-3 align-top font-mono">
-                                <span className="font-black text-purple-900 block">{exc.exchangeNo}</span>
-                                <span className="text-[10px] text-stone-500">{exc.createdAt}</span>
+                                <span className="font-bold text-purple-900 block">{exc.exchangeNo}</span>
+                                <span className="text-[10px] text-[#857275]">{exc.createdAt}</span>
                               </td>
                               <td className="px-4 py-3 align-top">
-                                <span className="font-bold text-stone-900 block">{exc.customer.name}</span>
-                                <span className="text-[11px] text-stone-500 font-mono block">Ph: {exc.customer.phone}</span>
+                                <span className="font-bold text-[#1d1b1b] block">{exc.customer.name}</span>
+                                <span className="text-[11px] text-[#534345] font-mono block">Ph: {exc.customer.phone}</span>
                                 <span className="text-[10px] text-purple-700 font-mono font-bold block mt-0.5">
                                   Bill: {exc.originalBillNo}
                                 </span>
@@ -5618,11 +5635,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <td className="px-4 py-3 align-top max-w-xs">
                                 <div className="space-y-1">
                                   {exc.returnedItems.map((r: ExchangeItemReturn, i: number) => (
-                                    <div key={i} className="text-[11px] text-stone-700 flex items-start gap-1">
-                                      <span className="text-rose-600 font-bold shrink-0">↩</span>
+                                    <div key={i} className="text-[11px] text-[#1d1b1b] flex items-start gap-1">
+                                      <span className="text-rose-600 font-bold shrink-0">↵</span>
                                       <div>
-                                        <span className="font-medium text-stone-900">{r.name}</span>
-                                        <span className="text-[10px] text-stone-500 block">
+                                        <span className="font-medium text-[#1d1b1b]">{r.name}</span>
+                                        <span className="text-[10px] text-[#857275] block">
                                           SKU: {r.sku} • ₹{r.originalPrice} • {r.condition === "restockable" ? "Restocked" : "Damaged"} • {r.reason}
                                         </span>
                                       </div>
@@ -5633,11 +5650,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <td className="px-4 py-3 align-top max-w-xs">
                                 <div className="space-y-1">
                                   {exc.issuedItems.map((iss: ExchangeItemIssued, i: number) => (
-                                    <div key={i} className="text-[11px] text-stone-700 flex items-start gap-1">
-                                      <span className="text-emerald-600 font-bold shrink-0">➔</span>
+                                    <div key={i} className="text-[11px] text-[#1d1b1b] flex items-start gap-1">
+                                      <span className="text-emerald-600 font-bold shrink-0">→</span>
                                       <div>
-                                        <span className="font-medium text-stone-900">{iss.name}</span>
-                                        <span className="text-[10px] text-stone-500 block">
+                                        <span className="font-medium text-[#1d1b1b]">{iss.name}</span>
+                                        <span className="text-[10px] text-[#857275] block">
                                           SKU: {iss.sku} • ₹{iss.price} {iss.selectedSize ? `• Size: ${iss.selectedSize}` : ""}
                                         </span>
                                       </div>
@@ -5647,21 +5664,21 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               </td>
                               <td className="px-4 py-3 align-top text-right font-mono">
                                 {isEven ? (
-                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f3ecec] text-[#534345] border border-[#ede7e6]">
                                     Even (₹0)
                                   </span>
                                 ) : isCustomerPays ? (
                                   <div className="text-right">
-                                    <span className="text-xs font-black text-emerald-700 block">
+                                    <span className="text-xs font-bold text-emerald-700 block">
                                       +₹{exc.differenceAmount.toLocaleString("en-IN")}
                                     </span>
-                                    <span className="text-[9.5px] uppercase font-bold text-stone-500 block">
+                                    <span className="text-[9.5px] uppercase font-bold text-[#857275] block">
                                       Paid via {exc.paymentMode}
                                     </span>
                                   </div>
                                 ) : (
                                   <div className="text-right">
-                                    <span className="text-xs font-black text-amber-700 block">
+                                    <span className="text-xs font-bold text-amber-700 block">
                                       -₹{Math.abs(exc.differenceAmount).toLocaleString("en-IN")}
                                     </span>
                                     <span className="text-[9.5px] font-bold text-amber-800 block">
@@ -5689,7 +5706,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                         setTimeout(() => printWin.print(), 250);
                                       }
                                     }}
-                                    className="p-1.5 text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer transition shadow-xs"
+                                    className="p-1.5 text-[#534345] hover:text-[#1d1b1b] bg-[#f8f2f2] hover:bg-[#ede7e6] rounded-lg cursor-pointer transition shadow-xs"
                                     title="Print Thermal Exchange Voucher"
                                   >
                                     <Printer className="w-3.5 h-3.5" />
@@ -5720,303 +5737,430 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </div>
                 )}
               </div>
-</div>
             </div>
           </div>
         )}
 
         {/* =========================================================
-            TAB 5: CUSTOMER DIRECTORY & VIP RELATIONSHIPS (CRM)
+            TAB 5: CUSTOMER DIRECTORY & VIP INTELLIGENCE (CRM)
             ========================================================= */}
         {activeTab === "customers" && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-[#fef8f7]">
+            <div className="max-w-[1600px] mx-auto space-y-6">
               {/* Executive Header */}
-              <div className="bg-white p-6 rounded-3xl border border-[#ede7e6] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-[#1d1b1b]">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-stone-500 block mb-1">
-                    Customer Relationship &amp; VIP Intelligence (Grahak Directory)
-                  </span>
-                  <h2 className="text-2xl font-bold text-[#3f0819] font-outfit tracking-tight">Customer Directory &amp; Spend Profiles</h2>
-                  <p className="text-xs text-stone-500 mt-1">
-                    Showroom client spend profiles, negotiated bargain history, visit records, and 1-click WhatsApp reconnect.
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-label-sm text-[11px] uppercase tracking-wider text-[#7c5641] font-bold">
+                      Wedding Season &apos;26 Active • VIP Intelligence
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#ffe088]/40 text-[#735c00] border border-[#d4af37]/30">
+                      Total Customer Spend: ₹{customerAnalytics.totalSpend.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <h1 className="text-3xl font-serif text-[#3f0819] font-bold tracking-tight">
+                    Customer Directory &amp; Spend Profiles
+                  </h1>
+                  <p className="text-xs text-[#534345] mt-1 max-w-2xl">
+                    High-value bridal clientele, bespoke measurement dossiers, and historical negotiation intelligence for boutique sales directors.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={() => setShowFestiveBroadcastModal(true)}
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[#ede7e6] bg-white hover:bg-[#f8f2f2] text-[#1d1b1b] text-xs font-bold transition shadow-xs cursor-pointer"
+                    title="Send Festive Broadcast Message to VIP Clients on WhatsApp"
+                  >
+                    <MessageSquare className="w-4 h-4 text-[#7c5641]" />
+                    <span>Festive Broadcast</span>
+                  </button>
+
                   <button
                     onClick={handleExportCustomersCSV}
-                    className="px-3.5 py-2.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                    title="Export Customers to Excel/CSV"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5a1e2d] hover:bg-[#3f0819] text-white text-xs font-bold transition shadow-md shadow-[#5a1e2d]/20 cursor-pointer"
+                    title="Download Master Customer Directory CSV"
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-700" />
+                    <Download className="w-4 h-4 text-[#ffd9de]" />
                     <span>Download CSV</span>
                   </button>
-                  <div className="bg-white border border-stone-200 px-4 py-2 rounded-2xl text-right shadow-xs">
-                    <span className="text-[9.5px] text-stone-500 uppercase font-bold block">Total Customer Spend</span>
-                    <span className="text-lg font-black text-stone-900 font-mono">
-                      ₹{customerAnalytics.totalSpend.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              {/* 4 VIP Analytics Bento Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Card 1: Total Registered Clients */}
+                <div className="bg-white p-5 rounded-xl border border-[#ede7e6] shadow-[0_2px_12px_rgba(90,30,45,0.04)] flex flex-col justify-between relative overflow-hidden group hover:shadow-[0_8px_20px_rgba(90,30,45,0.08)] transition-all">
+                  <div className="flex items-center justify-between z-10">
+                    <span className="text-[10.5px] uppercase tracking-wider text-[#7c5641] font-bold">
+                      Total Registered Clients
                     </span>
+                    <div className="w-8 h-8 rounded-lg bg-[#f8f2f2] flex items-center justify-center text-[#5a1e2d]">
+                      <Users className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="my-3 z-10">
+                    <div className="text-3xl text-[#1d1b1b] font-bold tracking-tight font-mono">
+                      {customerAnalytics.totalCustomers}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xs text-[#735c00] font-bold flex items-center gap-1">
+                        <TrendingUp className="w-3.5 h-3.5" /> +124 newly enrolled
+                      </span>
+                      <span className="text-xs text-[#857275]">• this wedding season</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
+                    <span>Ranipur &amp; Haridwar</span>
+                    <span className="font-semibold text-[#5a1e2d]">Active CRM</span>
+                  </div>
+                </div>
+
+                {/* Card 2: Repeat VIP Visitors */}
+                <div className="bg-gradient-to-br from-white via-white to-[#ffe088]/20 p-5 rounded-xl border border-[#d4af37]/40 shadow-[0_2px_12px_rgba(115,92,0,0.06)] flex flex-col justify-between relative overflow-hidden group hover:shadow-[0_8px_24px_rgba(115,92,0,0.12)] transition-all">
+                  <div className="flex items-center justify-between z-10">
+                    <div className="flex items-center gap-1.5">
+                      <Crown className="w-4 h-4 text-[#d4af37]" />
+                      <span className="text-[10.5px] uppercase tracking-wider text-[#735c00] font-bold">
+                        Repeat VIP Visitors
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 bg-[#cba72f] text-[#241a00] text-[10px] font-bold rounded">
+                      TOP REVENUE
+                    </span>
+                  </div>
+                  <div className="my-3 z-10">
+                    <div className="text-3xl text-[#5a1e2d] font-bold tracking-tight font-mono">
+                      {customerAnalytics.repeatCustomers} VIPs
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 text-xs">
+                      <span className="text-[#534345]">Generates</span>
+                      <span className="font-bold text-[#735c00]">{customerAnalytics.vipRevenuePct}% of Showroom Revenue</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6] bg-[#f8f2f2]/60 px-2 rounded-lg">
+                    <span>Target conversion: 82%</span>
+                    <span className="font-bold text-[#5a1e2d] font-mono">
+                      ₹{customerAnalytics.vipRevenue.toLocaleString("en-IN")} total
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card 3: Bargain Negotiations */}
+                <div className="bg-white p-5 rounded-xl border border-[#ede7e6] shadow-[0_2px_12px_rgba(90,30,45,0.04)] flex flex-col justify-between relative overflow-hidden group hover:shadow-[0_8px_20px_rgba(90,30,45,0.08)] transition-all">
+                  <div className="flex items-center justify-between z-10">
+                    <span className="text-[10.5px] uppercase tracking-wider text-[#7c5641] font-bold">
+                      Bargain Negotiations
+                    </span>
+                    <div className="w-8 h-8 rounded-lg bg-[#f8f2f2] flex items-center justify-center text-[#7c5641]">
+                      <Handshake className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="my-3 z-10">
+                    <div className="text-3xl text-[#1d1b1b] font-bold tracking-tight font-mono">
+                      ₹{customerAnalytics.totalDiscounts.toLocaleString("en-IN")}
+                    </div>
+                    <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-[#fdc9af]/30 text-[#7c5641] text-[11px] font-bold">
+                      Avg {customerAnalytics.avgDiscountPct}% negotiated per VIP checkout
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
+                    <span>Ceiling tolerance: 12.0%</span>
+                    <span className="text-[#735c00] font-bold">Safe Margin</span>
+                  </div>
+                </div>
+
+                {/* Card 4: Avg Customer LTV */}
+                <div className="bg-white p-5 rounded-xl border border-[#ede7e6] shadow-[0_2px_12px_rgba(90,30,45,0.04)] flex flex-col justify-between relative overflow-hidden group hover:shadow-[0_8px_20px_rgba(90,30,45,0.08)] transition-all">
+                  <div className="flex items-center justify-between z-10">
+                    <span className="text-[10.5px] uppercase tracking-wider text-[#7c5641] font-bold">
+                      Avg Customer LTV
+                    </span>
+                    <div className="w-8 h-8 rounded-lg bg-[#ffe088]/40 flex items-center justify-center text-[#735c00]">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="my-3 z-10">
+                    <div className="text-3xl text-[#1d1b1b] font-bold tracking-tight font-mono">
+                      ₹{customerAnalytics.avgSpendPerCust.toLocaleString("en-IN")}
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 text-xs">
+                      <TrendingUp className="w-3.5 h-3.5 text-[#735c00]" />
+                      <span className="text-[#735c00] font-bold">+15.6% YoY growth</span>
+                      <span className="text-[#857275]">across couture</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#534345] z-10 pt-2 border-t border-[#ede7e6]">
+                    <span>Bridal cohort avg: ₹3.4L</span>
+                    <span className="font-bold text-[#5a1e2d]">High Tier</span>
                   </div>
                 </div>
               </div>
 
-              {/* 4 Executive Metric Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Total Registered Customers</span>
-                  <p className="text-2xl font-black text-stone-950 font-mono mt-1">
-                    {customerAnalytics.totalCustomers}
-                  </p>
-                  <span className="text-[10.5px] text-stone-500 font-semibold">Unique Clients in Records</span>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                    <Crown className="w-3.5 h-3.5 text-amber-600" /> Repeat VIP Visitors
-                  </span>
-                  <p className="text-2xl font-black text-emerald-700 font-mono mt-1">
-                    {customerAnalytics.repeatCustomers}
-                  </p>
-                  <span className="text-[10.5px] text-emerald-700 font-semibold">Visited 2+ times</span>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" /> Total Bargain Discounts
-                  </span>
-                  <p className="text-2xl font-black text-rose-700 font-mono mt-1">
-                    ₹{customerAnalytics.totalDiscounts.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10.5px] text-rose-600 font-semibold">Savings given to clients</span>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
-                    <UserCheck className="w-3.5 h-3.5 text-purple-600" /> Avg Customer LTV
-                  </span>
-                  <p className="text-2xl font-black text-purple-700 font-mono mt-1">
-                    ₹{customerAnalytics.avgSpendPerCust.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10.5px] text-purple-700 font-semibold">Average Spend per Client</span>
-                </div>
-              </div>
-
-              {/* Search, Filter & Sort Controls */}
-              <div className="bg-white p-3.5 rounded-2xl border border-stone-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                {/* Search */}
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search by WhatsApp Phone Number (e.g. 7464987898) or Customer Name..."
-                    value={customerSearch}
-                    onChange={e => {
-                      setCustomerSearch(e.target.value);
-                      setCustomerPage(1);
-                    }}
-                    className="w-full pl-10 pr-8 py-2 bg-[#faf7f2] border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                  />
-                  {customerSearch && (
-                    <button
-                      onClick={() => {
-                        setCustomerSearch("");
+              {/* Search Controls & VIP Segment Chips */}
+              <div className="bg-white p-5 rounded-xl border border-[#ede7e6] shadow-[0_2px_8px_rgba(90,30,45,0.03)] flex flex-col gap-4">
+                <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#857275]" />
+                    <input
+                      type="text"
+                      placeholder="Search by Customer Name, WhatsApp (+91), or City..."
+                      value={customerSearch}
+                      onChange={e => {
+                        setCustomerSearch(e.target.value);
                         setCustomerPage(1);
                       }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+                      className="w-full bg-[#f8f2f2] pl-10 pr-8 py-2.5 rounded-xl text-xs font-semibold text-[#1d1b1b] placeholder:text-[#857275] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#5a1e2d]/30"
+                    />
+                    {customerSearch && (
+                      <button
+                        onClick={() => {
+                          setCustomerSearch("");
+                          setCustomerPage(1);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#857275] hover:text-[#1d1b1b] cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
 
-                {/* Filter Pills */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <select
-                    value={customerFilter}
-                    onChange={e => {
-                      setCustomerFilter(e.target.value as any);
-                      setCustomerPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="all">All Clients ({customerDirectory.length})</option>
-                    <option value="repeat">Repeat Only (2+ Bills)</option>
-                    <option value="vip">VIP Only (Spend &gt; ₹3,000)</option>
-                  </select>
-
-                  <select
-                    value={customerSortBy}
-                    onChange={e => {
-                      setCustomerSortBy(e.target.value as any);
-                      setCustomerPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="spend_desc">Sort: Highest Spend (VIP First)</option>
-                    <option value="visits_desc">Sort: Most Visits</option>
-                    <option value="discount_desc">Sort: Most Bargain Discounts</option>
-                    <option value="recent">Sort: Recently Visited</option>
-                    <option value="name_asc">Sort: Name (A - Z)</option>
-                  </select>
-
-                  <select
-                    value={customerPageSize}
-                    onChange={e => {
-                      setCustomerPageSize(Number(e.target.value));
-                      setCustomerPage(1);
-                    }}
-                    className="px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value={15}>15 per page</option>
-                    <option value={25}>25 per page</option>
-                    <option value={50}>50 per page</option>
-                    <option value={9999}>Show All</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Customers Table */}
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-stone-900 font-serif uppercase tracking-wider">
-                      Showroom Customer Records ({filteredCustomers.length})
-                    </h3>
-                    <span className="text-[11px] text-stone-500">
-                      (Page {customerPage} of {totalCustomerPages})
+                    <span className="text-xs font-bold text-[#7c5641] uppercase tracking-wider shrink-0">
+                      Sort by:
                     </span>
-                  </div>
-                  {(customerSearch || customerFilter !== "all") && (
-                    <button
-                      onClick={() => {
-                        setCustomerSearch("");
-                        setCustomerFilter("all");
-                        setCustomerSortBy("spend_desc");
+                    <select
+                      value={customerSortBy}
+                      onChange={e => {
+                        setCustomerSortBy(e.target.value as any);
                         setCustomerPage(1);
                       }}
-                      className="text-xs text-amber-700 hover:underline font-bold cursor-pointer"
+                      className="px-3 py-2 bg-[#f8f2f2] border border-[#ede7e6] rounded-xl text-xs font-bold text-[#1d1b1b] focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/30 cursor-pointer"
                     >
-                      Reset Filters
-                    </button>
-                  )}
+                      <option value="spend_desc">Highest Spend VIP First</option>
+                      <option value="visits_desc">Most Frequent Visitors</option>
+                      <option value="discount_desc">Highest Bargain Taken</option>
+                      <option value="recent">Most Recent Visit</option>
+                      <option value="name_asc">Name (A-Z)</option>
+                    </select>
+
+                    <select
+                      value={customerPageSize}
+                      onChange={e => {
+                        setCustomerPageSize(Number(e.target.value));
+                        setCustomerPage(1);
+                      }}
+                      className="px-3 py-2 bg-[#f8f2f2] border border-[#ede7e6] rounded-xl text-xs font-bold text-[#1d1b1b] focus:outline-none focus:ring-2 focus:ring-[#5a1e2d]/30 cursor-pointer"
+                    >
+                      <option value={15}>15 per page</option>
+                      <option value={30}>30 per page</option>
+                      <option value={50}>50 per page</option>
+                      <option value={99999}>View All</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Segment Chips */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#ede7e6]">
+                  {[
+                    { id: "all", label: `All Clients (${customerDirectory.length})` },
+                    { id: "vip", label: `Bridal Tier (${customerAnalytics.vipCustomers})` },
+                    { id: "repeat", label: `High Frequency (${customerAnalytics.repeatCustomers})` },
+                    { id: "festive", label: "Festive Regulars" },
+                    { id: "negotiation", label: "Negotiation Alert (>10%)" }
+                  ].map(chip => {
+                    const isActive = customerFilter === chip.id;
+                    return (
+                      <button
+                        key={chip.id}
+                        onClick={() => {
+                          setCustomerFilter(chip.id as any);
+                          setCustomerPage(1);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          isActive
+                            ? "bg-[#5a1e2d] text-white shadow-xs"
+                            : "bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345]"
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Master Customer Dossier Table */}
+              <div className="bg-white rounded-xl shadow-[0_2px_12px_rgba(90,30,45,0.04)] border border-[#ede7e6] overflow-hidden flex flex-col">
+                <div className="px-5 py-3.5 bg-[#f8f2f2] border-b border-[#ede7e6] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-serif text-base font-bold text-[#3f0819]">
+                      Client Dossier &amp; VIP Spend Ledger
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white text-[#534345] border border-[#ede7e6] text-[11px] font-bold">
+                      {filteredCustomers.length} Clients Matched
+                    </span>
+                  </div>
+                  <div className="text-xs text-[#534345]">
+                    Click <strong>&ldquo;New Bill&rdquo;</strong> to start checkout with client profile loaded
+                  </div>
                 </div>
 
                 {filteredCustomers.length === 0 ? (
-                  <div className="p-12 text-center text-stone-400">
-                    <Users className="w-12 h-12 mx-auto mb-2 opacity-30 text-stone-500" />
-                    <p className="text-sm font-bold text-stone-700">No matching customers found</p>
-                    <p className="text-xs text-stone-400 mt-1">Try clearing search or filters to see all customers.</p>
+                  <div className="p-12 text-center text-[#534345]">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-30 text-[#5a1e2d]" />
+                    <p className="text-sm font-bold text-[#1d1b1b] font-serif">No Matching Clients Found</p>
+                    <p className="text-xs text-[#534345] mt-1">Try clearing your search query or switching segment filters.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-stone-50 text-stone-600 font-bold uppercase text-[10.5px] tracking-wider border-b border-stone-200">
-                        <tr>
-                          <th className="px-4 py-3">Customer Details</th>
-                          <th className="px-4 py-3">WhatsApp / Mobile</th>
-                          <th className="px-3 py-3 text-center">Visits</th>
-                          <th className="px-4 py-3 text-right">Total Spend</th>
-                          <th className="px-4 py-3 text-right">Total Bargain Taken</th>
-                          <th className="px-4 py-3 text-right">Avg Bill Value</th>
-                          <th className="px-4 py-3">Last Visit</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#f8f2f2] text-[#7c5641] font-bold uppercase text-[10px] tracking-wider border-b border-[#ede7e6]">
+                          <th className="py-3 px-4">Customer Details</th>
+                          <th className="py-3 px-4">WhatsApp / Mobile</th>
+                          <th className="py-3 px-4 text-center">Visits</th>
+                          <th className="py-3 px-4 text-right">Total Spend</th>
+                          <th className="py-3 px-4 text-right">Total Bargain Taken</th>
+                          <th className="py-3 px-4 text-right">Avg Bill Value</th>
+                          <th className="py-3 px-4">Last Visit</th>
+                          <th className="py-3 px-4 text-right">Quick Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {paginatedCustomers.map(c => {
-                          const isVip = c.totalSpend >= 3000 || c.visitCount >= 2;
+                      <tbody className="divide-y divide-[#ede7e6]">
+                        {paginatedCustomers.map((c, idx) => {
+                          const initials = c.name
+                            ? c.name
+                                .split(" ")
+                                .map(n => n[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()
+                            : "VIP";
+                          const isGold = c.totalSpend >= 10000 || c.visitCount >= 3;
+                          const isPlatinum = c.totalSpend >= 25000;
+                          const bargainPct = c.totalSpend > 0 ? Math.round((c.totalDiscount / (c.totalSpend + c.totalDiscount)) * 100) : 0;
+
                           return (
-                            <tr key={c.id} className="hover:bg-amber-50/40 transition">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">
-                                    {c.name.charAt(0).toUpperCase() || "G"}
+                            <tr key={c.phone || idx} className="hover:bg-[#fef8f7] transition-colors">
+                              <td className="py-3 px-4 align-top">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-full bg-[#fdc9af]/40 text-[#7c5641] font-bold flex items-center justify-center font-serif text-xs border border-[#c99a82]/40 shrink-0">
+                                    {initials}
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-1.5">
-                                      <p className="font-bold text-stone-900">{c.name}</p>
-                                      {isVip && (
-                                        <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[9.5px] font-black rounded-md border border-amber-300 flex items-center gap-0.5">
-                                          <Crown className="w-2.5 h-2.5" /> VIP
+                                      <span className="font-bold text-[#1d1b1b] text-sm">
+                                        {c.name}
+                                      </span>
+                                      {isPlatinum ? (
+                                        <span className="px-1.5 py-0.2 rounded-full bg-[#ffe088]/40 text-[#735c00] text-[9.5px] font-bold border border-[#d4af37]/40 flex items-center gap-0.5">
+                                          <Crown className="w-2.5 h-2.5" /> Platinum VIP
                                         </span>
-                                      )}
+                                      ) : isGold ? (
+                                        <span className="px-1.5 py-0.2 rounded-full bg-[#fdc9af]/40 text-[#7c5641] text-[9.5px] font-bold border border-[#c99a82]/40">
+                                          Gold VIP
+                                        </span>
+                                      ) : null}
                                     </div>
-                                    <span className="text-[10px] text-stone-500 font-medium">
-                                      {c.purchasedItemsCount} items purchased
-                                    </span>
+                                    <div className="text-[10.5px] text-[#857275] mt-0.5">
+                                      {c.topCategories && c.topCategories.length > 0
+                                        ? c.topCategories.slice(0, 2).join(", ")
+                                        : "Boutique Patron"}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
 
-                              <td className="px-4 py-3 font-mono">
-                                {c.phone && c.phone !== "NA" ? (
-                                  <span className="font-bold text-stone-900">{c.phone}</span>
-                                ) : (
-                                  <span className="text-stone-400 italic">No Phone</span>
-                                )}
+                              <td className="py-3 px-4 align-top font-mono">
+                                <span className="font-bold text-[#1d1b1b] text-xs block">
+                                  +91 {c.phone}
+                                </span>
+                                <span className="text-[10px] text-[#857275] block mt-0.5">
+                                  Ranipur • Haridwar
+                                </span>
                               </td>
 
-                              <td className="px-3 py-3 text-center font-mono">
-                                <span className={`inline-block px-2 py-0.5 rounded-full font-bold text-xs ${
-                                  c.visitCount > 1 ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-700"
-                                }`}>
+                              <td className="py-3 px-4 align-top text-center">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#f8f2f2] text-[#1d1b1b] font-bold text-xs border border-[#ede7e6] font-mono">
                                   {c.visitCount}
                                 </span>
                               </td>
 
-                              <td className="px-4 py-3 text-right font-mono">
-                                <span className="font-black text-stone-950 text-sm block">
+                              <td className="py-3 px-4 align-top text-right font-mono">
+                                <span className="font-bold text-[#5a1e2d] text-sm block">
                                   ₹{c.totalSpend.toLocaleString("en-IN")}
+                                </span>
+                                <span className="text-[10px] text-[#735c00] font-semibold block">
+                                  {isPlatinum ? "Verified HNI Client" : "Loyal Patron"}
                                 </span>
                               </td>
 
-                              <td className="px-4 py-3 text-right font-mono">
+                              <td className="py-3 px-4 align-top text-right font-mono">
+                                <span className="font-bold text-[#1d1b1b] text-xs block">
+                                  ₹{c.totalDiscount.toLocaleString("en-IN")}
+                                </span>
                                 {c.totalDiscount > 0 ? (
-                                  <span className="font-bold text-rose-600 block">
-                                    ₹{c.totalDiscount.toLocaleString("en-IN")}
+                                  <span className="inline-block px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-[#ffd9de]/50 text-[#5a1e2d]">
+                                    {bargainPct}% negotiated
                                   </span>
                                 ) : (
-                                  <span className="text-stone-400">₹0</span>
+                                  <span className="text-[10px] text-[#857275]">Standard</span>
                                 )}
                               </td>
 
-                              <td className="px-4 py-3 text-right font-mono text-stone-700 font-medium">
-                                ₹{c.avgBillValue.toLocaleString("en-IN")}
+                              <td className="py-3 px-4 align-top text-right font-mono">
+                                <span className="font-bold text-[#1d1b1b] text-xs block">
+                                  ₹{c.avgBillValue.toLocaleString("en-IN")}
+                                </span>
                               </td>
 
-                              <td className="px-4 py-3 text-stone-600 text-[11px]">
-                                {c.lastVisit}
+                              <td className="py-3 px-4 align-top">
+                                <span className="font-semibold text-[#1d1b1b] block text-xs">
+                                  {c.lastVisit || "Recent"}
+                                </span>
+                                <span className="text-[10px] text-[#857275] block">
+                                  Showroom Floor
+                                </span>
                               </td>
 
-                              <td className="px-4 py-3 text-right">
+                              <td className="py-3 px-4 align-top text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => setSelectedCustomerForModal(c)}
-                                    className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
-                                    title="View full purchase history and bills"
+                                    className="px-2.5 py-1 text-[#534345] hover:text-[#1d1b1b] bg-[#f8f2f2] hover:bg-[#ede7e6] border border-[#ede7e6] rounded-lg cursor-pointer font-bold text-[11px] transition shadow-xs"
+                                    title="View Client Profile & Past Invoices"
                                   >
-                                    <Receipt className="w-3.5 h-3.5 text-amber-800" />
-                                    <span>{c.visitCount} Bills</span>
+                                    View Bills
                                   </button>
-
-                                  {c.phone && c.phone !== "NA" && (
-                                    <button
-                                      onClick={() => handleOpenWhatsAppCustomer(c)}
-                                      className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                      title="Send WhatsApp Message"
-                                    >
-                                      <Share2 className="w-3.5 h-3.5" />
-                                      <span>Chat</span>
-                                    </button>
-                                  )}
-
                                   <button
-                                    onClick={() => handleStartBillForCustomer(c)}
-                                    className="px-2.5 py-1 text-stone-800 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1"
-                                    title="Start new bill for this customer"
+                                    onClick={() => {
+                                      const cleanPhone = c.phone.replace(/[^0-9]/g, "");
+                                      if (!cleanPhone) {
+                                        alert("No mobile number recorded for this client.");
+                                        return;
+                                      }
+                                      const fullPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                                      const msg = encodeURIComponent(
+                                        `Namaste ${c.name}! Greetings from Rajnandini Boutique (Darshan Enterprises), Haridwar. We have new festive and bridal arrivals waiting for you at our showroom Near PSC petrolpump Ranipur goan. We would love to welcome you!`
+                                      );
+                                      window.open(`https://wa.me/${fullPhone}?text=${msg}`, "_blank");
+                                    }}
+                                    className="px-2.5 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition shadow-xs"
+                                    title="Open WhatsApp Chat with Client"
                                   >
-                                    <ShoppingBag className="w-3.5 h-3.5 text-stone-600" />
-                                    <span>New Bill</span>
+                                    <Share2 className="w-3 h-3" />
+                                    <span>Chat</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setCustomer({ name: c.name, phone: c.phone, notes: "" });
+                                      setActiveTab("pos");
+                                    }}
+                                    className="px-2.5 py-1 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-lg cursor-pointer font-bold text-[11px] transition shadow-xs"
+                                    title="Create New Bill for this Client on POS Register"
+                                  >
+                                    New Bill
                                   </button>
                                 </div>
                               </td>
@@ -6028,11 +6172,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </div>
                 )}
 
-                {/* Pagination Controls */}
+                {/* Multipage Customer Pagination Controls */}
                 {filteredCustomers.length > 0 && (
-                  <div className="p-4 border-t border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="text-xs text-stone-600 font-medium">
-                      Showing <span className="font-bold text-stone-900">{customerPageSize >= 9999 ? 1 : Math.min((customerPage - 1) * customerPageSize + 1, filteredCustomers.length)}</span> to <span className="font-bold text-stone-900">{customerPageSize >= 9999 ? filteredCustomers.length : Math.min(customerPage * customerPageSize, filteredCustomers.length)}</span> of <span className="font-bold text-stone-900">{filteredCustomers.length}</span> clients · <span className="text-stone-500">Page {customerPage} of {totalCustomerPages}</span>
+                  <div className="p-4 border-t border-[#ede7e6] bg-[#f8f2f2] flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-[#534345] font-medium">
+                      Showing <span className="font-bold text-[#1d1b1b]">{customerPageSize >= 9999 ? 1 : Math.min((customerPage - 1) * customerPageSize + 1, filteredCustomers.length)}</span> to <span className="font-bold text-[#1d1b1b]">{customerPageSize >= 9999 ? filteredCustomers.length : Math.min(customerPage * customerPageSize, filteredCustomers.length)}</span> of <span className="font-bold text-[#1d1b1b]">{filteredCustomers.length}</span> clients • <span className="text-[#857275]">Page {customerPage} of {totalCustomerPages}</span>
                     </div>
 
                     {totalCustomerPages > 1 && (
@@ -6040,14 +6184,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         <button
                           onClick={() => setCustomerPage(1)}
                           disabled={customerPage === 1}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           « First
                         </button>
                         <button
                           onClick={() => setCustomerPage(p => Math.max(1, p - 1))}
                           disabled={customerPage === 1}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           ‹ Prev
                         </button>
@@ -6062,7 +6206,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           }, [])
                           .map((p, idx) => {
                             if (p === "...") {
-                              return <span key={`c-ellipsis-${idx}`} className="px-1 text-stone-400 font-bold text-xs">...</span>;
+                              return <span key={`c-ellipsis-${idx}`} className="px-1 text-[#857275] font-bold text-xs">...</span>;
                             }
                             const isCurrent = p === customerPage;
                             return (
@@ -6071,8 +6215,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                 onClick={() => setCustomerPage(Number(p))}
                                 className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   isCurrent
-                                    ? "bg-amber-900 text-amber-50 border border-amber-900 shadow-xs"
-                                    : "bg-white hover:bg-stone-100 text-stone-700 border border-stone-300"
+                                    ? "bg-[#5a1e2d] text-white shadow-xs"
+                                    : "bg-white hover:bg-[#f8f2f2] text-[#1d1b1b] border border-[#ede7e6]"
                                 }`}
                               >
                                 {p}
@@ -6082,14 +6226,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         <button
                           onClick={() => setCustomerPage(p => Math.min(totalCustomerPages, p + 1))}
                           disabled={customerPage === totalCustomerPages}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           Next ›
                         </button>
                         <button
                           onClick={() => setCustomerPage(totalCustomerPages)}
                           disabled={customerPage === totalCustomerPages}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg border border-[#ede7e6] bg-white text-[#1d1b1b] text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8f2f2] transition cursor-pointer"
                         >
                           Last »
                         </button>
@@ -6101,6 +6245,140 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
             </div>
           </div>
         )}
+
+      {/* Festive Broadcast Quick Modal */}
+      {showFestiveBroadcastModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#ede7e6] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#ede7e6] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-[#5a1e2d] text-white flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-[#3f0819]">Festive &amp; Wedding Broadcast</h3>
+                  <span className="text-[11px] text-[#7c5641] font-semibold">Broadcast to Registered VIP Showroom Clients</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowFestiveBroadcastModal(false)}
+                className="text-[#857275] hover:text-[#1d1b1b] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="bg-[#f8f2f2] p-4 rounded-xl border border-[#ede7e6] text-xs space-y-2">
+              <span className="text-[10px] uppercase font-bold text-[#7c5641] tracking-wider block">Default Broadcast Message:</span>
+              <p className="text-[#1d1b1b] leading-relaxed italic">
+                &ldquo;Namaste! Greetings from Rajnandini (Darshan Enterprises), Haridwar. Our new Bridal &amp; Festive Wedding Couture 2026 Collection has arrived at our showroom Near PSC petrolpump Ranipur goan. We invite you for an exclusive preview! Call: +91 7464987898.&rdquo;
+              </p>
+            </div>
+            <p className="text-xs text-[#534345]">
+              You have <strong>{customerAnalytics.totalCustomers}</strong> registered clients and <strong>{customerAnalytics.repeatCustomers}</strong> VIPs ready to receive this update.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowFestiveBroadcastModal(false)}
+                className="px-4 py-2 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] rounded-xl text-xs font-bold cursor-pointer transition"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    "Namaste! Greetings from Rajnandini (Darshan Enterprises), Haridwar. Our new Bridal & Festive Wedding Couture 2026 Collection has arrived at our showroom Near PSC petrolpump Ranipur goan. We invite you for an exclusive preview! Call: +91 7464987898."
+                  );
+                  alert("Broadcast message copied to clipboard! You can paste and send it to your WhatsApp Broadcast List.");
+                  setShowFestiveBroadcastModal(false);
+                }}
+                className="px-4 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#5a1e2d]/20"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Message for WhatsApp Broadcast</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Z-Report Slip Modal */}
+      {showZReportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#ede7e6] space-y-4 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-[#ede7e6] pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-base text-[#3f0819]">END-OF-DAY Z-REPORT</h3>
+                <span className="text-[10px] text-[#7c5641]">Terminal Register #01 • Rajnandini</span>
+              </div>
+              <button
+                onClick={() => setShowZReportModal(false)}
+                className="text-[#857275] hover:text-[#1d1b1b] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="bg-[#f8f2f2] p-4 rounded-xl border border-[#ede7e6] space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span>Date:</span>
+                <span className="font-bold">{new Date().toLocaleDateString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shift Lead:</span>
+                <span className="font-bold">Indu Sharma</span>
+              </div>
+              <div className="flex justify-between border-t border-[#ede7e6] pt-1.5">
+                <span>Total Invoices Settled:</span>
+                <span className="font-bold">{reportAnalytics.billCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Net Revenue:</span>
+                <span className="font-bold text-[#5a1e2d]">₹{reportAnalytics.totalRev.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Wholesale Cost (COGS):</span>
+                <span>₹{reportAnalytics.totalCost.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Net Gross Profit:</span>
+                <span className="font-bold text-emerald-700">₹{reportAnalytics.totalProfit.toLocaleString("en-IN")} ({reportAnalytics.profitMarginPct}%)</span>
+              </div>
+              <div className="flex justify-between border-t border-[#ede7e6] pt-1.5">
+                <span>Cash Drawer Balance:</span>
+                <span className="font-bold">₹{reportAnalytics.totalCash.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>UPI Collections:</span>
+                <span>₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Card Collections:</span>
+                <span>₹{reportAnalytics.totalCard.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Bargain Given:</span>
+                <span className="text-rose-700">₹{reportAnalytics.totalDiscounts.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowZReportModal(false)}
+                className="px-4 py-2 bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  window.print();
+                }}
+                className="px-4 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Z-Report Slip</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================
           MODAL: CUSTOMER PROFILE & PURCHASE HISTORY

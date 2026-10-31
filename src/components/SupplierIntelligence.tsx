@@ -161,20 +161,20 @@ export default function SupplierIntelligence({
   return (
     <div className="space-y-5">
       {/* Executive Sourcing Intelligence Banner */}
-      <div className="bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#111827] text-white p-5 sm:p-6 rounded-3xl border border-emerald-500/30 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#5a1e2d] via-[#3f0819] to-[#5a1e2d] text-white p-5 sm:p-6 rounded-2xl border border-[#c99a82]/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#ffd9de]">
               Procurement &amp; Sourcing Intelligence
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#ffe088]/30 text-[#ffe088] border border-[#d4af37]/40">
               {kpiSummary.supplierCount} Genuine Wholesale Vendors
             </span>
           </div>
           <h2 className="text-2xl font-black text-white font-serif tracking-wide">
             Supplier Performance &amp; Bestseller Scorecard
           </h2>
-          <p className="text-xs text-stone-300 mt-1 max-w-2xl leading-relaxed">
+          <p className="text-xs text-[#ffd9de]/80 mt-1 max-w-2xl leading-relaxed">
             Track which suppliers deliver your fastest-selling bestsellers with highest profit margins vs which suppliers create dead stock on racks.
           </p>
         </div>
@@ -183,7 +183,7 @@ export default function SupplierIntelligence({
           {metrics.length > 0 && (
             <button
               onClick={handleDownloadCsv}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-[#cba72f] hover:bg-[#d4af37] text-[#241a00] rounded-xl text-xs font-bold shadow-md transition cursor-pointer"
               title="Download full Supplier ROI & Performance report as CSV/Excel"
             >
               <Download className="w-4 h-4" />
@@ -195,7 +195,7 @@ export default function SupplierIntelligence({
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-emerald-400" />
+            <Plus className="w-4 h-4 text-[#ffe088]" />
             <span>+ Add Supplier</span>
           </button>
         </div>
@@ -203,7 +203,7 @@ export default function SupplierIntelligence({
 
       {/* 4 Executive KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-[0_2px_12px_rgba(90,30,45,0.04)] flex items-center justify-between">
           <div>
             <span className="text-[10.5px] font-bold text-stone-400 uppercase tracking-wider">Top Performing Supplier</span>
             <p className="text-base font-black text-stone-900 mt-0.5 truncate max-w-[170px]" title={kpiSummary.topSupplierName}>
@@ -213,7 +213,7 @@ export default function SupplierIntelligence({
               {kpiSummary.maxRevenue > 0 ? `₹${kpiSummary.maxRevenue.toLocaleString("en-IN")} Generated` : "No sales recorded yet"}
             </span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+          <div className="w-11 h-11 rounded-2xl bg-[#ffe088]/40 border border-[#d4af37]/30 flex items-center justify-center text-[#735c00]">
             <Sparkles className="w-5 h-5" />
           </div>
         </div>
@@ -226,7 +226,7 @@ export default function SupplierIntelligence({
             </p>
             <span className="text-[10px] text-stone-500 font-semibold">{kpiSummary.totalStockPcs.toLocaleString("en-IN")} pcs currently on racks</span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+          <div className="w-11 h-11 rounded-2xl bg-[#fdc9af]/30 border border-[#c99a82]/40 flex items-center justify-center text-[#7c5641]">
             <Boxes className="w-5 h-5" />
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function SupplierIntelligence({
             </p>
             <span className="text-[10px] text-emerald-700 font-semibold">{kpiSummary.totalSoldPcs} pcs sold ({kpiSummary.overallSellThrough}% sell-through)</span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
+          <div className="w-11 h-11 rounded-2xl bg-[#f8f2f2] border border-[#ede7e6] flex items-center justify-center text-[#5a1e2d]">
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
@@ -252,7 +252,7 @@ export default function SupplierIntelligence({
             </p>
             <span className="text-[10px] text-purple-700 font-semibold">{kpiSummary.overallMargin}% avg profit margin</span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
+          <div className="w-11 h-11 rounded-2xl bg-[#ffe088]/40 border border-[#d4af37]/30 flex items-center justify-center text-[#735c00]">
             <Flame className="w-5 h-5" />
           </div>
         </div>
@@ -260,7 +260,7 @@ export default function SupplierIntelligence({
 
       {metrics.length === 0 ? (
         <div className="bg-white p-10 rounded-3xl border border-stone-200 text-center space-y-3 shadow-xs">
-          <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-700 mx-auto flex items-center justify-center border border-emerald-100">
+          <div className="w-16 h-16 rounded-3xl bg-[#ffd9de]/30 text-[#5a1e2d] mx-auto flex items-center justify-center border border-[#ffd9de]">
             <Building2 className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-bold text-stone-900 font-serif">No Wholesale Suppliers Added Yet</h3>
@@ -269,7 +269,7 @@ export default function SupplierIntelligence({
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-700/20 inline-flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-[#5a1e2d] hover:bg-[#3f0819] text-white rounded-xl text-xs font-bold transition shadow-md shadow-[#5a1e2d]/20 inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>+ Add Your First Wholesale Supplier</span>
