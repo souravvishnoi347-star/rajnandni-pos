@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import SupplierIntelligence from "@/components/SupplierIntelligence";
 import {
   TrendingUp,
   TrendingDown,
   Package,
   Receipt,
   ShieldCheck,
+  Building2,
   Search,
   Filter,
   Calendar,
@@ -113,7 +115,7 @@ export default function MobileOwnerApp() {
   const [rememberDevice, setRememberDevice] = useState<boolean>(true);
 
   // Active Bottom Nav Tab: 'sales' | 'stock' | 'bills' | 'staff' | 'security'
-  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "bills" | "staff" | "security">("sales");
+  const [activeNav, setActiveNav] = useState<"sales" | "stock" | "suppliers" | "bills" | "staff" | "security">("sales");
 
   // Time Filter for Sales: 'today' | 'yesterday' | 'week' | 'month' | 'all'
   const [timeFilter, setTimeFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
@@ -1551,6 +1553,16 @@ export default function MobileOwnerApp() {
         {/* =========================================================================
             TAB 3: 🧾 LIVE INVOICES & BILLS
             ========================================================================= */}
+        
+        {/* =========================================================================
+            TAB: 🏭 WHOLESALE SUPPLIERS INTELLIGENCE & SOURCING SCORECARD
+            ========================================================================= */}
+        {activeNav === "suppliers" && (
+          <div className="space-y-4">
+            <SupplierIntelligence products={products} bills={bills} isOwnerView={true} />
+          </div>
+        )}
+
         {activeNav === "bills" && (
           <div className="space-y-4">
             {/* Offline Laptop Archive Action Card */}
@@ -2979,10 +2991,11 @@ export default function MobileOwnerApp() {
           FIXED BOTTOM MOBILE NAVIGATION BAR (5 TABS IN CLEAN WHITE DOCK)
           ========================================================================= */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
-        <div className="max-w-md mx-auto grid grid-cols-5 gap-0.5">
+        <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5">
           {[
             { id: "sales", label: "Sales", icon: TrendingUp },
             { id: "stock", label: "Stock", icon: Package },
+            { id: "suppliers", label: "Suppliers", icon: Building2 },
             { id: "bills", label: "Bills", icon: Receipt },
             { id: "staff", label: "Staff & Ops", icon: Users },
             { id: "security", label: "Security", icon: ShieldCheck },

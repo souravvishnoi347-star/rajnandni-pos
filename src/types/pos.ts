@@ -30,6 +30,74 @@ export interface ProductItem {
   serviceDuration?: string;
   badge?: string;
   imageUrl?: string;
+  supplier?: string;
+}
+
+export interface SupplierProfile {
+  id: string;
+  name: string;
+  phone?: string;
+  city?: string;
+  category?: string;
+  notes?: string;
+}
+
+export interface SupplierMetric {
+  name: string;
+  city?: string;
+  skuCount: number;
+  stockPcs: number;
+  soldPcs: number;
+  totalCostValue: number;
+  totalRetailValue: number;
+  totalRevenue: number;
+  grossProfit: number;
+  marginPct: number;
+  sellThroughRate: number;
+  status: "top" | "good" | "slow";
+  bestsellers: { sku: string; name: string; sold: number; stock: number; revenue: number }[];
+  slowMovers: { sku: string; name: string; sold: number; stock: number }[];
+}
+
+export interface ExchangeItemReturn {
+  productId: string;
+  sku: string;
+  name: string;
+  category: string;
+  originalPrice: number;
+  quantity: number;
+  reason: "size_fitting" | "color_choice" | "defect_damage" | "customer_mind" | "other";
+  condition: "restockable" | "damaged";
+}
+
+export interface ExchangeItemIssued {
+  productId: string;
+  sku: string;
+  name: string;
+  category: string;
+  price: number;
+  quantity: number;
+  selectedSize?: string;
+  selectedColor?: string;
+}
+
+export interface ExchangeRecord {
+  id: string;
+  exchangeNo: string;
+  originalBillNo: string;
+  originalBillDate: string;
+  customer: CustomerInfo;
+  returnedItems: ExchangeItemReturn[];
+  issuedItems: ExchangeItemIssued[];
+  totalReturnCredit: number;
+  totalNewItemsValue: number;
+  differenceAmount: number;
+  settlementType: "customer_paid" | "store_refund" | "even_exchange" | "store_credit";
+  paymentMode: "cash" | "upi" | "card" | "credit_note";
+  notes?: string;
+  staffName?: string;
+  createdAt: string;
+  rawDate: string;
 }
 
 export interface CartItem {

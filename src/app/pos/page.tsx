@@ -59,13 +59,18 @@ import {
   Zap,
   AlertTriangle,
   ArrowUpDown,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Building2
 } from "lucide-react";
 import Link from "next/link";
-import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory, CustomerProfile } from "@/types/pos";
+import { ProductItem, CartItem, CustomerInfo, AlterationDetail, CompletedBill, ProductCategory, CustomerProfile, ExchangeRecord, SupplierProfile, ExchangeItemReturn, ExchangeItemIssued } from "@/types/pos";
 import { INITIAL_PRODUCTS, STAFF_BEAUTICIANS, TAILOR_NAMES } from "@/lib/sampleInventory";
 import { SupabaseService, isSupabaseConfigured } from "@/lib/supabaseClient";
 import BarcodeSheetModal from "@/components/BarcodeSheetModal";
+import ExchangeModal from "@/components/ExchangeModal";
+import SupplierIntelligence from "@/components/SupplierIntelligence";
+import { SupplierService } from "@/lib/supplierService";
+import { ExchangeService } from "@/lib/exchangeService";
 import {
   verifyOwnerOtp,
   createWhatsAppOtpRequest,
@@ -107,7 +112,11 @@ export default function RajnandiniPosPage() {
   const [inventoryCategory, setInventoryCategory] = useState<ProductCategory>("all");
 
   // Inventory Sub-Tabs (Catalog, Bestsellers Velocity, Duplicate Cleaner)
-  const [inventorySubTab, setInventorySubTab] = useState<"catalog" | "bestsellers" | "duplicates">("catalog");
+  const [inventorySubTab, setInventorySubTab] = useState<"catalog" | "bestsellers" | "suppliers" | "duplicates">("catalog");
+  const [selectedSupplierFilter, setSelectedSupplierFilter] = useState<string>("all");
+  const [showExchangeModal, setShowExchangeModal] = useState<boolean>(false);
+  const [exchangePreselectedBill, setExchangePreselectedBill] = useState<CompletedBill | null>(null);
+  const [exchangesList, setExchangesList] = useState<ExchangeRecord[]>([]);
   const [velocityFilter, setVelocityFilter] = useState<"all" | "out_of_stock" | "critical" | "fast_movers">("all");
   const [velocitySort, setVelocitySort] = useState<"sold_desc" | "revenue_desc" | "speed_asc" | "stock_asc">("sold_desc");
   const [velocitySearch, setVelocitySearch] = useState<string>("");
@@ -359,6 +368,9 @@ export default function RajnandiniPosPage() {
       } catch {}
       setCompletedBills(initialBills);
       localStorage.setItem("rajnandni_bills", JSON.stringify(initialBills));
+
+      const savedExchanges = ExchangeService.getExchanges();
+      if (savedExchanges) setExchangesList(savedExchanges);
 
       const savedAlts = localStorage.getItem("rajnandni_alterations");
       if (savedAlts) setAlterationsList(JSON.parse(savedAlts));
@@ -2369,6 +2381,58 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     alert(`🎉 Successfully cleaned ${toDelete.length} redundant 0-stock duplicate items!`);
   };
 
+    // Handler for Customer Product Exchange & Replacement
+  const handleExchangeCompleted = async (record: ExchangeRecord, updatedProducts: ProductItem[]) => {
+    try {
+      // 1. Update product state and localStorage
+      setProducts(updatedProducts);
+      localStorage.setItem("rajnandni_products", JSON.stringify(updatedProducts));
+
+      // 2. Add to exchanges list state
+      setExchangesList(prev => [record, ...prev]);
+
+      // 3. Sync affected stock to Supabase
+      if (isSupabaseConfigured()) {
+        for (const it of record.returnedItems) {
+          if (it.condition !== "damaged") {
+            const p = updatedProducts.find(x => x.id === it.productId || x.sku === it.sku);
+            if (p) {
+              SupabaseService.updateProductStock(p.id, p.stock).catch(e =>
+                console.warn("Supabase restock failed:", e)
+              );
+            }
+          }
+        }
+        for (const it of record.issuedItems) {
+          const p = updatedProducts.find(x => x.id === it.productId || x.sku === it.sku);
+          if (p) {
+            SupabaseService.updateProductStock(p.id, p.stock).catch(e =>
+              console.warn("Supabase issue stock update failed:", e)
+            );
+          }
+        }
+      }
+
+      alert(
+        "✅ Exchange " + record.exchangeNo + " Processed Successfully!\n\n" +
+        "• Customer: " + record.customer.name + " (" + record.customer.phone + ")\n" +
+        "• Original Bill: " + record.originalBillNo + "\n" +
+        "• Returned: " + record.returnedItems.length + " item(s) (+restocked)\n" +
+        "• Issued: " + record.issuedItems.length + " item(s) (-deducted)\n" +
+        "• Settlement: " + (
+          record.settlementType === "even_exchange"
+            ? "Even Exchange (₹0)"
+            : record.settlementType === "customer_paid"
+            ? "Customer Paid ₹" + record.differenceAmount.toLocaleString("en-IN") + " via " + record.paymentMode.toUpperCase()
+            : "Store Credit Issued: ₹" + Math.abs(record.differenceAmount).toLocaleString("en-IN")
+        )
+      );
+    } catch (err: any) {
+      console.error("Exchange completion error:", err);
+      alert("Failed to finalize exchange: " + (err?.message || String(err)));
+    }
+  };
+
   // Advanced Filtered Completed Bills for Sales Report Tab
   const filteredReportBills = useMemo(() => {
     const q = reportSearch.trim().toLowerCase();
@@ -3025,6 +3089,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <p className="text-sm font-black text-stone-800 font-mono">{completedBills.length}</p>
               </div>
             </div>
+
+            <button
+              onClick={() => {
+                setExchangePreselectedBill(null);
+                setShowExchangeModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xs active:scale-95 transition cursor-pointer"
+              title="Customer Product Exchange & Replacement Studio (5-Day Window)"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-white" />
+              <span className="hidden md:inline">Exchange</span>
+            </button>
 
             <button
               onClick={handleLogoutLock}
@@ -3921,6 +3997,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </button>
 
                 <button
+                onClick={() => setInventorySubTab("suppliers")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  inventorySubTab === "suppliers"
+                    ? "bg-amber-950 text-amber-300 border border-amber-500/50 shadow-sm"
+                    : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Wholesale Suppliers &amp; Scorecard</span>
+              </button>
+
+              <button
                   onClick={() => setInventorySubTab("duplicates")}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                     inventorySubTab === "duplicates"
@@ -4532,7 +4620,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           {/* =========================================================
               SUB-VIEW: DUPLICATE FINDER & CLEANER STUDIO
               ========================================================= */}
-          {inventorySubTab === "duplicates" && (
+          
+          {inventorySubTab === "suppliers" && (
+            <SupplierIntelligence products={products} bills={completedBills} />
+          )}
+{inventorySubTab === "duplicates" && (
             <>
               {/* Duplicate Finder Header & Action Bar */}
               <div className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-xs space-y-4">
@@ -5247,6 +5339,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <button
+                                        onClick={() => {
+                                          setExchangePreselectedBill(b);
+                                          setShowExchangeModal(true);
+                                        }}
+                                        className="px-2.5 py-1 text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition shadow-xs"
+                                        title="Process Customer Product Exchange / Replacement (5-Day Window)"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
+                                        <span>Exchange</span>
+                                      </button>
+                                      <button
                                       onClick={() => handleStartEditBill(b)}
                                       className="px-2.5 py-1 text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer font-bold text-[11px] flex items-center gap-1 transition"
                                       title="Edit this bill (Bargain, add more items)"
@@ -5425,7 +5528,208 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     )}
                   </div>
                 )}
+              
+              {/* Customer Exchanges & Product Replacement Register */}
+              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xs overflow-hidden space-y-4 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                        5-Day Exchange Policy Register
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 font-mono">
+                        {exchangesList.length} Vouchers
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-black text-stone-900 font-serif">Customer Product Exchange &amp; Return Register</h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      Audited log of 5-day customer garment replacements, returned restocked pieces, issued replacement pieces, and difference settlements.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {exchangesList.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const csv = ExchangeService.exportCsv(exchangesList);
+                          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `RAJNANDINI_EXCHANGES_${new Date().toISOString().slice(0, 10)}.csv`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        title="Export Exchange Register to Excel CSV"
+                      >
+                        <Download className="w-3.5 h-3.5 text-purple-700" />
+                        <span>Export Exchanges CSV</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setExchangePreselectedBill(null);
+                        setShowExchangeModal(true);
+                      }}
+                      className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>+ Process New Exchange</span>
+                    </button>
+                  </div>
+                </div>
+
+                {exchangesList.length === 0 ? (
+                  <div className="p-8 text-center bg-stone-50 rounded-2xl border border-stone-200/80 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 mx-auto flex items-center justify-center">
+                      <RotateCcw className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-stone-700">No customer exchanges recorded yet.</p>
+                    <p className="text-[11px] text-stone-500 max-w-md mx-auto">
+                      When a customer returns within 5 days to exchange sizes or designs, click <strong>"Exchange"</strong> on their bill above or click <strong>"+ Process New Exchange"</strong> to record the exchange voucher.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-stone-100 text-stone-600 border-b border-stone-200 text-[10.5px] uppercase font-bold tracking-wider">
+                          <th className="px-4 py-2.5">Voucher &amp; Date</th>
+                          <th className="px-4 py-2.5">Customer &amp; Original Bill</th>
+                          <th className="px-4 py-2.5">Returned Garments</th>
+                          <th className="px-4 py-2.5">New Replacement Issued</th>
+                          <th className="px-4 py-2.5 text-right">Settlement</th>
+                          <th className="px-4 py-2.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {exchangesList.map((exc) => {
+                          const isEven = exc.settlementType === "even_exchange";
+                          const isCustomerPays = exc.settlementType === "customer_paid";
+                          return (
+                            <tr key={exc.id} className="hover:bg-purple-50/30 transition">
+                              <td className="px-4 py-3 align-top font-mono">
+                                <span className="font-black text-purple-900 block">{exc.exchangeNo}</span>
+                                <span className="text-[10px] text-stone-500">{exc.createdAt}</span>
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <span className="font-bold text-stone-900 block">{exc.customer.name}</span>
+                                <span className="text-[11px] text-stone-500 font-mono block">Ph: {exc.customer.phone}</span>
+                                <span className="text-[10px] text-purple-700 font-mono font-bold block mt-0.5">
+                                  Bill: {exc.originalBillNo}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 align-top max-w-xs">
+                                <div className="space-y-1">
+                                  {exc.returnedItems.map((r: ExchangeItemReturn, i: number) => (
+                                    <div key={i} className="text-[11px] text-stone-700 flex items-start gap-1">
+                                      <span className="text-rose-600 font-bold shrink-0">↩</span>
+                                      <div>
+                                        <span className="font-medium text-stone-900">{r.name}</span>
+                                        <span className="text-[10px] text-stone-500 block">
+                                          SKU: {r.sku} • ₹{r.originalPrice} • {r.condition === "restockable" ? "Restocked" : "Damaged"} • {r.reason}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-top max-w-xs">
+                                <div className="space-y-1">
+                                  {exc.issuedItems.map((iss: ExchangeItemIssued, i: number) => (
+                                    <div key={i} className="text-[11px] text-stone-700 flex items-start gap-1">
+                                      <span className="text-emerald-600 font-bold shrink-0">➔</span>
+                                      <div>
+                                        <span className="font-medium text-stone-900">{iss.name}</span>
+                                        <span className="text-[10px] text-stone-500 block">
+                                          SKU: {iss.sku} • ₹{iss.price} {iss.selectedSize ? `• Size: ${iss.selectedSize}` : ""}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-top text-right font-mono">
+                                {isEven ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                    Even (₹0)
+                                  </span>
+                                ) : isCustomerPays ? (
+                                  <div className="text-right">
+                                    <span className="text-xs font-black text-emerald-700 block">
+                                      +₹{exc.differenceAmount.toLocaleString("en-IN")}
+                                    </span>
+                                    <span className="text-[9.5px] uppercase font-bold text-stone-500 block">
+                                      Paid via {exc.paymentMode}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="text-right">
+                                    <span className="text-xs font-black text-amber-700 block">
+                                      -₹{Math.abs(exc.differenceAmount).toLocaleString("en-IN")}
+                                    </span>
+                                    <span className="text-[9.5px] font-bold text-amber-800 block">
+                                      Store Credit Due
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 align-top text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      const slipText = ExchangeService.generateSlipText(exc);
+                                      const printWin = window.open("", "_blank", "width=380,height=600");
+                                      if (printWin) {
+                                        printWin.document.write(`
+                                          <!DOCTYPE html>
+                                          <html>
+                                            <head><title>Exchange ${exc.exchangeNo}</title><style>@page{size:80mm auto;margin:4mm;}body{font-family:monospace;font-size:11px;white-space:pre-wrap;margin:0;padding:6px;line-height:1.35;}</style></head>
+                                            <body>${slipText.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</body>
+                                          </html>
+                                        `);
+                                        printWin.document.close();
+                                        printWin.focus();
+                                        setTimeout(() => printWin.print(), 250);
+                                      }
+                                    }}
+                                    className="p-1.5 text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer transition shadow-xs"
+                                    title="Print Thermal Exchange Voucher"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const phone = exc.customer.phone.replace(/[^0-9]/g, "");
+                                      if (!phone || phone === "NA") {
+                                        alert("Customer phone number not available.");
+                                        return;
+                                      }
+                                      const cleanPhone = phone.length === 10 ? `91${phone}` : phone;
+                                      const msg = encodeURIComponent(ExchangeService.generateSlipText(exc));
+                                      window.open(`https://wa.me/${cleanPhone}?text=${msg}`, "_blank");
+                                    }}
+                                    className="p-1.5 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer transition shadow-xs"
+                                    title="Send WhatsApp Voucher to Customer"
+                                  >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
+</div>
             </div>
           </div>
         )}
@@ -7309,6 +7613,21 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Customer Product Exchange & Replacement Studio Modal */}
+      {showExchangeModal && (
+        <ExchangeModal
+          isOpen={showExchangeModal}
+          onClose={() => {
+            setShowExchangeModal(false);
+            setExchangePreselectedBill(null);
+          }}
+          completedBills={completedBills}
+          products={products}
+          preselectedBill={exchangePreselectedBill}
+          onExchangeCompleted={handleExchangeCompleted}
+        />
+      )}
+</div>
   );
 }
