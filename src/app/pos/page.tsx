@@ -51,6 +51,7 @@ import {
   Wallet,
   Users,
   UserCheck,
+  UserPlus,
   MessageSquare,
   KeyRound,
   Send,
@@ -171,6 +172,21 @@ export default function RajnandiniPosPage() {
   const [issQty, setIssQty] = useState<number>(1);
   const [issPrice, setIssPrice] = useState<string>("");
   const [issNote, setIssNote] = useState<string>("");
+
+  // Add New Staff Modal State
+  const [showAddStaffModal, setShowAddStaffModal] = useState<boolean>(false);
+  const [newStaffName, setNewStaffName] = useState<string>("");
+  const [newStaffPhone, setNewStaffPhone] = useState<string>("");
+  const [newStaffRole, setNewStaffRole] = useState<string>("Showroom Sales Executive");
+  const [newStaffSalary, setNewStaffSalary] = useState<string>("15000");
+
+  // Edit Staff & Salary Modal State
+  const [editingStaffMember, setEditingStaffMember] = useState<StaffMember | null>(null);
+  const [editStaffName, setEditStaffName] = useState<string>("");
+  const [editStaffPhone, setEditStaffPhone] = useState<string>("");
+  const [editStaffRole, setEditStaffRole] = useState<string>("Sales Executive");
+  const [editStaffSalary, setEditStaffSalary] = useState<string>("0");
+  const [editStaffIsActive, setEditStaffIsActive] = useState<boolean>(true);
 
   const issFilteredProducts = useMemo(() => {
     if (!issProductSearch.trim()) return products.slice(0, 12);
@@ -2736,6 +2752,82 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     if (!confirm(`Remove garment purchase "${pur.productName}" (₹${pur.totalAmount.toLocaleString("en-IN")}) from ${pur.staffName}'s salary deduction?`)) return;
     await StaffExpenseService.deleteStaffPurchase(pur.id, pur.tokenNumber);
     setStaffPurchases(prev => prev.filter(p => p.id !== pur.id && (!pur.tokenNumber || p.tokenNumber !== pur.tokenNumber)));
+  };
+
+  // Handlers for Adding, Editing Salary & Managing Staff Members
+  const handleSaveNewStaff = async () => {
+    if (!newStaffName.trim()) {
+      alert("Please enter staff member's full name");
+      return;
+    }
+    const salaryNum = Number(newStaffSalary);
+    if (isNaN(salaryNum) || salaryNum < 0) {
+      alert("Please enter a valid monthly salary in ₹");
+      return;
+    }
+
+    const created = await StaffExpenseService.addStaffMember({
+      name: newStaffName.trim(),
+      phone: newStaffPhone.trim() || "NA",
+      role: newStaffRole.trim() || "Showroom Sales Executive",
+      monthlySalary: salaryNum,
+    });
+
+    setStaffMembers(prev => [...prev.filter(s => s.id !== created.id), created]);
+    setShowAddStaffModal(false);
+    setNewStaffName("");
+    setNewStaffPhone("");
+    setNewStaffRole("Showroom Sales Executive");
+    setNewStaffSalary("15000");
+    alert(`🎉 Staff member "${created.name}" added successfully with monthly salary ₹${created.monthlySalary.toLocaleString("en-IN")}!`);
+  };
+
+  const handleOpenEditStaffModal = (staff: StaffMember) => {
+    setEditingStaffMember(staff);
+    setEditStaffName(staff.name);
+    setEditStaffPhone(staff.phone || "");
+    setEditStaffRole(staff.role || "Sales Executive");
+    setEditStaffSalary(String(staff.monthlySalary || 0));
+    setEditStaffIsActive(staff.isActive !== false);
+  };
+
+  const handleSaveEditStaff = async () => {
+    if (!editingStaffMember) return;
+    if (!editStaffName.trim()) {
+      alert("Please enter staff member's name");
+      return;
+    }
+    const salaryNum = Number(editStaffSalary);
+    if (isNaN(salaryNum) || salaryNum < 0) {
+      alert("Please enter a valid monthly salary in ₹");
+      return;
+    }
+
+    const updates = {
+      name: editStaffName.trim(),
+      phone: editStaffPhone.trim() || "NA",
+      role: editStaffRole.trim() || "Sales Executive",
+      monthlySalary: salaryNum,
+      isActive: editStaffIsActive,
+    };
+
+    await StaffExpenseService.updateStaffMember(editingStaffMember.id, updates);
+
+    setStaffMembers(prev =>
+      prev.map(s => (s.id === editingStaffMember.id ? { ...s, ...updates } : s))
+    );
+    setEditingStaffMember(null);
+    alert(`✅ Staff "${updates.name}" updated successfully! New monthly salary is ₹${updates.monthlySalary.toLocaleString("en-IN")}.`);
+  };
+
+  const handleDeleteStaff = async (staffId: string, staffName: string) => {
+    const ok = confirm(`Are you sure you want to remove staff member "${staffName}"?\n\nTheir past bill and deposit records will be preserved in records.`);
+    if (!ok) return;
+
+    await StaffExpenseService.deleteStaffMember(staffId);
+    setStaffMembers(prev => prev.filter(s => s.id !== staffId));
+    setEditingStaffMember(null);
+    alert(`Staff member "${staffName}" has been removed.`);
   };
 
   // Advanced Filtered Completed Bills for Sales Report Tab
@@ -6734,6 +6826,20 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   </button>
 
                   <button
+                    onClick={() => {
+                      setNewStaffName("");
+                      setNewStaffPhone("");
+                      setNewStaffRole("Showroom Sales Executive");
+                      setNewStaffSalary("15000");
+                      setShowAddStaffModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-stone-950" />
+                    <span>+ Add New Staff</span>
+                  </button>
+
+                  <button
                     onClick={async () => {
                       const sp = await StaffExpenseService.fetchStaffPurchases();
                       if (sp) setStaffPurchases(sp);
@@ -6918,6 +7024,15 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               >
                                 <Tag className="w-3.5 h-3.5" />
                                 <span>+ Garment</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleOpenEditStaffModal(staff)}
+                                className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                                title="Edit staff member's salary, role & details"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-stone-600" />
+                                <span>Edit Salary</span>
                               </button>
 
                               <button
@@ -7365,6 +7480,272 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               >
                 Issue Garment &amp; Deduct Salary
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: ADD NEW SHOWROOM STAFF MEMBER
+          ========================================================= */}
+      {showAddStaffModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-stone-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-[#5a1e2d] text-white">
+                  <UserPlus className="w-5 h-5 text-amber-300" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Add New Staff Member</h3>
+                  <span className="text-xs text-stone-500">Showroom employee profile &amp; monthly base salary</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddStaffModal(false)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  placeholder="e.g. Simran Kaur"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-semibold focus:outline-hidden focus:border-[#5a1e2d]"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Mobile Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={newStaffPhone}
+                  onChange={(e) => setNewStaffPhone(e.target.value)}
+                  placeholder="e.g. 9897123456"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Role / Designation *
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    value={newStaffRole}
+                    onChange={(e) => setNewStaffRole(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-medium focus:outline-hidden focus:border-[#5a1e2d]"
+                  >
+                    <option value="Showroom Sales Executive">Showroom Sales Executive</option>
+                    <option value="Senior Sales Executive">Senior Sales Executive</option>
+                    <option value="Store Manager">Store Manager</option>
+                    <option value="Saree & Bridal Specialist">Saree &amp; Bridal Specialist</option>
+                    <option value="Tailor & Alteration Master">Tailor &amp; Alteration Master</option>
+                    <option value="Counter Cashier & Billing">Counter Cashier &amp; Billing</option>
+                    <option value="Showroom Helper & Inventory">Showroom Helper &amp; Inventory</option>
+                    <option value="Custom">Other (Type Custom Role)</option>
+                  </select>
+                  {newStaffRole === "Custom" && (
+                    <input
+                      type="text"
+                      placeholder="Enter custom role title..."
+                      onChange={(e) => setNewStaffRole(e.target.value)}
+                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Monthly Base Salary (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={newStaffSalary}
+                  onChange={(e) => setNewStaffSalary(e.target.value)}
+                  placeholder="e.g. 18000"
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono font-bold text-base focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+                <span className="text-[10px] text-stone-500 mt-1 block">
+                  Garment purchases and advances will be deducted from this base salary.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setShowAddStaffModal(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNewStaff}
+                className="px-5 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition"
+              >
+                Save Staff Member
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: EDIT STAFF DETAILS & UPDATE MONTHLY SALARY
+          ========================================================= */}
+      {editingStaffMember && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-stone-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-[#5a1e2d] text-white">
+                  <Edit3 className="w-5 h-5 text-amber-300" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Edit Staff &amp; Salary</h3>
+                  <span className="text-xs text-stone-500">Update salary, role, contact info or status</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingStaffMember(null)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={editStaffName}
+                  onChange={(e) => setEditStaffName(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-semibold focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Mobile Number
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={editStaffPhone}
+                  onChange={(e) => setEditStaffPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Role / Designation
+                </label>
+                <input
+                  type="text"
+                  value={editStaffRole}
+                  onChange={(e) => setEditStaffRole(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+                <label className="block text-[11px] font-bold text-amber-950 uppercase tracking-wider">
+                  Monthly Base Salary (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={editStaffSalary}
+                  onChange={(e) => setEditStaffSalary(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-stone-900 font-mono font-black text-lg focus:outline-hidden focus:border-amber-600"
+                />
+                <span className="text-[10px] text-amber-900/80 block leading-tight">
+                  💡 Updating salary will immediately recalculate this month&apos;s Net Salary Payable.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Status
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditStaffIsActive(true)}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      editStaffIsActive
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Active Member</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStaffIsActive(false)}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      !editStaffIsActive
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
+                    }`}
+                  >
+                    <span>Inactive / Left</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => handleDeleteStaff(editingStaffMember.id, editingStaffMember.name)}
+                className="px-3 py-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                title="Remove staff member"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStaffMember(null)}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditStaff}
+                  className="px-5 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
