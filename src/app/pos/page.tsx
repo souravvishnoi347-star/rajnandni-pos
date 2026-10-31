@@ -2204,6 +2204,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     return productVelocityAnalytics.reduce((sum, v) => sum + v.totalRevenue, 0);
   }, [productVelocityAnalytics]);
 
+  // Fast lookup map for sold quantity of every product across showroom bills
+  const productSoldMap = useMemo(() => {
+    const map = new Map<string, number>();
+    productVelocityAnalytics.forEach((v) => {
+      map.set(v.product.id, v.totalQtySold);
+      if (v.product.sku) {
+        map.set(v.product.sku.toUpperCase().trim(), v.totalQtySold);
+      }
+    });
+    return map;
+  }, [productVelocityAnalytics]);
+
   // Filtered & Sorted Velocity Products
   const filteredVelocityProducts = useMemo(() => {
     let list = [...productVelocityAnalytics];
@@ -4237,12 +4249,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           <tr className="bg-white font-bold text-[10.5px] uppercase tracking-wider text-[#857275] border-b border-[#ede7e6]">
                             <th className="py-3 px-3 w-10 text-center"></th>
                             <th className="py-3 px-4">SKU &amp; RFID Tag</th>
-                            <th className="py-3 px-4">Garment Title &amp; Details</th>
+                            <th className="py-3 px-4">Garment Title &amp; Stock / Sold</th>
                             <th className="py-3 px-4">Category</th>
                             <th className="py-3 px-4">Available Sizes</th>
                             <th className="py-3 px-4 text-right">Cost Rate</th>
                             <th className="py-3 px-4 text-right">MRP / Selling</th>
-                            <th className="py-3 px-4">Stock Status</th>
+                            <th className="py-3 px-4">Stock &amp; Sold Velocity</th>
                             <th className="py-3 px-4 text-center">Actions</th>
                           </tr>
                         </thead>
@@ -4250,6 +4262,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           {filteredInventoryProducts.map(p => {
                             const discountPct = p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0;
                             const markupPct = p.purchaseCost > 0 ? Math.round(((p.price - p.purchaseCost) / p.purchaseCost) * 100) : 45;
+                            const soldQty = productSoldMap.get(p.id) ?? (p.sku ? productSoldMap.get(p.sku.toUpperCase().trim()) : undefined) ?? 0;
+                            const totalTrackedUnits = (p.stock || 0) + soldQty;
+                            const sellThroughPct = totalTrackedUnits > 0 ? Math.round((soldQty / totalTrackedUnits) * 100) : 0;
 
                             return (
                               <tr key={p.id} className="hover:bg-[#fef8f7] transition group">
@@ -4266,7 +4281,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                     </span>
                                   </div>
                                 </td>
-                                <td className="py-3 px-4 min-w-[260px]">
+                                <td className="py-3 px-4 min-w-[280px]">
                                   <div className="flex items-center gap-3">
                                     <div className="w-12 h-14 rounded-lg bg-[#f8f2f2] overflow-hidden flex-shrink-0 relative shadow-2xs border border-[#ede7e6] flex items-center justify-center text-xl font-serif">
                                       {p.imageUrl ? (
@@ -4276,10 +4291,27 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                       )}
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                      <span className="font-bold text-xs text-[#1d1b1b] truncate">
-                                        {p.name}
-                                      </span>
-                                      <span className="text-[11px] text-[#857275] truncate">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-xs text-[#1d1b1b] truncate">
+                                          {p.name}
+                                        </span>
+                                        {/* Dynamic Stock & Sold Pills right beside the item title */}
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                                          p.stock <= 2
+                                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                            : "bg-[#f8f2f2] text-[#1d1b1b] border border-[#ede7e6]"
+                                        }`}>
+                                          Stock: {p.stock} pcs
+                                        </span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                                          soldQty > 0
+                                            ? "bg-[#ffd9de] text-[#3b0616] border border-[#ffd9de]"
+                                            : "bg-slate-100 text-slate-500 border border-slate-200"
+                                        }`}>
+                                          Sold: {soldQty} pcs
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-[#857275] truncate mt-0.5">
                                         {p.badge || "Handloom Pure Raw Silk • Intricate Zardozi"}
                                       </span>
                                       <span className="text-[10px] text-[#735c00] font-semibold mt-0.5">
@@ -4312,16 +4344,33 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   </div>
                                 </td>
                                 <td className="py-3 px-4 whitespace-nowrap">
-                                  <div className="flex flex-col gap-1 min-w-[120px]">
-                                    <div className="flex items-center justify-between text-[10px]">
-                                      <span className="font-bold text-[#1d1b1b]">{p.stock} units left</span>
-                                      <span className={`font-bold ${p.stock <= 3 ? "text-rose-600" : "text-emerald-700"}`}>
-                                        {p.stock <= 3 ? "Low" : "Healthy"}
+                                  <div className="flex flex-col gap-1 min-w-[140px]">
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="font-extrabold text-[#1d1b1b] font-mono">
+                                        {p.stock} in stock
+                                      </span>
+                                      <span className="font-extrabold text-[#5a1e2d] bg-[#ffd9de]/90 px-2 py-0.5 rounded-full font-mono text-[10px]">
+                                        {soldQty} sold
                                       </span>
                                     </div>
-                                    <div className="w-full bg-[#f3ecec] h-1.5 rounded-full overflow-hidden">
+                                    <div className="flex items-center justify-between text-[10px] text-[#857275]">
+                                      <span className={`font-semibold ${p.stock <= 2 ? "text-rose-600" : "text-emerald-700"}`}>
+                                        {p.stock <= 0 ? "Out of Stock" : p.stock <= 2 ? "Low Stock (≤2)" : "Healthy"}
+                                      </span>
+                                      <span className="font-mono text-[#7c5641] font-bold">
+                                        {sellThroughPct}% sold
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-[#f3ecec] h-1.5 rounded-full overflow-hidden flex">
                                       <div
-                                        className={`h-full rounded-full ${p.stock <= 3 ? "bg-rose-500 w-[20%]" : "bg-[#735c00] w-[75%]"}`}
+                                        className="bg-[#5a1e2d] h-full transition-all"
+                                        style={{ width: `${sellThroughPct}%` }}
+                                        title={`${soldQty} units sold`}
+                                      />
+                                      <div
+                                        className={`h-full transition-all ${p.stock <= 2 ? "bg-rose-500" : "bg-[#735c00]"}`}
+                                        style={{ width: `${100 - sellThroughPct}%` }}
+                                        title={`${p.stock} units in stock`}
                                       />
                                     </div>
                                   </div>
