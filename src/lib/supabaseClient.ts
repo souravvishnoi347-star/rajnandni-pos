@@ -124,9 +124,12 @@ export const SupabaseService = {
     }
   },
 
-  async deleteProduct(id: string): Promise<boolean> {
+  async deleteProduct(id: string, sku?: string): Promise<boolean> {
     if (!supabase) return false;
     try {
+      if (sku) {
+        await supabase.from("products").delete().eq("sku", sku);
+      }
       const { error } = await supabase
         .from("products")
         .delete()

@@ -341,14 +341,27 @@ export default function RajnandiniPosPage() {
     "SRV-FL-PCO07"
   ]);
 
-  const filterPurgedProducts = (list: ProductItem[]) => (list || []).filter(p => {
-    if (!p) return false;
-    if (PURGED_PRODUCT_IDS.has(p.id)) return false;
-    if (p.sku && PURGED_PRODUCT_SKUS.has(p.sku.toUpperCase().trim())) return false;
-    if (p.isService && p.category === "parlour") return false;
-    if (p.name && (p.name.toLowerCase().includes("hd beauity") || p.name.toLowerCase().includes("airbrush makeup"))) return false;
-    return true;
-  });
+  const filterPurgedProducts = (list: ProductItem[]) => {
+    let userDeletedSkus = new Set<string>();
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("rajnandni_deleted_skus");
+        if (raw) {
+          JSON.parse(raw).forEach((s: string) => userDeletedSkus.add((s || "").toUpperCase().trim()));
+        }
+      } catch {}
+    }
+
+    return (list || []).filter(p => {
+      if (!p) return false;
+      if (PURGED_PRODUCT_IDS.has(p.id)) return false;
+      const skuUpper = (p.sku || "").toUpperCase().trim();
+      if (skuUpper && (PURGED_PRODUCT_SKUS.has(skuUpper) || userDeletedSkus.has(skuUpper))) return false;
+      if (p.isService && p.category === "parlour") return false;
+      if (p.name && (p.name.toLowerCase().includes("hd beauity") || p.name.toLowerCase().includes("airbrush makeup"))) return false;
+      return true;
+    });
+  };
 
   // Load local storage & sync on mount (100% Lossless Merge — Never overwrites user-added items)
   useEffect(() => {
@@ -2471,6 +2484,55 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       )
     );
   }, [duplicateGroups, duplicateSearch]);
+
+  // Delete Product Handler (Permanently remove product from inventory)
+  const handleDeleteProduct = (prod: ProductItem) => {
+    setOwnerAuthDetails({
+      actionType: "product_delete",
+      productId: prod.id,
+      productName: prod.name,
+      sku: prod.sku,
+      oldValue: `Current Stock: ${prod.stock} pcs • ₹${prod.price.toLocaleString("en-IN")}`,
+      newValue: "PERMANENT DELETE FROM INVENTORY",
+      onApprove: async () => {
+        // 1. Add to user deleted SKUs in localStorage so sync never brings it back
+        try {
+          const raw = localStorage.getItem("rajnandni_deleted_skus");
+          const list: string[] = raw ? JSON.parse(raw) : [];
+          if (!list.includes(prod.sku)) {
+            list.push(prod.sku);
+            localStorage.setItem("rajnandni_deleted_skus", JSON.stringify(list));
+          }
+        } catch {}
+
+        // 2. Filter local products state
+        const updated = products.filter(p => p.id !== prod.id && p.sku !== prod.sku);
+        saveProductsLocally(updated);
+
+        // Also clean from custom items cache
+        try {
+          const rawCust = localStorage.getItem("rajnandni_custom_items");
+          if (rawCust) {
+            const custList: ProductItem[] = JSON.parse(rawCust);
+            const filteredCust = custList.filter(p => p.id !== prod.id && p.sku !== prod.sku);
+            localStorage.setItem("rajnandni_custom_items", JSON.stringify(filteredCust));
+          }
+        } catch {}
+
+        // 3. Delete from Supabase
+        if (isSupabaseConfigured()) {
+          try {
+            await SupabaseService.deleteProduct(prod.id, prod.sku);
+          } catch (err) {
+            console.error("Supabase product delete error:", err);
+          }
+        }
+
+        alert(`✅ Product "${prod.name}" (${prod.sku}) permanently deleted from stock & inventory!`);
+      }
+    });
+    setShowOwnerAuthModal(true);
+  };
 
   // Quick Restock Handlers
   const handleOpenQuickRestock = (prod: ProductItem) => {
@@ -4825,10 +4887,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                         setNewProductForm({ ...p });
                                         setShowNewProductModal(true);
                                       }}
-                                      className="p-1.5 rounded-lg bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] border border-[#ede7e6] transition"
+                                      className="p-1.5 rounded-lg bg-[#f8f2f2] hover:bg-[#ede7e6] text-[#534345] border border-[#ede7e6] transition cursor-pointer"
                                       title="Edit Product"
                                     >
                                       <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteProduct(p)}
+                                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer"
+                                      title={`Delete "${p.name}" (${p.sku}) from stock`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 </td>
@@ -5129,6 +5198,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   >
                                     <Tag className="w-3 h-3 text-stone-600" />
                                     <span>Tags</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProduct(p)}
+                                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs transition cursor-pointer flex items-center justify-center shadow-2xs"
+                                    title={`Delete "${p.name}" (${p.sku}) from stock`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-700" />
                                   </button>
                                 </div>
                               </td>
@@ -8568,26 +8644,46 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2.5">
-              <button
-                onClick={() => setShowNewProductModal(false)}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleCreateProduct({ printBarcode: false })}
-                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-900 rounded-xl text-xs font-bold cursor-pointer transition"
-              >
-                Save Only
-              </button>
-              <button
-                onClick={() => handleCreateProduct({ printBarcode: true })}
-                className="px-4 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5"
-              >
-                <Tag className="w-3.5 h-3.5 text-amber-400" />
-                <span>Save &amp; Print Barcode Tag</span>
-              </button>
+            <div className="mt-5 flex items-center justify-between gap-2.5">
+              {newProductForm.id ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prodToDelete = products.find(p => p.id === newProductForm.id);
+                    if (prodToDelete) {
+                      setShowNewProductModal(false);
+                      handleDeleteProduct(prodToDelete);
+                    }
+                  }}
+                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-2xs"
+                  title="Permanently delete this product from stock"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Delete Product</span>
+                </button>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowNewProductModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleCreateProduct({ printBarcode: false })}
+                  className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-900 rounded-xl text-xs font-bold cursor-pointer transition"
+                >
+                  Save Only
+                </button>
+                <button
+                  onClick={() => handleCreateProduct({ printBarcode: true })}
+                  className="px-4 py-2 bg-stone-950 hover:bg-stone-900 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5"
+                >
+                  <Tag className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Save &amp; Print Barcode Tag</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
