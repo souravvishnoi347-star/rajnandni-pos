@@ -1,37 +1,66 @@
 import { ProductItem, CompletedBill, SupplierProfile, SupplierMetric } from "@/types/pos";
 
-export const DEFAULT_SUPPLIERS: SupplierProfile[] = [
-  { id: "sup-1", name: "Jawahar Lal Jagannath Prasad", city: "Surat", category: "sarees", notes: "Surat Silk & Fancy Dola Silk Sarees" },
-  { id: "sup-2", name: "Sadhvi Sarees Pvt Ltd", city: "Surat", category: "sarees", notes: "Dailywear Printed Georgette & Asharfi" },
-  { id: "sup-3", name: "Gulshan Sarees & Fabrics", city: "Surat", category: "sarees", notes: "Satin Silk, Party & Siroshki Work" },
-  { id: "sup-4", name: "Bengal Handloom & Tant Depot", city: "Kolkata", category: "handloom", notes: "Pure Cotton, Tant & Traditional Handloom" },
-  { id: "sup-5", name: "Surat K-Series Wholesale", city: "Surat", category: "sarees", notes: "Royal Brasso & Wave Pattern Fancy Sarees" },
-  { id: "sup-6", name: "Jaipur Kurti & Suit Hub", city: "Jaipur", category: "kurtis", notes: "Cambric Cotton, Anarkali & Designer Suits" },
-  { id: "sup-7", name: "Chandni Chowk Bridal Hub", city: "Delhi", category: "lehengas", notes: "Heavy Bridal Lehengas & Party Gowns" },
-  { id: "sup-8", name: "Mumbai Fashion Accessories", city: "Mumbai", category: "handbags", notes: "Handbags, Purses, Clutches & Sling Bags" },
-  { id: "sup-9", name: "Rajkot & Jaipur Jewellery", city: "Rajkot", category: "jewellery", notes: "Kundan Sets, Bangles, Kada & Rings" },
-  { id: "sup-10", name: "Agra & Kanpur Footwear", city: "Agra", category: "footwear", notes: "Punjabi Juttis, Embroidered Mojaris & Heels" },
-  { id: "sup-11", name: "Roop Nikha & Personi Cosmetics", city: "Delhi", category: "cosmetics", notes: "Kajal, Bindi, Lipsticks & Beauty Items" },
-  { id: "sup-12", name: "Surat Aster & Blouse Depot", city: "Surat", category: "undergarments", notes: "Blouse Pieces, Aster Lining & Petticoats" },
-];
+export const DEFAULT_SUPPLIERS: SupplierProfile[] = [];
 
 const STORAGE_KEY_CUSTOM_SUPPLIERS = "rajnandni_custom_suppliers";
 const STORAGE_KEY_PRODUCT_SUPPLIER_MAP = "rajnandni_product_supplier_map";
 
+// List of all legacy mock/fake supplier names to strictly purge and ignore
+const LEGACY_FAKE_NAMES = new Set([
+  "jawahar lal jagannath prasad",
+  "sadhvi sarees pvt ltd",
+  "gulshan sarees & fabrics",
+  "bengal handloom & tant depot",
+  "surat k-series wholesale",
+  "jaipur kurti & suit hub",
+  "chandni chowk bridal hub",
+  "mumbai fashion accessories",
+  "rajkot & jaipur jewellery",
+  "agra & kanpur footwear",
+  "roop nikha & personi cosmetics",
+  "surat aster & blouse depot",
+  "general boutique supplier"
+]);
+
 export const SupplierService = {
-  getSuppliers(): SupplierProfile[] {
-    if (typeof window === "undefined") return DEFAULT_SUPPLIERS;
+  // Purge any legacy fake/sample data from localStorage
+  purgeFakeData() {
+    if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_SUPPLIERS);
       if (raw) {
-        const custom: SupplierProfile[] = JSON.parse(raw);
-        const map = new Map<string, SupplierProfile>();
-        DEFAULT_SUPPLIERS.forEach(s => map.set(s.name.toLowerCase().trim(), s));
-        custom.forEach(s => map.set(s.name.toLowerCase().trim(), s));
-        return Array.from(map.values());
+        const list: SupplierProfile[] = JSON.parse(raw);
+        const clean = list.filter(s => s && s.name && !LEGACY_FAKE_NAMES.has(s.name.toLowerCase().trim()));
+        localStorage.setItem(STORAGE_KEY_CUSTOM_SUPPLIERS, JSON.stringify(clean));
+      }
+
+      const rawMap = localStorage.getItem(STORAGE_KEY_PRODUCT_SUPPLIER_MAP);
+      if (rawMap) {
+        const map: Record<string, string> = JSON.parse(rawMap);
+        let changed = false;
+        Object.keys(map).forEach(k => {
+          if (LEGACY_FAKE_NAMES.has(map[k].toLowerCase().trim())) {
+            delete map[k];
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEY_PRODUCT_SUPPLIER_MAP, JSON.stringify(map));
+        }
       }
     } catch {}
-    return DEFAULT_SUPPLIERS;
+  },
+
+  getSuppliers(): SupplierProfile[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_SUPPLIERS);
+      if (raw) {
+        const list: SupplierProfile[] = JSON.parse(raw);
+        return list.filter(s => s && s.name && !LEGACY_FAKE_NAMES.has(s.name.toLowerCase().trim()));
+      }
+    } catch {}
+    return [];
   },
 
   addSupplier(supplier: Omit<SupplierProfile, "id">): SupplierProfile {
@@ -47,6 +76,27 @@ export const SupplierService = {
       } catch {}
     }
     return newSup;
+  },
+
+  deleteSupplierByName(name: string) {
+    if (typeof window === "undefined") return;
+    try {
+      const cleanName = name.toLowerCase().trim();
+      const list = this.getSuppliers().filter(s => s.name.toLowerCase().trim() !== cleanName);
+      localStorage.setItem(STORAGE_KEY_CUSTOM_SUPPLIERS, JSON.stringify(list));
+
+      const map = this.getProductSupplierMap();
+      let changed = false;
+      Object.keys(map).forEach(k => {
+        if (map[k].toLowerCase().trim() === cleanName) {
+          delete map[k];
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY_PRODUCT_SUPPLIER_MAP, JSON.stringify(map));
+      }
+    } catch {}
   },
 
   getProductSupplierMap(): Record<string, string> {
@@ -68,53 +118,46 @@ export const SupplierService = {
     } catch {}
   },
 
-  inferSupplier(product: ProductItem): string {
-    if (!product) return "General Boutique Supplier";
-    if (product.supplier && product.supplier.trim()) return product.supplier.trim();
+  // Only returns a supplier if explicitly assigned by the user. NEVER guesses fake names!
+  inferSupplier(product: ProductItem): string | null {
+    if (!product) return null;
+    if (product.supplier && product.supplier.trim()) {
+      const clean = product.supplier.trim();
+      if (!LEGACY_FAKE_NAMES.has(clean.toLowerCase())) return clean;
+    }
 
     // Check manual override map
     const map = this.getProductSupplierMap();
-    if (product.id && map[product.id]) return map[product.id];
-    if (product.sku && map[product.sku]) return map[product.sku];
+    if (product.id && map[product.id] && !LEGACY_FAKE_NAMES.has(map[product.id].toLowerCase())) {
+      return map[product.id];
+    }
+    if (product.sku && map[product.sku] && !LEGACY_FAKE_NAMES.has(map[product.sku].toLowerCase())) {
+      return map[product.sku];
+    }
 
-    // Check badge encoding (e.g. "SUP:Jawahar Lal...")
+    // Check badge encoding (e.g. "SUP:Surat Mill...")
     if (product.badge && product.badge.includes("SUP:")) {
       const match = product.badge.match(/SUP:([^|]+)/);
-      if (match && match[1]) return match[1].trim();
+      if (match && match[1]) {
+        const clean = match[1].trim();
+        if (!LEGACY_FAKE_NAMES.has(clean.toLowerCase())) return clean;
+      }
     }
 
-    const sku = (product.sku || "").toUpperCase().trim();
-    const cat = (product.category || "").toLowerCase();
-    const name = (product.name || "").toLowerCase();
-
-    // Category / SKU Pattern Inference
-    if (sku.startsWith("RJ-SAR-")) {
-      const numMatch = sku.match(/RJ-SAR-(\d+)/);
-      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
-      if (num >= 1 && num <= 34) return "Jawahar Lal Jagannath Prasad";
-      if (num >= 35 && num <= 65) return "Sadhvi Sarees Pvt Ltd";
-      if (num >= 66 && num <= 120) return "Gulshan Sarees & Fabrics";
-      if (num >= 121 && num <= 160) return "Bengal Handloom & Tant Depot";
-      return "Surat K-Series Wholesale";
-    }
-
-    if (cat === "kurtis" || sku.startsWith("RJ-KRT-")) return "Jaipur Kurti & Suit Hub";
-    if (cat === "lehengas" || sku.startsWith("RJ-LHG-")) return "Chandni Chowk Bridal Hub";
-    if (cat === "handbags" || sku.startsWith("RJ-BAG-") || sku.startsWith("RJ-HBG-")) return "Mumbai Fashion Accessories";
-    if (cat === "jewellery" || cat === "bangles" || cat === "earrings" || sku.startsWith("RJ-JWL-") || sku.startsWith("RJ-BNG-") || sku.startsWith("RJ-EAR-")) {
-      return "Rajkot & Jaipur Jewellery";
-    }
-    if (cat === "footwear" || sku.startsWith("RJ-FTW-")) return "Agra & Kanpur Footwear";
-    if (cat === "cosmetics" || sku.startsWith("RJ-COS-")) return "Roop Nikha & Personi Cosmetics";
-    if (cat === "handloom" || sku.startsWith("RJ-HDL-")) return "Bengal Handloom & Tant Depot";
-    if (cat === "undergarments" || sku.startsWith("RJ-UND-") || sku.startsWith("RJ-ACC-") || name.includes("blouse piece") || name.includes("aster") || name.includes("paticote")) {
-      return "Surat Aster & Blouse Depot";
-    }
-
-    return "General Boutique Supplier";
+    // Zero fake guessing. If not explicitly assigned, return null.
+    return null;
   },
 
   calculateMetrics(products: ProductItem[], bills: CompletedBill[]): SupplierMetric[] {
+    // Purge fake data first
+    this.purgeFakeData();
+
+    const registeredSuppliers = this.getSuppliers();
+    // If no real suppliers have been registered by user yet, return empty list!
+    if (!registeredSuppliers || registeredSuppliers.length === 0) {
+      return [];
+    }
+
     const cleanProds = (products || []).filter(p => !p.isService);
 
     // Build Sales Lookup by Product ID, SKU & Name
@@ -143,8 +186,12 @@ export const SupplierService = {
       });
     });
 
+    const registeredNameMap = new Map<string, SupplierProfile>();
+    registeredSuppliers.forEach(s => registeredNameMap.set(s.name.toLowerCase().trim(), s));
+
     const supplierGroups = new Map<string, {
       name: string;
+      city?: string;
       products: ProductItem[];
       totalCostValue: number;
       totalRetailValue: number;
@@ -154,29 +201,36 @@ export const SupplierService = {
       grossProfit: number;
     }>();
 
+    // Initialize an entry for every genuine registered supplier
+    registeredSuppliers.forEach(s => {
+      supplierGroups.set(s.name.toLowerCase().trim(), {
+        name: s.name,
+        city: s.city,
+        products: [],
+        totalCostValue: 0,
+        totalRetailValue: 0,
+        totalStockPcs: 0,
+        totalSoldPcs: 0,
+        totalRevenue: 0,
+        grossProfit: 0
+      });
+    });
+
+    // Populate with matching products only
     cleanProds.forEach(p => {
       const sup = this.inferSupplier(p);
-      if (!supplierGroups.has(sup)) {
-        supplierGroups.set(sup, {
-          name: sup,
-          products: [],
-          totalCostValue: 0,
-          totalRetailValue: 0,
-          totalStockPcs: 0,
-          totalSoldPcs: 0,
-          totalRevenue: 0,
-          grossProfit: 0
-        });
-      }
+      if (!sup) return;
 
-      const group = supplierGroups.get(sup)!;
+      const key = sup.toLowerCase().trim();
+      const group = supplierGroups.get(key);
+      if (!group) return; // Not a registered real supplier
+
       group.products.push(p);
 
       const stock = Number(p.stock) || 0;
       const cost = Number(p.purchaseCost) || 0;
       const price = Number(p.price) || 0;
 
-      // Exact sales lookup
       const saleInfo =
         (p.id && salesMap.get(p.id)) ||
         (p.sku && salesMap.get(p.sku.toUpperCase().trim())) ||
@@ -195,18 +249,13 @@ export const SupplierService = {
       group.grossProfit += profit;
     });
 
-    const knownList = this.getSuppliers();
-    const cityMap = new Map<string, string>();
-    knownList.forEach(s => cityMap.set(s.name.toLowerCase().trim(), s.city || ""));
-
     const result: SupplierMetric[] = [];
 
-    supplierGroups.forEach((group, name) => {
+    supplierGroups.forEach((group) => {
       const totalUnits = group.totalSoldPcs + group.totalStockPcs;
       const sellThrough = totalUnits > 0 ? (group.totalSoldPcs / totalUnits) * 100 : 0;
       const marginPct = group.totalRevenue > 0 ? (group.grossProfit / group.totalRevenue) * 100 : 0;
 
-      // Classify performance
       let status: "top" | "good" | "slow" = "good";
       if (group.totalRevenue >= 50000 || sellThrough >= 20 || group.totalSoldPcs >= 40) {
         status = "top";
@@ -214,7 +263,6 @@ export const SupplierService = {
         status = "slow";
       }
 
-      // Calculate Bestsellers & Slow Movers
       const productSales = group.products.map(p => {
         const sInfo =
           (p.id && salesMap.get(p.id)) ||
@@ -235,8 +283,8 @@ export const SupplierService = {
       const slowMovers = [...productSales].sort((a, b) => a.sold - b.sold || b.stock - a.stock).slice(0, 5);
 
       result.push({
-        name,
-        city: cityMap.get(name.toLowerCase().trim()) || "Surat / Delhi",
+        name: group.name,
+        city: group.city || "",
         skuCount: group.products.length,
         stockPcs: group.totalStockPcs,
         soldPcs: group.totalSoldPcs,
@@ -252,7 +300,6 @@ export const SupplierService = {
       });
     });
 
-    // Sort by Total Revenue descending, then by Sold Pcs
     result.sort((a, b) => b.totalRevenue - a.totalRevenue || b.soldPcs - a.soldPcs);
     return result;
   },
