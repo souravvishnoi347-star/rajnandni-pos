@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Coffee,
   Users,
@@ -36,6 +37,18 @@ import {
   Receipt,
   ClipboardList,
   ChevronLeft,
+  ChevronDown,
+  Building2,
+  Package,
+  Layers,
+  Sparkle,
+  GlassWater,
+  Sparkles as SparklesIcon,
+  HelpCircle,
+  Shield,
+  Lightbulb,
+  DoorClosed,
+  CheckCheck,
 } from "lucide-react";
 import {
   StaffExpenseService,
@@ -65,6 +78,7 @@ export default function HeadStaffApp() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
 
   // Today Date String
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
@@ -73,6 +87,8 @@ export default function HeadStaffApp() {
   // Search & Filter States
   const [expenseSearch, setExpenseSearch] = useState<string>("");
   const [expenseFilterCategory, setExpenseFilterCategory] = useState<string>("all");
+  const [advanceSearch, setAdvanceSearch] = useState<string>("");
+  const [advanceFilterStatus, setAdvanceFilterStatus] = useState<"all" | "active" | "zero">("all");
 
   // New Expense Form Modal State
   const [showExpenseModal, setShowExpenseModal] = useState<boolean>(false);
@@ -93,13 +109,19 @@ export default function HeadStaffApp() {
   const [advNote, setAdvNote] = useState<string>("");
   const [isSubmittingAdv, setIsSubmittingAdv] = useState<boolean>(false);
 
-  // Handover Note State
-  const [handoverCashChecked, setHandoverCashChecked] = useState<boolean>(false);
-  const [handoverLightsChecked, setHandoverLightsChecked] = useState<boolean>(false);
-  const [handoverLocksChecked, setHandoverLocksChecked] = useState<boolean>(false);
-  const [handoverTerminalChecked, setHandoverTerminalChecked] = useState<boolean>(false);
+  // Handover Checklist State (Image 5)
+  const [handoverChecks, setHandoverChecks] = useState<{ [key: string]: boolean }>({
+    cashDrawer: false,
+    physicalLocker: false,
+    lightsAc: false,
+    scannersPos: false,
+    glassDoors: false,
+  });
   const [handoverNote, setHandoverNote] = useState<string>("");
   const [handoverSubmitted, setHandoverSubmitted] = useState<boolean>(false);
+
+  // Ledger Modal State for Staff Advances
+  const [viewingLedgerStaff, setViewingLedgerStaff] = useState<StaffMember | null>(null);
 
   // Check saved authentication on mount
   useEffect(() => {
@@ -109,8 +131,12 @@ export default function HeadStaffApp() {
       if (saved === "true" || session === "true") {
         setIsAuthenticated(true);
       }
+      const savedChecks = localStorage.getItem("rajnandni_handover_checks_" + todayStr);
+      if (savedChecks) {
+        setHandoverChecks(JSON.parse(savedChecks));
+      }
     } catch {}
-  }, []);
+  }, [todayStr]);
 
   // Fetch all staff data
   const loadData = async (showSpinner = false) => {
@@ -131,6 +157,10 @@ export default function HeadStaffApp() {
       if (staffList.length > 0 && !advStaffId) {
         setAdvStaffId(staffList[0].id);
       }
+
+      setLastRefreshedAt(
+        new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+      );
     } catch (err) {
       console.error("Failed to load staff portal data:", err);
     } finally {
@@ -159,7 +189,7 @@ export default function HeadStaffApp() {
         }
       } catch {}
     } else {
-      setPinError("Incorrect Security PIN. Please enter the valid staff PIN.");
+      setPinError("Incorrect Security PIN. Please enter staff PIN (5555).");
       setPinInput("");
     }
   };
@@ -173,7 +203,7 @@ export default function HeadStaffApp() {
     } catch {}
   };
 
-  // Quick 1-Tap Preset Expense Record
+  // Quick 1-Tap Preset Expense Record (Image 2)
   const handleQuickExpense = async (title: string, amount: number, category: StoreExpense["category"]) => {
     setIsSubmittingExp(true);
     try {
@@ -315,6 +345,14 @@ export default function HeadStaffApp() {
     return todayAdvances.filter((a) => a.paidBy === "cash_galla").reduce((sum, a) => sum + a.amount, 0);
   }, [todayAdvances]);
 
+  // Month-to-date total advances
+  const monthAdvanceTotal = useMemo(() => {
+    const curMonth = todayStr.slice(0, 7);
+    return advances
+      .filter((a) => a.date && a.date.startsWith(curMonth))
+      .reduce((sum, a) => sum + a.amount, 0);
+  }, [advances, todayStr]);
+
   // Total Outflow from Cash Drawer Today (Expenses + Advances)
   const totalCashOutflow = useMemo(() => {
     return todayCashExpense + todayCashAdvance;
@@ -336,6 +374,39 @@ export default function HeadStaffApp() {
     });
   }, [expenses, expenseSearch, expenseFilterCategory]);
 
+  // Map of active advances by staff ID
+  const staffActiveAdvanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    advances.filter((a) => a.status === "active").forEach((a) => {
+      map.set(a.staffId, (map.get(a.staffId) || 0) + a.amount);
+    });
+    return map;
+  }, [advances]);
+
+  // Filtered staff list for Advances tab
+  const filteredStaffForAdvances = useMemo(() => {
+    return activeStaffMembers.filter((s) => {
+      const activeAdv = staffActiveAdvanceMap.get(s.id) || 0;
+      if (advanceFilterStatus === "active" && activeAdv <= 0) return false;
+      if (advanceFilterStatus === "zero" && activeAdv > 0) return false;
+
+      if (advanceSearch.trim()) {
+        const q = advanceSearch.toLowerCase().trim();
+        const matchesName = s.name.toLowerCase().includes(q);
+        const matchesRole = (s.role || "").toLowerCase().includes(q);
+        return matchesName || matchesRole;
+      }
+      return true;
+    });
+  }, [activeStaffMembers, staffActiveAdvanceMap, advanceFilterStatus, advanceSearch]);
+
+  const activeAdvanceStaffCount = useMemo(() => {
+    return activeStaffMembers.filter((s) => (staffActiveAdvanceMap.get(s.id) || 0) > 0).length;
+  }, [activeStaffMembers, staffActiveAdvanceMap]);
+
+  const zeroAdvanceStaffCount = activeStaffMembers.length - activeAdvanceStaffCount;
+
+  // Attendance Stats
   const attendanceStats = useMemo(() => {
     let present = 0;
     let halfDay = 0;
@@ -359,28 +430,56 @@ export default function HeadStaffApp() {
     };
   }, [attendance, activeStaffMembers]);
 
+  // Toggle checklist item
+  const toggleHandoverCheck = (key: string) => {
+    setHandoverChecks((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem("rajnandni_handover_checks_" + todayStr, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const completedChecklistCount = Object.values(handoverChecks).filter(Boolean).length;
+
+  // Formatted display date for Attendance tab
+  const formattedAttendanceDate = useMemo(() => {
+    try {
+      const d = new Date(selectedAttendanceDate);
+      return d.toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return selectedAttendanceDate;
+    }
+  }, [selectedAttendanceDate]);
+
   // =========================================================================
-  // VIEW 0: STAFF PIN SECURITY SCREEN
+  // VIEW 0: STAFF PIN SECURITY SCREEN (RICH MAROON & WARM GOLD THEME)
   // =========================================================================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
-        <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
-            <Store className="w-8 h-8 text-blue-600" />
+      <div className="min-h-screen bg-[#FAF7F5] text-slate-800 flex flex-col justify-center items-center px-4 py-8 relative">
+        <div className="w-full max-w-sm bg-white border border-[#EADDD7] rounded-3xl p-6 shadow-xl shadow-[#701A31]/5 text-center relative overflow-hidden">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-[#701A31] border border-[#A27938]/40 flex items-center justify-center text-white mb-4 shadow-md shadow-[#701A31]/20">
+            <Store className="w-8 h-8 text-[#FAF7F5]" />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
-            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-blue-700">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#701A31]/5 border border-[#A27938]/30 mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#701A31] animate-ping" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[#701A31]">
               Rajnandini Showroom
             </span>
           </div>
 
-          <h1 className="text-xl font-black text-slate-900 mt-1 tracking-tight">
-            Staff Operations Portal
+          <h1 className="text-xl font-black text-[#701A31] mt-1 tracking-tight font-serif">
+            Showroom Staff Portal
           </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Daily Store Expenses, Staff Advances &amp; Attendance</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Daily Petty Cash, Staff Advances &amp; Handover</p>
 
           <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
             <div>
@@ -393,9 +492,9 @@ export default function HeadStaffApp() {
                   setPinInput(e.target.value);
                   setPinError("");
                 }}
-                placeholder="Staff PIN (5555)"
+                placeholder="Enter Staff PIN (5555)"
                 autoFocus
-                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-slate-50 text-blue-700 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-2xl py-3 px-4 outline-none transition"
+                className="w-full text-center tracking-[0.4em] text-2xl font-black bg-[#FAF7F5] text-[#701A31] border-2 border-[#EADDD7] focus:border-[#701A31] focus:bg-white rounded-2xl py-3 px-4 outline-none transition"
               />
               {pinError && <p className="text-rose-600 text-xs font-semibold mt-2">{pinError}</p>}
             </div>
@@ -405,16 +504,17 @@ export default function HeadStaffApp() {
                 type="checkbox"
                 checked={rememberDevice}
                 onChange={(e) => setRememberDevice(e.target.checked)}
-                className="rounded border-slate-300 accent-blue-600 w-4 h-4"
+                className="rounded border-[#EADDD7] accent-[#701A31] w-4 h-4"
               />
               <span>Remember this showroom device</span>
             </label>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md shadow-blue-600/25 active:scale-[0.98] transition text-sm tracking-wide"
+              className="w-full py-3.5 bg-[#701A31] hover:bg-[#581326] text-white font-bold rounded-2xl shadow-md shadow-[#701A31]/25 active:scale-[0.98] transition text-sm tracking-wide flex items-center justify-center gap-2"
             >
-              Open Staff Portal →
+              <span>Open Staff Portal</span>
+              <ArrowRight className="w-4 h-4 text-[#A27938]" />
             </button>
           </form>
 
@@ -425,286 +525,249 @@ export default function HeadStaffApp() {
   }
 
   // =========================================================================
-  // MAIN STAFF APPLICATION VIEW (WHITE & SAPPHIRE BLUE THEME)
+  // MAIN STAFF APPLICATION VIEW (WINE & WARM GOLD INSPIRATION SUITE)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans pb-28 selection:bg-blue-600 selection:text-white">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
+    <div className="min-h-screen bg-[#FAF7F5] text-slate-800 font-sans pb-28 selection:bg-[#701A31] selection:text-white">
+      {/* Top Header matching Image 2 */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EADDD7] px-4 py-3 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 font-black">
-              <Users className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-[#701A31] text-white flex items-center justify-center shadow-sm">
+              <Store className="w-5 h-5 text-[#FAF7F5]" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-700">
-                  Rajnandini
-                </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-bold text-emerald-600 font-mono tracking-tight">LIVE CLOUD SYNC</span>
-              </div>
-              <h1 className="text-xs font-bold text-slate-900">Showroom Staff Portal</h1>
+              <h1 className="text-xs font-extrabold text-[#701A31] tracking-tight">
+                Showroom Staff Portal
+              </h1>
+              <p className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
+                ZARI &amp; SILK ATELIER • HARIDWAR
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => loadData(true)}
               disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 active:scale-95 transition"
+              className="p-2 rounded-xl text-slate-500 hover:text-[#701A31] hover:bg-slate-100 transition active:scale-95"
               title="Refresh Data"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#701A31]" : ""}`} />
             </button>
 
             <button
               onClick={handleLock}
-              className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-rose-600 active:scale-95 transition"
-              title="Lock App"
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95"
+              title="Lock Staff App"
             >
               <Lock className="w-4 h-4" />
             </button>
+
+            <div className="w-8 h-8 rounded-full bg-[#701A31] text-white flex items-center justify-center text-xs font-bold font-serif ml-1">
+              ST
+            </div>
           </div>
         </div>
 
-        {/* 4 Main Navigation Tabs */}
-        <div className="grid grid-cols-4 gap-1.5 pt-3">
+        {/* Live Cloud Sync & Tab Navigation matching Image 2 */}
+        <div className="pt-2.5 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Live Cloud Sync {lastRefreshedAt || "10:42 AM"}</span>
+          </div>
+
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#A27938]">
+            {activeTab} Suite
+          </span>
+        </div>
+
+        {/* Sub-Navigation Pills matching Images 2-5 */}
+        <div className="grid grid-cols-4 gap-1.5 pt-2.5">
           {[
-            { id: "expenses", label: "Expenses", icon: Coffee, count: todayExpenses.length },
-            { id: "advances", label: "Advances", icon: Wallet, count: todayAdvances.length },
-            { id: "attendance", label: "Attendance", icon: Calendar, count: `${attendanceStats.present}/${attendanceStats.totalStaff}` },
-            { id: "handover", label: "Handover", icon: ClipboardList, count: "EOD" },
+            { id: "expenses", label: "Expenses" },
+            { id: "advances", label: "Advances" },
+            { id: "attendance", label: "Attendance" },
+            { id: "handover", label: "Handover" },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-2 px-1.5 rounded-xl font-bold text-xs transition flex flex-col items-center justify-center ${
+                className={`py-2 rounded-xl font-bold text-xs transition text-center active:scale-95 cursor-pointer ${
                   isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-[#701A31] text-white shadow-sm"
+                    : "bg-[#F3ECE8] text-slate-600 hover:bg-[#EADDD7]"
                 }`}
               >
-                <div className="flex items-center gap-1">
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="truncate">{tab.label}</span>
-                </div>
-                <span
-                  className={`text-[10px] font-mono mt-0.5 ${
-                    isActive ? "text-blue-100" : "text-slate-400"
-                  }`}
-                >
-                  {tab.count}
-                </span>
+                {tab.label}
               </button>
             );
           })}
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Tab Content */}
       <main className="px-4 pt-4 max-w-lg mx-auto space-y-4">
         {/* =========================================================================
-            TAB 1: DAILY SHOWROOM EXPENSES (Tea, Snacks, Water, Supplies, etc.)
+            TAB 1: ☕ EXPENSES (EXACT INSPIRATION IMAGE 2)
             ========================================================================= */}
         {activeTab === "expenses" && (
           <div className="space-y-4">
-            {/* Today's Expense KPI Hero Card */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
+            {/* Hero Card: Petty Cash Daily Balance */}
+            <div className="rounded-3xl bg-white border border-[#EADDD7] p-5 shadow-sm space-y-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Total Expenses Today
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  PETTY CASH DAILY BALANCE
                 </span>
-                <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-mono">
-                  {todayExpenses.length} Records
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Reconciled
                 </span>
               </div>
 
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
+              <div>
+                <span className="text-xs text-slate-500 font-medium block">Total Expenses Today</span>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-[#701A31] font-mono tracking-tight tabular-nums">
                     ₹{todayExpenseTotal.toLocaleString("en-IN")}
                   </span>
-                  <div className="flex items-center gap-3 mt-1 text-xs font-medium">
-                    <span className="text-slate-500">
-                      Drawer Cash: <b className="text-rose-600 font-mono">₹{todayCashExpense}</b>
-                    </span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500">
-                      UPI / Online: <b className="text-emerald-600 font-mono">₹{todayOnlineExpense}</b>
-                    </span>
-                  </div>
+                  <span className="text-xs text-slate-400 font-mono">/ ₹5,000 daily limit</span>
+                </div>
+              </div>
+
+              {/* 2 Breakdown Boxes: Drawer Cash vs UPI Scan */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-2xl bg-[#FAF7F5] border border-[#EADDD7]">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <Wallet className="w-3.5 h-3.5 text-[#A27938]" />
+                    <span>Drawer Cash</span>
+                  </span>
+                  <p className="text-lg font-black text-[#701A31] font-mono mt-1 tabular-nums">
+                    ₹{todayCashExpense.toLocaleString("en-IN")}
+                  </p>
                 </div>
 
-                <button
-                  onClick={() => setShowExpenseModal(true)}
-                  className="px-3.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Record Expense</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick 1-Tap Preset Buttons (8 Frequent Operational Items) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
-              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
-                ⚡ Quick 1-Tap Presets (Frequent Daily Expenses)
-              </span>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  onClick={() => handleQuickExpense("Morning Tea & Biscuits", 40, "chai_nashta")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">☕ Morning Tea</span>
-                  <span className="font-mono font-bold text-blue-700">₹40</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Evening Tea & Snacks", 60, "chai_nashta")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">☕ Evening Snacks</span>
-                  <span className="font-mono font-bold text-blue-700">₹60</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Cold Drinks & Juices", 90, "refreshments")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">🥤 Cold Drinks</span>
-                  <span className="font-mono font-bold text-blue-700">₹90</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("20L Drinking Water Jar", 30, "refreshments")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">💧 Water Can</span>
-                  <span className="font-mono font-bold text-blue-700">₹30</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Cleaning & Store Care", 100, "cleaning_pooja")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">🧹 Cleaning / Care</span>
-                  <span className="font-mono font-bold text-blue-700">₹100</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Packaging Tape & Bags", 150, "stationery_packing")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">📦 Packing Bags</span>
-                  <span className="font-mono font-bold text-blue-700">₹150</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Customer Delivery / Auto", 80, "transport_fuel")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">🛵 Courier / Auto</span>
-                  <span className="font-mono font-bold text-blue-700">₹80</span>
-                </button>
-
-                <button
-                  onClick={() => handleQuickExpense("Minor Store Maintenance", 120, "other")}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between transition text-left"
-                >
-                  <span className="font-semibold text-slate-800">💡 Maintenance</span>
-                  <span className="font-mono font-bold text-blue-700">₹120</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Search & Category Filter */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={expenseSearch}
-                  onChange={(e) => setExpenseSearch(e.target.value)}
-                  placeholder="Search expense title or staff..."
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-blue-500"
-                />
+                <div className="p-3 rounded-2xl bg-[#FAF7F5] border border-[#EADDD7]">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-[#701A31]" />
+                    <span>UPI Scan</span>
+                  </span>
+                  <p className="text-lg font-black text-[#701A31] font-mono mt-1 tabular-nums">
+                    ₹{todayOnlineExpense.toLocaleString("en-IN")}
+                  </p>
+                </div>
               </div>
 
-              <select
-                value={expenseFilterCategory}
-                onChange={(e) => setExpenseFilterCategory(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-700 outline-none font-medium"
+              {/* Record Expense Button */}
+              <button
+                onClick={() => setShowExpenseModal(true)}
+                className="w-full py-3 rounded-2xl bg-[#701A31] hover:bg-[#581326] text-white font-bold text-xs shadow-md shadow-[#701A31]/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <option value="all">All Categories</option>
-                <option value="chai_nashta">Tea &amp; Snacks</option>
-                <option value="refreshments">Drinks &amp; Water</option>
-                <option value="cleaning_pooja">Cleaning &amp; Care</option>
-                <option value="stationery_packing">Packing Bags</option>
-                <option value="transport_fuel">Transport / Auto</option>
-                <option value="other">Miscellaneous</option>
-              </select>
+                <Plus className="w-4 h-4 text-[#A27938]" />
+                <span>Record Expense</span>
+              </button>
             </div>
 
-            {/* Expenses List */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-slate-700">
-                  Recorded Expenses ({filteredExpenses.length})
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  Today: {todayExpenses.length} entries
+            {/* Quick 1-Tap Presets Section matching Image 2 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[#701A31]">Quick 1-Tap Presets</h3>
+                <span className="text-[10px] font-bold bg-[#FBF0F2] text-[#701A31] px-2 py-0.5 rounded-full border border-[#F4D3D9]">
+                  Instant
                 </span>
               </div>
+              <p className="text-[11px] text-slate-500">
+                Tap to quickly add standard daily cash payouts
+              </p>
 
-              {filteredExpenses.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 space-y-2">
-                  <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="font-medium text-slate-500">No matching expense records found.</p>
-                  <p className="text-[11px]">Use the quick buttons above or tap "Record Expense" to add a new entry.</p>
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                {[
+                  { title: "Morning Tea & Chai", amt: 40, cat: "chai_nashta", sub: "Pantry • Cash", icon: Coffee },
+                  { title: "Cold Drinks / Guest Water", amt: 90, cat: "refreshments", sub: "Hospitality", icon: GlassWater },
+                  { title: "Cleaning & Housekeeping", amt: 100, cat: "cleaning_pooja", sub: "Maintenance", icon: SparklesIcon },
+                  { title: "Carry Bags & Packaging", amt: 150, cat: "stationery_packing", sub: "Packaging", icon: Package },
+                  { title: "Courier & Alterations", amt: 120, cat: "transport_fuel", sub: "Logistics", icon: Clock },
+                  { title: "Showroom Light & AC", amt: 250, cat: "other", sub: "Facilities", icon: Lightbulb },
+                ].map((preset, idx) => {
+                  const Icon = preset.icon;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuickExpense(preset.title, preset.amt, preset.cat as any)}
+                      disabled={isSubmittingExp}
+                      className="bg-white border border-[#EADDD7] hover:border-[#701A31] p-3 rounded-2xl shadow-xs hover:shadow-sm transition text-left flex flex-col justify-between h-24 active:scale-95 cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="w-7 h-7 rounded-xl bg-[#FBF0F2] text-[#701A31] flex items-center justify-center">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-mono font-bold text-xs bg-[#FBF0F2] text-[#701A31] px-2 py-0.5 rounded-lg border border-[#F4D3D9]">
+                          ₹{preset.amt}
+                        </span>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 truncate leading-snug">{preset.title}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{preset.sub}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Expenses Feed */}
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[#701A31]">Recorded Expenses ({expenses.length})</h3>
+                <span className="text-[10px] text-slate-400 font-mono">Today: {todayExpenses.length} entries</span>
+              </div>
+
+              {expenses.length === 0 ? (
+                <div className="bg-white border border-[#EADDD7] rounded-2xl p-6 text-center text-xs text-slate-400">
+                  No store expenses recorded today.
                 </div>
               ) : (
-                filteredExpenses.slice(0, 40).map((exp) => (
+                expenses.slice(0, 30).map((exp) => (
                   <div
                     key={exp.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm hover:border-blue-300 transition"
+                    className="bg-white border border-[#EADDD7] hover:border-[#701A31]/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs transition"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
+                        <span className="text-[9px] font-bold uppercase bg-[#FBF0F2] text-[#701A31] px-2 py-0.5 rounded-md border border-[#F4D3D9]">
                           {exp.category.replace("_", " ")}
                         </span>
                         <span
                           className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
                             exp.paidBy === "cash_galla"
-                              ? "bg-amber-50 text-amber-800 border border-amber-200"
+                              ? "bg-[#FAF7F5] text-[#A27938] border border-[#A27938]/30"
                               : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           }`}
                         >
-                          {exp.paidBy === "cash_galla" ? "Cash Drawer" : "UPI / Online"}
+                          {exp.paidBy === "cash_galla" ? "Cash Drawer" : "Online UPI"}
                         </span>
                       </div>
-                      <h3 className="text-xs font-bold text-slate-900 mt-1 truncate">{exp.title}</h3>
+                      <h4 className="text-xs font-bold text-slate-900 mt-1 truncate">{exp.title}</h4>
                       <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                         By {exp.staffName} • {exp.date} {exp.note ? `• "${exp.note}"` : ""}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0 flex items-center gap-2">
-                      <span className="text-base font-black text-rose-600 font-mono tabular-nums">
+                      <span className="text-base font-extrabold text-[#701A31] font-mono tabular-nums">
                         -₹{exp.amount.toLocaleString("en-IN")}
                       </span>
                       <button
                         onClick={async () => {
-                          if (confirm(`Are you sure you want to delete "${exp.title}"?`)) {
+                          if (confirm(`Delete expense "${exp.title}"?`)) {
                             await StaffExpenseService.deleteExpense(exp.id, exp.tokenNumber);
                             await loadData();
                           }
                         }}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                         title="Delete Expense"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -718,213 +781,343 @@ export default function HeadStaffApp() {
         )}
 
         {/* =========================================================================
-            TAB 2: STAFF ADVANCES & SALARY PAYOUTS
+            TAB 2: 👥 ADVANCES (EXACT INSPIRATION IMAGE 3)
             ========================================================================= */}
         {activeTab === "advances" && (
           <div className="space-y-4">
-            {/* Advance KPI Hero Card */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            {/* Hero Dark/Wine Card: Staff Advance Payouts */}
+            <div className="bg-[#701A31] text-white rounded-3xl p-5 shadow-md space-y-3.5">
+              <div>
+                <h2 className="text-xl font-bold font-serif tracking-tight text-white">
                   Staff Advance Payouts
-                </span>
-                <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-mono">
-                  {advances.filter((a) => a.status === "active").length} Active Advances
-                </span>
+                </h2>
+                <p className="text-xs text-rose-100/80 mt-1 leading-relaxed">
+                  Instant floor cash advances tracked against upcoming payroll settlement
+                </p>
               </div>
 
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
+              {/* 2-Column Stats */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-200 flex items-center gap-1">
+                    <Wallet className="w-3 h-3 text-[#A27938]" />
+                    <span>DISBURSED TODAY</span>
+                  </span>
+                  <span className="text-2xl font-black text-white font-mono mt-1 block">
                     ₹{todayAdvanceTotal.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-xs text-slate-500 font-medium block mt-0.5">
-                    Disbursed from Drawer today: <b className="text-amber-700 font-mono">₹{todayCashAdvance}</b>
+                  <span className="text-[10px] text-rose-200/90 block mt-0.5">
+                    {todayAdvances.length} transactions processed
                   </span>
                 </div>
 
-                <button
-                  onClick={() => setShowAdvanceModal(true)}
-                  className="px-3.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Issue Advance</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Staff Directory with Advance Balances */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800">
-                  Showroom Staff Members ({activeStaffMembers.length})
-                </span>
-                <span className="text-[10px] text-slate-400 font-medium">Monthly Payroll</span>
-              </div>
-
-              <div className="space-y-2">
-                {activeStaffMembers.map((staff) => {
-                  const staffAdvTotal = advances
-                    .filter((a) => a.staffId === staff.id && a.status === "active")
-                    .reduce((sum, a) => sum + a.amount, 0);
-
-                  return (
-                    <div
-                      key={staff.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200"
-                    >
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">{staff.name}</p>
-                        <p className="text-[10px] text-slate-500">{staff.role}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold font-mono block">
-                          Salary: ₹{staff.monthlySalary.toLocaleString("en-IN")}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold ${
-                            staffAdvTotal > 0 ? "text-rose-600" : "text-emerald-600"
-                          }`}
-                        >
-                          {staffAdvTotal > 0 ? `Active Advance: ₹${staffAdvTotal}` : "Zero Advance"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent Advances Log */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-slate-700 block px-1">
-                Recent Advance Records ({advances.length})
-              </span>
-
-              {advances.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 space-y-2">
-                  <Wallet className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="font-medium text-slate-500">No staff advance records found.</p>
-                  <p className="text-[11px]">Tap "Issue Advance" when disbursing a salary advance to an employee.</p>
+                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-200 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-[#A27938]" />
+                    <span>MONTH-TO-DATE</span>
+                  </span>
+                  <span className="text-2xl font-black text-white font-mono mt-1 block">
+                    ₹{monthAdvanceTotal.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[10px] text-rose-200/90 block mt-0.5">
+                    Within 25% safe reserve
+                  </span>
                 </div>
-              ) : (
-                advances.slice(0, 30).map((adv) => (
+              </div>
+
+              {/* Action Button: + Issue Staff Advance */}
+              <button
+                onClick={() => setShowAdvanceModal(true)}
+                className="w-full py-3 rounded-2xl bg-white text-[#701A31] hover:bg-slate-50 font-bold text-xs shadow-md transition active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-[#701A31]" />
+                <span>+ Issue Staff Advance</span>
+              </button>
+            </div>
+
+            {/* Filter Chips matching Image 3 */}
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                onClick={() => setAdvanceFilterStatus("all")}
+                className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                  advanceFilterStatus === "all"
+                    ? "bg-[#701A31] text-white shadow-xs"
+                    : "bg-white text-slate-600 border border-[#EADDD7]"
+                }`}
+              >
+                All Staff ({activeStaffMembers.length})
+              </button>
+
+              <button
+                onClick={() => setAdvanceFilterStatus("active")}
+                className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${
+                  advanceFilterStatus === "active"
+                    ? "bg-[#701A31] text-white shadow-xs"
+                    : "bg-white text-slate-600 border border-[#EADDD7]"
+                }`}
+              >
+                <span>Active ({activeAdvanceStaffCount})</span>
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+              </button>
+
+              <button
+                onClick={() => setAdvanceFilterStatus("zero")}
+                className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${
+                  advanceFilterStatus === "zero"
+                    ? "bg-[#701A31] text-white shadow-xs"
+                    : "bg-white text-slate-600 border border-[#EADDD7]"
+                }`}
+              >
+                <span>Zero ({zeroAdvanceStaffCount})</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              </button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                value={advanceSearch}
+                onChange={(e) => setAdvanceSearch(e.target.value)}
+                placeholder="Search by name, role, or payout status..."
+                className="w-full bg-white border border-[#EADDD7] rounded-2xl py-2.5 pl-9 pr-9 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#701A31] shadow-xs transition"
+              />
+              {advanceSearch && (
+                <button
+                  onClick={() => setAdvanceSearch("")}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Staff Advance Registry Section Header */}
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <h3 className="text-xs font-bold text-[#701A31]">Staff Advance Registry</h3>
+                <span className="text-[10px] text-slate-400">(Haridwar Floor)</span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Ready for Review
+              </span>
+            </div>
+
+            {/* Staff Cards matching Image 3 */}
+            <div className="space-y-3">
+              {filteredStaffForAdvances.map((staff) => {
+                const activeAdvAmt = staffActiveAdvanceMap.get(staff.id) || 0;
+                const empId = "EMP-" + (staff.id ? staff.id.slice(0, 4).toUpperCase() : "1042");
+
+                return (
                   <div
-                    key={adv.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm"
+                    key={staff.id}
+                    className="bg-white border border-[#EADDD7] rounded-2xl p-4 shadow-xs space-y-3"
                   >
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">{adv.staffName}</span>
-                        <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
-                          {adv.reason.replace("_", " ")}
-                        </span>
-                        <span
-                          className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                            adv.status === "active"
-                              ? "bg-amber-50 text-amber-800 border border-amber-200"
-                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}
-                        >
-                          {adv.status}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-[#FBF0F2] text-[#701A31] border border-[#F4D3D9] flex items-center justify-center font-bold font-serif text-sm">
+                          {staff.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                          <p className="text-[11px] text-slate-500">{staff.role}</p>
+                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            {empId} • Permanent Roster
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">SALARY</span>
+                        <span className="text-sm font-extrabold text-[#701A31] font-mono tabular-nums">
+                          ₹{staff.monthlySalary?.toLocaleString("en-IN") || "15,000"}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        Date: {adv.date} • Paid via {adv.paidBy === "cash_galla" ? "Cash Drawer" : "UPI"}
-                        {adv.note ? ` • "${adv.note}"` : ""}
-                      </p>
                     </div>
 
-                    <div className="text-right shrink-0 flex items-center gap-2">
-                      <span className="text-base font-black text-rose-600 font-mono tabular-nums">
-                        ₹{adv.amount.toLocaleString("en-IN")}
+                    {/* Status Pill Box */}
+                    <div className="p-2.5 rounded-xl bg-[#FAF7F5] border border-[#EADDD7] flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 font-bold font-mono">
+                        <span
+                          className={`w-2 h-2 rounded-full ${activeAdvAmt > 0 ? "bg-amber-500" : "bg-emerald-500"}`}
+                        />
+                        <span className={activeAdvAmt > 0 ? "text-[#701A31]" : "text-emerald-700"}>
+                          {activeAdvAmt > 0 ? `₹${activeAdvAmt.toLocaleString("en-IN")} Taken` : "Clean Balance"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-[#EADDD7]">
+                        {activeAdvAmt > 0 ? "Deduction next cycle" : "No pending advance"}
                       </span>
+                    </div>
+
+                    {/* Action Buttons: View Ledger & + Top-up */}
+                    <div className="flex items-center gap-2 pt-1">
                       <button
-                        onClick={async () => {
-                          if (confirm(`Are you sure you want to delete the advance for ${adv.staffName}?`)) {
-                            await StaffExpenseService.deleteAdvance(adv.id, adv.tokenNumber);
-                            await loadData();
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
-                        title="Delete Advance"
+                        onClick={() => setViewingLedgerStaff(staff)}
+                        className="flex-1 py-2 rounded-xl bg-white border border-[#EADDD7] text-slate-700 hover:bg-slate-50 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <FileText className="w-3.5 h-3.5 text-slate-500" />
+                        <span>View Ledger</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setAdvStaffId(staff.id);
+                          setShowAdvanceModal(true);
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-[#701A31] hover:bg-[#581326] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#A27938]" />
+                        <span>+ Top-up</span>
                       </button>
                     </div>
                   </div>
-                ))
-              )}
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* =========================================================================
-            TAB 3: DAILY STAFF ATTENDANCE
+            TAB 3: 📅 ATTENDANCE (EXACT INSPIRATION IMAGE 4)
             ========================================================================= */}
         {activeTab === "attendance" && (
           <div className="space-y-4">
-            {/* Date Bar & Mark All Present */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                    Daily Staff Attendance
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="date"
-                      value={selectedAttendanceDate}
-                      onChange={(e) => setSelectedAttendanceDate(e.target.value)}
-                      className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 outline-none font-mono"
-                    />
-                    {selectedAttendanceDate !== todayStr && (
-                      <button
-                        onClick={() => setSelectedAttendanceDate(todayStr)}
-                        className="text-[10px] font-bold text-slate-500 underline"
-                      >
-                        Today
-                      </button>
-                    )}
-                  </div>
-                </div>
-
+            {/* Date Selector Dropdown Banner */}
+            <div className="bg-white border border-[#EADDD7] rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#701A31]" />
+                <span className="text-xs font-bold text-slate-900">{formattedAttendanceDate}</span>
+              </div>
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={handleMarkAllPresent}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 active:scale-95 transition flex items-center gap-1.5"
+                  type="button"
+                  onClick={() => {
+                    const d = new Date(selectedAttendanceDate);
+                    d.setDate(d.getDate() - 1);
+                    setSelectedAttendanceDate(d.toISOString().split("T")[0]);
+                  }}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-600"
+                  title="Previous Day"
                 >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Mark All Present</span>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAttendanceDate(todayStr)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono ${
+                    selectedAttendanceDate === todayStr ? "bg-[#701A31] text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  Today
                 </button>
               </div>
+            </div>
 
-              {/* Status Counters */}
-              <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-slate-100">
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2">
-                  <span className="text-[10px] text-emerald-800 font-bold uppercase block">Present</span>
-                  <span className="text-base font-black text-emerald-700 font-mono">{attendanceStats.present}</span>
+            {/* Big Emerald Button: MARK ALL PRESENT */}
+            <button
+              onClick={handleMarkAllPresent}
+              className="w-full py-3 rounded-2xl bg-[#056636] hover:bg-[#04522b] text-white font-bold text-xs tracking-wider flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition cursor-pointer"
+            >
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>MARK ALL PRESENT</span>
+            </button>
+
+            {/* 4 Status Bento KPI Cards matching Image 4 */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Present */}
+              <div className="bg-white border border-[#EADDD7] rounded-2xl p-3.5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-[#056636] uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#056636]" />
+                    <span>PRESENT</span>
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-[#056636] font-mono tabular-nums">
+                      {attendanceStats.present}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">/ {attendanceStats.totalStaff} on floor</span>
+                  </div>
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-2">
-                  <span className="text-[10px] text-amber-800 font-bold uppercase block">Half Day</span>
-                  <span className="text-base font-black text-amber-700 font-mono">{attendanceStats.halfDay}</span>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#056636] flex items-center justify-center">
+                  <UserCheck className="w-5 h-5" />
                 </div>
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-2">
-                  <span className="text-[10px] text-rose-800 font-bold uppercase block">Absent</span>
-                  <span className="text-base font-black text-rose-700 font-mono">{attendanceStats.absent}</span>
+              </div>
+
+              {/* Half Day */}
+              <div className="bg-white border border-[#EADDD7] rounded-2xl p-3.5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-[#A27938] uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#A27938]" />
+                    <span>HALF DAY</span>
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-[#A27938] font-mono tabular-nums">
+                      {attendanceStats.halfDay}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">rostered</span>
+                  </div>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-2">
-                  <span className="text-[10px] text-blue-800 font-bold uppercase block">On Leave</span>
-                  <span className="text-base font-black text-blue-700 font-mono">{attendanceStats.leave}</span>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-[#A27938] flex items-center justify-center">
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* Absent */}
+              <div className="bg-white border border-[#EADDD7] rounded-2xl p-3.5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-rose-600 uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                    <span>ABSENT</span>
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-rose-600 font-mono tabular-nums">
+                      {attendanceStats.absent}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">unexcused</span>
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <UserX className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* On Leave */}
+              <div className="bg-white border border-[#EADDD7] rounded-2xl p-3.5 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-[#701A31] uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#701A31]" />
+                    <span>ON LEAVE</span>
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-[#701A31] font-mono tabular-nums">
+                      {attendanceStats.leave}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">approved</span>
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-[#FBF0F2] text-[#701A31] flex items-center justify-center">
+                  <CalendarCheck className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
-            {/* Individual Staff Attendance Rows */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-slate-700 block px-1">
-                Staff Members Attendance Roster ({activeStaffMembers.length})
-              </span>
+            {/* Showroom Staff Roster Header */}
+            <div className="pt-1">
+              <h3 className="text-xs font-bold text-[#701A31] flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-[#A27938]" />
+                <span>Showroom Staff Roster ({activeStaffMembers.length} Members)</span>
+              </h3>
+              <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                <Clock className="w-3 h-3" />
+                <span>Shift: 10:00 AM - 08:30 PM</span>
+              </p>
+            </div>
 
+            {/* Roster Cards with 4 Status Pills */}
+            <div className="space-y-3">
               {activeStaffMembers.map((staff) => {
                 const record = attendance.find((a) => a.staffId === staff.id);
                 const currentStatus = record?.status || "present";
@@ -932,49 +1125,48 @@ export default function HeadStaffApp() {
                 return (
                   <div
                     key={staff.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2.5"
+                    className="bg-white border border-[#EADDD7] rounded-2xl p-4 shadow-xs space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
-                        <p className="text-[10px] text-slate-500">{staff.role}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-[#FBF0F2] text-[#701A31] border border-[#F4D3D9] flex items-center justify-center font-bold font-serif text-sm">
+                          {staff.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          </div>
+                          <p className="text-[10px] text-slate-500">{staff.role}</p>
+                        </div>
                       </div>
 
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase font-mono ${
-                          currentStatus === "present"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : currentStatus === "half_day"
-                            ? "bg-amber-50 text-amber-800 border border-amber-200"
-                            : currentStatus === "absent"
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : "bg-blue-50 text-blue-700 border border-blue-200"
-                        }`}
-                      >
-                        {currentStatus.replace("_", " ")}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
+                          <span>→ 10:00 AM</span>
+                          <span className="text-[9px]">Punch In</span>
+                        </span>
+                      </div>
                     </div>
 
-                    {/* 4 Status Selection Buttons */}
+                    {/* 4 Status Toggle Pills */}
                     <div className="grid grid-cols-4 gap-1.5 text-xs">
                       {[
-                        { id: "present", label: "Present (P)", activeColor: "bg-emerald-600 text-white" },
-                        { id: "half_day", label: "Half Day", activeColor: "bg-amber-500 text-white" },
-                        { id: "absent", label: "Absent (A)", activeColor: "bg-rose-600 text-white" },
-                        { id: "leave", label: "On Leave", activeColor: "bg-blue-600 text-white" },
-                      ].map((s) => {
-                        const isSel = currentStatus === s.id;
+                        { id: "present", label: "Present", activeClass: "bg-[#056636] text-white" },
+                        { id: "half_day", label: "Half Day", activeClass: "bg-[#A27938] text-white" },
+                        { id: "absent", label: "Absent", activeClass: "bg-rose-600 text-white" },
+                        { id: "leave", label: "On Leave", activeClass: "bg-[#701A31] text-white" },
+                      ].map((st) => {
+                        const isSel = currentStatus === st.id;
                         return (
                           <button
-                            key={s.id}
-                            onClick={() => handleMarkAttendance(staff, s.id as any)}
-                            className={`py-2 px-1 rounded-xl text-[11px] font-bold transition ${
-                              isSel
-                                ? `${s.activeColor} shadow-sm`
-                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            key={st.id}
+                            onClick={() => handleMarkAttendance(staff, st.id as any)}
+                            className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer ${
+                              isSel ? `${st.activeClass} shadow-xs` : "bg-[#FAF7F5] text-slate-600 hover:bg-[#F3ECE8]"
                             }`}
                           >
-                            {s.label}
+                            {st.label}
                           </button>
                         );
                       })}
@@ -987,134 +1179,207 @@ export default function HeadStaffApp() {
         )}
 
         {/* =========================================================================
-            TAB 4: DAILY SHIFT HANDOVER & CASH DRAWER RECONCILIATION
+            TAB 4: 📋 HANDOVER (EXACT INSPIRATION IMAGE 5)
             ========================================================================= */}
         {activeTab === "handover" && (
           <div className="space-y-4">
-            {/* Daily Drawer Outflow Summary Card */}
-            <div className="rounded-3xl bg-white border border-slate-200/90 p-4 shadow-sm space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                Daily Outflow Summary (Cash Drawer)
-              </span>
+            {/* Hero Card: Daily Outflow Summary (Cash Drawer) */}
+            <div className="bg-white border border-[#EADDD7] rounded-3xl p-5 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#701A31] tracking-tight">
+                    Daily Outflow Summary (Cash Drawer)
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    Evening Closing • 08:30 PM
+                  </p>
+                </div>
+                <div className="w-8 h-8 rounded-xl bg-[#FBF0F2] text-[#701A31] flex items-center justify-center">
+                  <Store className="w-4 h-4" />
+                </div>
+              </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase block">Store Expenses</span>
-                  <span className="text-sm font-black text-slate-800 font-mono">₹{todayCashExpense}</span>
+              {/* 2 Metric Boxes */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-2xl bg-[#FAF7F5] border border-[#EADDD7]">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <Receipt className="w-3.5 h-3.5 text-[#701A31]" />
+                    <span>Store Expenses</span>
+                  </span>
+                  <p className="text-xl font-extrabold text-[#701A31] font-mono mt-1 tabular-nums">
+                    ₹{todayCashExpense.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-slate-400">Drawer cash used</span>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase block">Staff Advances</span>
-                  <span className="text-sm font-black text-slate-800 font-mono">₹{todayCashAdvance}</span>
+
+                <div className="p-3 rounded-2xl bg-[#FAF7F5] border border-[#EADDD7]">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <Wallet className="w-3.5 h-3.5 text-[#A27938]" />
+                    <span>Staff Advances</span>
+                  </span>
+                  <p className="text-xl font-extrabold text-[#701A31] font-mono mt-1 tabular-nums">
+                    ₹{todayCashAdvance.toLocaleString("en-IN")}
+                  </p>
+                  <span className="text-[10px] text-slate-400">Paid from drawer</span>
                 </div>
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5">
-                  <span className="text-[10px] text-rose-700 font-bold uppercase block">Total Cash Out</span>
-                  <span className="text-sm font-black text-rose-700 font-mono">₹{totalCashOutflow}</span>
+              </div>
+
+              {/* Total Cash Out Banner */}
+              <div className="p-3 rounded-2xl bg-[#FBF0F2] border border-[#F4D3D9] flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#701A31] font-bold uppercase flex items-center gap-1">
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    <span>Total Cash Out</span>
+                  </span>
+                  <p className="text-[10px] text-slate-500">Reconciled drawer deduction</p>
+                </div>
+                <span className="text-2xl font-black text-[#701A31] font-mono tabular-nums">
+                  ₹{totalCashOutflow.toLocaleString("en-IN")}
+                </span>
+              </div>
+
+              {/* Drawer Float Reconcile */}
+              <div className="pt-2 border-t border-[#EADDD7] space-y-1 text-xs">
+                <div className="flex justify-between text-slate-500 font-medium">
+                  <span>Opening Drawer Float:</span>
+                  <span className="font-mono font-bold text-slate-800">₹10,000</span>
+                </div>
+                <div className="flex justify-between text-slate-800 font-bold">
+                  <span>Expected Closing Cash:</span>
+                  <span className="font-mono text-[#056636]">
+                    ₹{(Math.max(0, 10000 - totalCashOutflow)).toLocaleString("en-IN")}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* End of Day Store Closing Checklist */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+            {/* Showroom Handover Checklist matching Image 5 */}
+            <div className="bg-white border border-[#EADDD7] rounded-3xl p-5 shadow-xs space-y-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800">
-                  End of Day Closing Checklist
-                </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                  Shift Closing
+                <div>
+                  <h3 className="text-xs font-bold text-[#701A31]">Showroom Handover Checklist</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    All items must be verified before locking register
+                  </p>
+                </div>
+                <span className="text-xs font-bold font-mono bg-[#FAF7F5] text-[#A27938] px-2.5 py-1 rounded-full border border-[#EADDD7]">
+                  {completedChecklistCount}/5 Done
                 </span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={handoverCashChecked}
-                    onChange={(e) => setHandoverCashChecked(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                  />
-                  <span className="font-medium text-slate-700">Cash drawer tallied with sales &amp; expenses</span>
-                </label>
+              {/* 5 Checklist Items */}
+              <div className="space-y-2.5">
+                {[
+                  {
+                    key: "cashDrawer",
+                    title: "Cash drawer tallied with POS physical tally",
+                    sub: "Verified by Floor Cashier",
+                  },
+                  {
+                    key: "physicalLocker",
+                    title: "Physical locker locked & keys handed to safe",
+                    sub: "Safe Box Slot #03",
+                  },
+                  {
+                    key: "lightsAc",
+                    title: "Spotlights, Chandelier & AC units switched off",
+                    sub: "Zone 1 & Bridal Salon",
+                  },
+                  {
+                    key: "scannersPos",
+                    title: "Barcode scanners & POS card swipe machines on charging dock",
+                    sub: "3 Handhelds + 2 EDC Terminals",
+                  },
+                  {
+                    key: "glassDoors",
+                    title: "Showroom glass doors double-locked & night shutter down",
+                    sub: "Main Entrance & Vault Shutter",
+                  },
+                ].map((item) => {
+                  const isChecked = !!handoverChecks[item.key];
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => toggleHandoverCheck(item.key)}
+                      className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 cursor-pointer select-none ${
+                        isChecked
+                          ? "bg-emerald-50/50 border-emerald-300"
+                          : "bg-[#FAF7F5] border-[#EADDD7] hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition ${
+                            isChecked ? "bg-[#056636] text-white" : "border-2 border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`text-xs font-bold ${
+                              isChecked ? "text-slate-900" : "text-slate-700"
+                            }`}
+                          >
+                            {item.title}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{item.sub}</p>
+                        </div>
+                      </div>
 
-                <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={handoverLocksChecked}
-                    onChange={(e) => setHandoverLocksChecked(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                  />
-                  <span className="font-medium text-slate-700">Physical cash drawer &amp; safety locker locked</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={handoverLightsChecked}
-                    onChange={(e) => setHandoverLightsChecked(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                  />
-                  <span className="font-medium text-slate-700">Showroom spotlights, display racks &amp; AC switched off</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={handoverTerminalChecked}
-                    onChange={(e) => setHandoverTerminalChecked(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600"
-                  />
-                  <span className="font-medium text-slate-700">Barcode scanner &amp; billing terminal placed on charging</span>
-                </label>
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isChecked ? "bg-emerald-500" : "bg-slate-300"
+                        }`}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Handover Note to Owner */}
-              <div className="pt-2">
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Closing Note for Showroom Owner (Optional)
-                </label>
-                <textarea
+              {/* Handover Note & Submit */}
+              <div className="pt-2 space-y-2.5">
+                <input
+                  type="text"
                   value={handoverNote}
                   onChange={(e) => setHandoverNote(e.target.value)}
-                  rows={2}
-                  placeholder="e.g. Counter cash tallied, all pending alterations packed."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:bg-white focus:border-blue-600"
+                  placeholder="Optional Handover Remarks (e.g. Masterji shift note)..."
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-xs text-slate-800 outline-none"
                 />
-              </div>
 
-              <button
-                onClick={() => {
-                  setHandoverSubmitted(true);
-                  alert("Shift Handover & Store Closing successfully submitted!");
-                }}
-                className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition ${
-                  handoverSubmitted
-                    ? "bg-emerald-600 text-white"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{handoverSubmitted ? "Shift Handover Logged ✓" : "Complete Shift Handover"}</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setHandoverSubmitted(true);
+                    alert("Showroom Handover recorded successfully for " + todayStr);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-[#701A31] hover:bg-[#581326] text-white font-bold text-xs tracking-wide shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-[#A27938]" />
+                  <span>Submit Evening Handover Slip</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
       </main>
 
       {/* =========================================================================
-          MODAL: ADD NEW CUSTOM EXPENSE
+          MODALS
           ========================================================================= */}
+      {/* Modal: Record Expense */}
       {showExpenseModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+          <div className="bg-white border border-[#EADDD7] rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
-                  Showroom Expense
+                <span className="text-[10px] uppercase font-bold text-[#701A31] tracking-wider">
+                  Staff Expense Record
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Record Store Expense</h3>
               </div>
               <button
                 onClick={() => setShowExpenseModal(false)}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1129,7 +1394,7 @@ export default function HeadStaffApp() {
                   value={expTitle}
                   onChange={(e) => setExpTitle(e.target.value)}
                   placeholder="e.g. Tea & Samosa, Cold Drinks, Cleaning, Tape"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none"
                 />
               </div>
 
@@ -1142,7 +1407,7 @@ export default function HeadStaffApp() {
                   value={expAmount}
                   onChange={(e) => setExpAmount(e.target.value)}
                   placeholder="₹ 60"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none"
                 />
               </div>
 
@@ -1152,49 +1417,48 @@ export default function HeadStaffApp() {
                   <select
                     value={expCategory}
                     onChange={(e) => setExpCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                    className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none font-medium"
                   >
                     <option value="chai_nashta">Tea &amp; Snacks</option>
                     <option value="refreshments">Drinks &amp; Water</option>
                     <option value="cleaning_pooja">Cleaning &amp; Care</option>
                     <option value="stationery_packing">Packing Bags &amp; Tape</option>
-                    <option value="transport_fuel">Transport / Delivery</option>
+                    <option value="transport_fuel">Transport &amp; Courier</option>
                     <option value="other">Miscellaneous</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Payment Method</label>
+                  <label className="font-bold text-slate-700 block mb-1">Paid From</label>
                   <select
                     value={expPaidBy}
                     onChange={(e) => setExpPaidBy(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                    className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                   >
                     <option value="cash_galla">💵 Cash Drawer</option>
-                    <option value="online_upi">📱 Online UPI / Bank</option>
+                    <option value="online_upi">📱 Online UPI</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Expense Incurred By (Staff Member)</label>
+                <label className="font-bold text-slate-700 block mb-1">Staff Member Name</label>
                 <input
                   type="text"
                   value={expStaffName}
                   onChange={(e) => setExpStaffName(e.target.value)}
-                  placeholder="Ramesh Kumar (Store Manager)"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Optional Note / Remark</label>
+                <label className="font-bold text-slate-700 block mb-1">Note (Optional)</label>
                 <input
                   type="text"
                   value={expNote}
                   onChange={(e) => setExpNote(e.target.value)}
-                  placeholder="e.g. 4 cups tea for showroom counter"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                  placeholder="e.g. Paid for showroom visitors"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2 text-slate-800 outline-none"
                 />
               </div>
 
@@ -1202,14 +1466,14 @@ export default function HeadStaffApp() {
                 <button
                   type="button"
                   onClick={() => setShowExpenseModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingExp}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#701A31] text-white font-bold shadow-md hover:bg-[#581326] cursor-pointer"
                 >
                   {isSubmittingExp ? "Saving..." : "Save Expense"}
                 </button>
@@ -1219,22 +1483,20 @@ export default function HeadStaffApp() {
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: ADD NEW STAFF ADVANCE
-          ========================================================================= */}
+      {/* Modal: Issue Advance */}
       {showAdvanceModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+          <div className="bg-white border border-[#EADDD7] rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#701A31] tracking-wider">
                   Staff Advance Record
                 </span>
                 <h3 className="text-base font-bold text-slate-900">Issue Salary Advance</h3>
               </div>
               <button
                 onClick={() => setShowAdvanceModal(false)}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800"
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1246,11 +1508,11 @@ export default function HeadStaffApp() {
                 <select
                   value={advStaffId}
                   onChange={(e) => setAdvStaffId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold outline-none"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 font-bold outline-none"
                 >
                   {activeStaffMembers.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.role}) - Monthly Salary ₹{s.monthlySalary.toLocaleString("en-IN")}
+                      {s.name} ({s.role}) - ₹{s.monthlySalary?.toLocaleString("en-IN") || 15000}
                     </option>
                   ))}
                 </select>
@@ -1265,7 +1527,7 @@ export default function HeadStaffApp() {
                   value={advAmount}
                   onChange={(e) => setAdvAmount(e.target.value)}
                   placeholder="₹ 500"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 text-base font-black font-mono outline-none"
                 />
               </div>
 
@@ -1275,7 +1537,7 @@ export default function HeadStaffApp() {
                   <select
                     value={advReason}
                     onChange={(e) => setAdvReason(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none"
+                    className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none"
                   >
                     <option value="salary_advance">Salary Advance</option>
                     <option value="emergency">Personal Emergency</option>
@@ -1286,26 +1548,26 @@ export default function HeadStaffApp() {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Payment Method</label>
+                  <label className="font-bold text-slate-700 block mb-1">Paid From</label>
                   <select
                     value={advPaidBy}
                     onChange={(e) => setAdvPaidBy(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none font-bold"
+                    className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2.5 text-slate-800 outline-none font-bold"
                   >
                     <option value="cash_galla">💵 Cash Drawer</option>
-                    <option value="online_upi">📱 Online UPI / Bank</option>
+                    <option value="online_upi">📱 Online UPI</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Deduction / Remarks Note (Optional)</label>
+                <label className="font-bold text-slate-700 block mb-1">Remarks (Optional)</label>
                 <input
                   type="text"
                   value={advNote}
                   onChange={(e) => setAdvNote(e.target.value)}
-                  placeholder="e.g. To be deducted from end-of-month salary"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 outline-none"
+                  placeholder="e.g. Advance requested for family function"
+                  className="w-full bg-[#FAF7F5] border border-[#EADDD7] rounded-xl p-2 text-slate-800 outline-none"
                 />
               </div>
 
@@ -1313,14 +1575,14 @@ export default function HeadStaffApp() {
                 <button
                   type="button"
                   onClick={() => setShowAdvanceModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingAdv}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700"
+                  className="flex-1 py-2.5 rounded-xl bg-[#701A31] text-white font-bold shadow-md hover:bg-[#581326] cursor-pointer"
                 >
                   {isSubmittingAdv ? "Saving..." : "Record Advance"}
                 </button>
@@ -1329,6 +1591,118 @@ export default function HeadStaffApp() {
           </div>
         </div>
       )}
+
+      {/* Modal: View Staff Advance Ledger */}
+      {viewingLedgerStaff && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-[#EADDD7] rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#701A31] tracking-wider">
+                  Advance Ledger History
+                </span>
+                <h3 className="text-base font-bold text-slate-900">{viewingLedgerStaff.name}</h3>
+                <p className="text-[10px] text-slate-500 font-mono">
+                  Monthly Wage: ₹{viewingLedgerStaff.monthlySalary?.toLocaleString("en-IN") || 15000}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingLedgerStaff(null)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {advances.filter((a) => a.staffId === viewingLedgerStaff.id).length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No advance entries on record.</p>
+              ) : (
+                advances
+                  .filter((a) => a.staffId === viewingLedgerStaff.id)
+                  .map((adv) => (
+                    <div
+                      key={adv.id}
+                      className="p-3 rounded-2xl bg-[#FAF7F5] border border-[#EADDD7] flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 font-mono">₹{adv.amount}</span>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                              adv.status === "active" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {adv.status === "active" ? "Pending" : "Cleared"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {adv.date} • {adv.reason.replace("_", " ")}
+                        </p>
+                      </div>
+
+                      {adv.status === "active" && (
+                        <button
+                          onClick={async () => {
+                            await StaffExpenseService.updateAdvanceStatus(adv.id, adv.tokenNumber, "cleared");
+                            await loadData();
+                          }}
+                          className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setViewingLedgerStaff(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer"
+            >
+              Close Ledger
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fixed Bottom Mobile Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#EADDD7] px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+        <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
+          {[
+            { id: "expenses", label: "Expenses", icon: Coffee },
+            { id: "advances", label: "Advances", icon: Wallet },
+            { id: "attendance", label: "Attendance", icon: Calendar },
+            { id: "handover", label: "Handover", icon: ClipboardList },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition active:scale-95 cursor-pointer ${
+                  isActive ? "text-[#701A31] font-bold" : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <div
+                  className={`p-1.5 rounded-xl transition ${
+                    isActive
+                      ? "bg-[#701A31] text-white shadow-md shadow-[#701A31]/20"
+                      : "bg-transparent text-slate-400"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] mt-1 tracking-tight font-medium truncate">
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
