@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient";
 
 export const MASTER_OWNER_PIN = "Indu@123";
 export const QUICK_OWNER_PIN = "7898";
+export const BOUTIQUE_OVERRIDE_PIN = "1458";
 export const OWNER_PHONE_NUMBER = "+91 7464987898";
 export const OWNER_NAME = "Indu (Rajnandini Showroom Owner)";
 
@@ -90,7 +91,7 @@ export function verifyOwnerOtp(inputCode: string): boolean {
   const clean = inputCode.trim().replace(/\s+/g, "");
 
   // Master PIN or Quick PIN check
-  if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN) {
+  if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN || clean === BOUTIQUE_OVERRIDE_PIN) {
     return true;
   }
 
@@ -152,7 +153,7 @@ export function verifyWhatsAppOtp(enteredCode: string): boolean {
   const clean = enteredCode.trim().replace(/\s+/g, "");
 
   // Master PIN or Quick PIN emergency override
-  if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN) {
+  if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN || clean === BOUTIQUE_OVERRIDE_PIN) {
     return true;
   }
 

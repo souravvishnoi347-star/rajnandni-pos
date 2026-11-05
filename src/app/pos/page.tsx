@@ -121,7 +121,7 @@ export default function RajnandiniPosPage() {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>("all");
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   const [bridalFilterActive, setBridalFilterActive] = useState<boolean>(false);
-  const [ownerOverrideActive, setOwnerOverrideActive] = useState<boolean>(true);
+  const [ownerOverrideActive, setOwnerOverrideActive] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [inventorySearch, setInventorySearch] = useState<string>("");
   const [inventoryCategory, setInventoryCategory] = useState<ProductCategory>("all");
@@ -1412,6 +1412,23 @@ export default function RajnandiniPosPage() {
   };
 
   // Item-level negotiation handlers
+  // Owner Override Toggle with Security PIN 1458
+  const handleToggleOwnerOverride = () => {
+    if (ownerOverrideActive) {
+      setOwnerOverrideActive(false);
+    } else {
+      const enteredPin = window.prompt("🔐 Enter Owner Security PIN (1458) to activate Owner Override:");
+      if (!enteredPin) return;
+      const clean = enteredPin.trim();
+      if (clean === "1458" || clean === "Indu@123" || clean === "7898") {
+        setOwnerOverrideActive(true);
+        alert("✅ Owner Override Activated (PIN 1458 Verified)!\nFloor price loss guard unlocked for special customer bargain.");
+      } else {
+        alert("❌ Galat Security PIN! Keval Showroom Owner (PIN 1458) hi override on kar sakte hain.");
+      }
+    }
+  };
+
   const startEditingItemPrice = (idx: number, currentPrice: number) => {
     setEditingPriceIdx(idx);
     setTempItemPrice(String(currentPrice));
@@ -1427,7 +1444,7 @@ export default function RajnandiniPosPage() {
       const minFloorPrice = cost > 0 ? Math.round(cost * 1.20) : 0;
 
       if (cost > 0 && val < minFloorPrice && !ownerOverrideActive) {
-        alert(
+        const wantsPin = window.confirm(
           `⚠️ Boutique Loss Guard Alert:\n\n` +
           `Aap is product ko ₹${val} mein nahi bech sakte!\n` +
           `• Wholesale Kharid Cost: ₹${cost}\n` +
@@ -1436,9 +1453,21 @@ export default function RajnandiniPosPage() {
           `-----------------------------------------------------\n` +
           `• Minimum Floor Price: ₹${minFloorPrice}\n\n` +
           `Boutique loss se bachne ke liye minimum rate ₹${minFloorPrice} hai.\n` +
-          `Agar special customer ke liye is se kam mein bechna hi hai, toh "Owner Override" toggle on karein.`
+          `Kya aap Owner Security PIN (1458) enter karke is discount ko approve karna chahte hain?`
         );
-        return;
+        if (wantsPin) {
+          const pin = window.prompt("🔐 Enter Owner Security PIN (1458):");
+          const clean = pin ? pin.trim() : "";
+          if (clean === "1458" || clean === "Indu@123" || clean === "7898") {
+            setOwnerOverrideActive(true);
+            alert("✅ Owner PIN 1458 Verified! Special rate approved.");
+          } else {
+            alert("❌ Galat PIN! Rate apply nahi kiya gaya.");
+            return;
+          }
+        } else {
+          return;
+        }
       }
 
       setCart(prev => {
@@ -4286,7 +4315,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         <span className="text-[10px] font-bold text-[#5a1e2d]">Owner Override</span>
                         <button
                           type="button"
-                          onClick={() => setOwnerOverrideActive(!ownerOverrideActive)}
+                          onClick={handleToggleOwnerOverride}
+                          title={ownerOverrideActive ? "Click to lock / turn off Owner Override" : "Enter PIN 1458 to turn on Owner Override"}
                           className={`w-7 h-4 rounded-full relative flex items-center p-0.5 transition cursor-pointer ${
                             ownerOverrideActive ? "bg-[#5a1e2d]" : "bg-[#ded9d8]"
                           }`}
@@ -4313,10 +4343,27 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           className="w-full pl-6 pr-2 py-1.5 bg-[#f8f2f2] font-black text-sm text-[#5a1e2d] rounded-lg focus:outline-none focus:bg-white border border-[#ede7e6] font-mono"
                         />
                       </div>
-                      <div className="shrink-0 flex items-center gap-1 bg-[#ede7e6] px-2 py-1 rounded text-[#534345] text-[10px] font-bold">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#5a1e2d]" />
-                        <span>PIN Verified</span>
-                      </div>
+                      {ownerOverrideActive ? (
+                        <button
+                          type="button"
+                          onClick={handleToggleOwnerOverride}
+                          className="shrink-0 flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-[10px] font-bold border border-emerald-300 transition cursor-pointer"
+                          title="Owner Override is Active (PIN 1458 Verified). Click to lock again."
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>PIN Verified</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleToggleOwnerOverride}
+                          className="shrink-0 flex items-center gap-1 bg-[#ede7e6] hover:bg-amber-100 text-[#534345] hover:text-amber-900 px-2 py-1 rounded text-[10px] font-bold border border-transparent hover:border-amber-300 transition cursor-pointer"
+                          title="Click to enter PIN 1458 and unlock Owner Override"
+                        >
+                          <Lock className="w-3.5 h-3.5 text-[#5a1e2d]" />
+                          <span>PIN Locked</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between text-[10.5px] text-[#534345] pt-0.5">
