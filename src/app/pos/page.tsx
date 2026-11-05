@@ -1420,20 +1420,41 @@ export default function RajnandiniPosPage() {
   const saveNegotiatedItemPrice = (idx: number) => {
     const val = Number(tempItemPrice);
     if (!isNaN(val) && val >= 0) {
+      const item = cart[idx];
+      if (!item) return;
+      const cost = Number(item.product.purchaseCost) || 0;
+      // Minimum Floor Rule: Cost + 10% (GST & Rent/Electricity/Salary) + 10% Profit = Cost * 1.20
+      const minFloorPrice = cost > 0 ? Math.round(cost * 1.20) : 0;
+
+      if (cost > 0 && val < minFloorPrice && !ownerOverrideActive) {
+        alert(
+          `⚠️ Boutique Loss Guard Alert:\n\n` +
+          `Aap is product ko ₹${val} mein nahi bech sakte!\n` +
+          `• Wholesale Kharid Cost: ₹${cost}\n` +
+          `• 10% Store Overheads (GST, Rent, Electricity, Staff Salary): ₹${Math.round(cost * 0.10)}\n` +
+          `• 10% Minimum Boutique Profit: ₹${Math.round(cost * 0.10)}\n` +
+          `-----------------------------------------------------\n` +
+          `• Minimum Floor Price: ₹${minFloorPrice}\n\n` +
+          `Boutique loss se bachne ke liye minimum rate ₹${minFloorPrice} hai.\n` +
+          `Agar special customer ke liye is se kam mein bechna hi hai, toh "Owner Override" toggle on karein.`
+        );
+        return;
+      }
+
       setCart(prev => {
         const next = [...prev];
-        const item = next[idx];
-        const orig = item.originalPrice || item.product.price;
+        const it = next[idx];
+        const orig = it.originalPrice || it.product.price;
         next[idx] = {
-          ...item,
+          ...it,
           price: val,
           originalPrice: orig,
           isNegotiated: val !== orig
         };
         return next;
       });
+      setEditingPriceIdx(null);
     }
-    setEditingPriceIdx(null);
   };
 
   const resetItemPrice = (idx: number) => {
@@ -4083,58 +4104,159 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       cart.map((item, idx) => {
                         const origPrice = item.originalPrice || item.product.price;
                         const isDiscounted = item.price < origPrice;
+                        const isIncreased = item.price > origPrice;
+                        const cost = Number(item.product.purchaseCost) || 0;
+                        const minFloorPrice = cost > 0 ? Math.round(cost * 1.20) : 0;
+                        const isEditingThis = editingPriceIdx === idx;
 
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-between p-2.5 bg-[#fef8f7] rounded-xl border border-[#ede7e6] gap-2 text-xs"
+                            className="flex flex-col p-2.5 bg-[#fef8f7] rounded-xl border border-[#ede7e6] gap-2 text-xs"
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-9 h-9 rounded-lg bg-[#fdc9af]/60 flex items-center justify-center text-[#5a1e2d] font-black text-xs shrink-0 font-serif">
-                                {item.product.category === "sarees" ? "🥻" : item.product.category === "lehengas" ? "👗" : "✨"}
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-bold text-[#1d1b1b] truncate text-xs">
-                                  {item.product.name}
-                                </span>
-                                <div className="flex items-center gap-1 text-[10px] text-[#857275]">
-                                  <span className="bg-[#ede7e6] text-[#1d1b1b] px-1.5 py-0.2 rounded font-semibold">
-                                    {item.selectedSize || "Standard"}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-9 h-9 rounded-lg bg-[#fdc9af]/60 flex items-center justify-center text-[#5a1e2d] font-black text-xs shrink-0 font-serif">
+                                  {item.product.category === "sarees" ? "🥻" : item.product.category === "lehengas" ? "👗" : "✨"}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-bold text-[#1d1b1b] truncate text-xs">
+                                    {item.product.name}
                                   </span>
-                                  <span>• Fall &amp; Pico Marked</span>
+                                  <div className="flex items-center gap-1 text-[10px] text-[#857275]">
+                                    <span className="bg-[#ede7e6] text-[#1d1b1b] px-1.5 py-0.2 rounded font-semibold">
+                                      {item.selectedSize || "Standard"}
+                                    </span>
+                                    <span>• ₹{item.price}/pc</span>
+                                    {item.isNegotiated && (
+                                      <span className="line-through text-stone-400">₹{origPrice}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end shrink-0 font-mono">
+                                <span className="font-black text-xs text-[#1d1b1b]">
+                                  ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                                </span>
+                                <div className="flex items-center gap-1 text-[10.5px]">
+                                  <div className="flex items-center border border-[#ede7e6] bg-white rounded-lg overflow-hidden">
+                                    <button
+                                      onClick={() => updateQuantity(idx, -1)}
+                                      className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="px-1.5 font-bold">{item.quantity}</span>
+                                    <button
+                                      onClick={() => updateQuantity(idx, 1)}
+                                      className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => removeFromCart(idx)}
+                                    className="text-rose-500 hover:text-rose-700 ml-1 p-0.5"
+                                    title="Remove Item"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-end shrink-0 font-mono">
-                              <span className="font-black text-xs text-[#1d1b1b]">
-                                ₹{(item.price * item.quantity).toLocaleString("en-IN")}
-                              </span>
-                              <div className="flex items-center gap-1 text-[10.5px]">
-                                <div className="flex items-center border border-[#ede7e6] bg-white rounded-lg overflow-hidden">
+                            {/* BARGAIN / CUSTOM RATE BUTTON & INLINE EDITOR */}
+                            {isEditingThis ? (
+                              <div className="p-2 bg-amber-50 rounded-lg border border-amber-200 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="font-bold text-amber-900 flex items-center gap-1">
+                                    <Handshake className="w-3.5 h-3.5 text-amber-700" />
+                                    Bargain Rate / Custom Selling Price:
+                                  </span>
+                                  {cost > 0 && (
+                                    <span className="text-[9.5px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                                      Min Floor: ₹{minFloorPrice} (Cost ₹{cost} + 20%)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="relative flex-grow">
+                                    <span className="absolute inset-y-0 left-0 pl-2 flex items-center font-bold text-xs text-stone-600">₹</span>
+                                    <input
+                                      type="number"
+                                      min={ownerOverrideActive ? "0" : minFloorPrice}
+                                      value={tempItemPrice}
+                                      onChange={(e) => setTempItemPrice(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") saveNegotiatedItemPrice(idx);
+                                        if (e.key === "Escape") setEditingPriceIdx(null);
+                                      }}
+                                      autoFocus
+                                      placeholder={String(item.price)}
+                                      className="w-full pl-5 pr-2 py-1 bg-white font-black text-xs text-stone-900 rounded border border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                                    />
+                                  </div>
                                   <button
-                                    onClick={() => updateQuantity(idx, -1)}
-                                    className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                    type="button"
+                                    onClick={() => saveNegotiatedItemPrice(idx)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
+                                    title="Save New Rate"
                                   >
-                                    -
+                                    <Check className="w-3 h-3" />
+                                    <span>Apply</span>
                                   </button>
-                                  <span className="px-1.5 font-bold">{item.quantity}</span>
                                   <button
-                                    onClick={() => updateQuantity(idx, 1)}
-                                    className="px-1.5 py-0.5 text-[#534345] hover:bg-[#ede7e6]"
+                                    type="button"
+                                    onClick={() => setEditingPriceIdx(null)}
+                                    className="px-2 py-1 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded text-[11px] font-bold cursor-pointer"
+                                    title="Cancel"
                                   >
-                                    +
+                                    <X className="w-3 h-3" />
                                   </button>
                                 </div>
-                                <button
-                                  onClick={() => removeFromCart(idx)}
-                                  className="text-rose-500 hover:text-rose-700 ml-1 p-0.5"
-                                  title="Remove Item"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
+                                {cost > 0 && Number(tempItemPrice) > 0 && Number(tempItemPrice) < minFloorPrice && !ownerOverrideActive && (
+                                  <p className="text-[9.5px] font-bold text-rose-600 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    Loss Guard: Cannot sell below ₹{minFloorPrice} (10% GST/Store Rent + 10% Profit rule)!
+                                  </p>
+                                )}
                               </div>
-                            </div>
+                            ) : (
+                              <div className="flex items-center justify-between pt-1 border-t border-[#ede7e6]/70">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingItemPrice(idx, item.price)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#fef3c7] hover:bg-[#fde68a] text-[#854d0e] border border-[#fcd34d] transition-all cursor-pointer shadow-2xs"
+                                  title="Click karke customer ke sath bargain karein ya rate badhayein"
+                                >
+                                  <Handshake className="w-3 h-3 text-[#b45309]" />
+                                  <span>{item.isNegotiated ? "Change Bargain Rate" : "Bargain / Custom Price"}</span>
+                                </button>
+
+                                {item.isNegotiated && (
+                                  <div className="flex items-center gap-1 text-[9.5px]">
+                                    {isDiscounted ? (
+                                      <span className="font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                        -₹{(origPrice - item.price) * item.quantity} Bargain
+                                      </span>
+                                    ) : isIncreased ? (
+                                      <span className="font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">
+                                        +₹{(item.price - origPrice) * item.quantity} Premium Rate
+                                      </span>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => resetItemPrice(idx)}
+                                      className="text-stone-500 hover:text-stone-800 underline font-semibold ml-1 cursor-pointer"
+                                      title="Reset to default price"
+                                    >
+                                      Reset
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })

@@ -1,0 +1,342 @@
+[
+  {
+    "productId": "prod-1790667631739",
+    "barcode": "8906044",
+    "name": "22 jarkon work",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1199,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:09.828Z"
+  },
+  {
+    "productId": "prod-1790667759222",
+    "barcode": "8906045",
+    "name": "15 cotton chitrkari",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1149,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.163Z"
+  },
+  {
+    "productId": "prod-1790668034006",
+    "barcode": "8906046",
+    "name": "18 silk soft",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1199,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.341Z"
+  },
+  {
+    "productId": "prod-1790668324823",
+    "barcode": "8906047",
+    "name": "25 muskan warm",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1199,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.411Z"
+  },
+  {
+    "productId": "prod-1790673187030",
+    "barcode": "8906048",
+    "name": "03 COLORS FANCY SAREES",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 599,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.545Z"
+  },
+  {
+    "productId": "prod-1790675174606",
+    "barcode": "8906049",
+    "name": "06 RIDDHI FASHION",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 549,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.621Z"
+  },
+  {
+    "productId": "prod-1790698240932",
+    "barcode": "8906050",
+    "name": "A ONCE TIME",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.752Z"
+  },
+  {
+    "productId": "prod-1790701092959",
+    "barcode": "8906051",
+    "name": "A 1540",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2001,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:10.832Z"
+  },
+  {
+    "productId": "prod-1790764143867",
+    "barcode": "8906052",
+    "name": "superwomen print",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1349,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.060Z"
+  },
+  {
+    "productId": "prod-1790764245680",
+    "barcode": "8906053",
+    "name": "mauly brasso",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1193,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.137Z"
+  },
+  {
+    "productId": "prod-1790764450202",
+    "barcode": "8906054",
+    "name": "aarvi",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1049,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.232Z"
+  },
+  {
+    "productId": "prod-1790773898028",
+    "barcode": "8906055",
+    "name": "Neha silk k 73",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2205,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.300Z"
+  },
+  {
+    "productId": "prod-1790774102222",
+    "barcode": "8906056",
+    "name": "digi hub k 229",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1932,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.470Z"
+  },
+  {
+    "productId": "prod-1790774222156",
+    "barcode": "8906057",
+    "name": "mysure silk k 249",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 999,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.571Z"
+  },
+  {
+    "productId": "prod-1790774911897",
+    "barcode": "8906058",
+    "name": "aaliya k 139",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1856,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.775Z"
+  },
+  {
+    "productId": "prod-1790775383699",
+    "barcode": "8906059",
+    "name": "sanjhana k 139",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1737,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.846Z"
+  },
+  {
+    "productId": "prod-1790779453725",
+    "barcode": "8906060",
+    "name": "goldcoin silk k 73 j j",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2198,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:11.953Z"
+  },
+  {
+    "productId": "prod-1790779802470",
+    "barcode": "8906061",
+    "name": "fastag silk k 73",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1455,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.051Z"
+  },
+  {
+    "productId": "prod-1790779968263",
+    "barcode": "8906062",
+    "name": "chintu",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1088,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.186Z"
+  },
+  {
+    "productId": "prod-1790780195297",
+    "barcode": "8906063",
+    "name": "patlu satin",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1845,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.279Z"
+  },
+  {
+    "productId": "prod-1790780300418",
+    "barcode": "8906064",
+    "name": "tilak dola",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1335,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.491Z"
+  },
+  {
+    "productId": "prod-1790780603834",
+    "barcode": "8906065",
+    "name": "bingo silk",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2033,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.574Z"
+  },
+  {
+    "productId": "prod-1790780726507",
+    "barcode": "8906066",
+    "name": "rubal silk",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2370,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.696Z"
+  },
+  {
+    "productId": "prod-1790780873227",
+    "barcode": "8906067",
+    "name": "kulcha silk",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1695,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:12.802Z"
+  },
+  {
+    "productId": "prod-1790857595079",
+    "barcode": "8906068",
+    "name": "laal",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1575,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:13.003Z"
+  },
+  {
+    "productId": "prod-1790933734497",
+    "barcode": "8906069",
+    "name": "gulshan dilnaaj",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1923,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:13.087Z"
+  },
+  {
+    "productId": "prod-1791096042158",
+    "barcode": "8906070",
+    "name": "D.NO.K4172",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 2187,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:13.199Z"
+  },
+  {
+    "productId": "prod-1791275486968",
+    "barcode": "8906071",
+    "name": "LEELA",
+    "oldCategory": "handbags",
+    "newCategory": "sarees",
+    "price": 1710,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to sarees",
+    "timestamp": "2026-11-01T05:40:13.280Z"
+  },
+  {
+    "productId": "prod-1791303204104",
+    "barcode": "8906072",
+    "name": "METAL BANGALS",
+    "oldCategory": "handbags",
+    "newCategory": "bangles",
+    "price": 330,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to bangles",
+    "timestamp": "2026-11-01T05:40:13.413Z"
+  },
+  {
+    "productId": "prod-1791478664902",
+    "barcode": "8906073",
+    "name": "Panjubi Jutti  Payal",
+    "oldCategory": "handbags",
+    "newCategory": "footwear",
+    "price": 399,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to footwear",
+    "timestamp": "2026-11-01T05:40:13.620Z"
+  },
+  {
+    "productId": "prod-1791479155922",
+    "barcode": "8906074",
+    "name": "Panjubi Jutti  Payal Royal change",
+    "oldCategory": "handbags",
+    "newCategory": "footwear",
+    "price": 389,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to footwear",
+    "timestamp": "2026-11-01T05:40:13.707Z"
+  },
+  {
+    "productId": "prod-1791545169112",
+    "barcode": "8906075",
+    "name": "sea grean stone",
+    "oldCategory": "handbags",
+    "newCategory": "footwear",
+    "price": 390,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to footwear",
+    "timestamp": "2026-11-01T05:40:13.786Z"
+  },
+  {
+    "productId": "prod-1791575078451",
+    "barcode": "8906076",
+    "name": "9780 makhija j j",
+    "oldCategory": "handbags",
+    "newCategory": "kurtis",
+    "price": 765,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to kurtis",
+    "timestamp": "2026-11-01T05:40:13.936Z"
+  },
+  {
+    "productId": "prod-1791621635642",
+    "barcode": "8906077",
+    "name": "lip balm ultra",
+    "oldCategory": "handbags",
+    "newCategory": "cosmetics",
+    "price": 55,
+    "reason": "Misfiled under handbags during POS barcode entry; moved to cosmetics",
+    "timestamp": "2026-11-01T05:40:14.125Z"
+  }
+]

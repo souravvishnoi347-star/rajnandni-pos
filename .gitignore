@@ -8,3 +8,6 @@ next-env.d.ts
 Bills/
 offline_bills_vault/
 *.pdf
+*.xlsx
+*.csv
+PRINT_NEW_HANDBAG_BARCODES.html
