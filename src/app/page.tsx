@@ -32,6 +32,7 @@ export default function StorefrontPage() {
   const categories = [
     { id: "all", label: "ALL COLLECTION" },
     { id: "sarees", label: "SAREES" },
+    { id: "blouses", label: "BLOUSES" },
     { id: "lehengas", label: "LEHENGAS" },
     { id: "kurtis", label: "KURTIS & SUITS" },
     { id: "kidswear", label: "KIDS WEAR" },

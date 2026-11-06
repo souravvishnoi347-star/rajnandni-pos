@@ -2047,6 +2047,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       bangles: { skuPrefix: "RJ-BNG", barcodeBase: 8907000, defaultSizes: ["2.4", "2.6", "2.8", "Free Size"] },
       earrings: { skuPrefix: "RJ-EAR", barcodeBase: 8908000, defaultSizes: ["Standard", "Jhumka", "Chandbali", "Stud", "Danglers"] },
       sarees: { skuPrefix: "RJ-SAR", barcodeBase: 8901000, defaultSizes: ["Free Size (5.5m + Blouse)"] },
+      blouses: { skuPrefix: "RJ-BLS", barcodeBase: 8901300, defaultSizes: ["Free Size / Stretchable", "34", "36", "38", "40"] },
       kurtis: { skuPrefix: "RJ-KRT", barcodeBase: 8902000, defaultSizes: ["M", "L", "XL", "XXL"] },
       lehengas: { skuPrefix: "RJ-LHG", barcodeBase: 8903000, defaultSizes: ["Free Size (Semi-Stitched)"] },
       kidswear: { skuPrefix: "RJ-KID", barcodeBase: 8912000, defaultSizes: ["2-3 Yrs", "4-5 Yrs", "6-7 Yrs", "8-9 Yrs", "10-12 Yrs"] },
@@ -2187,6 +2188,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     switch (cat) {
       case "sarees":
         return { icon: "🥻", label: "Royal Sarees", strip: "from-indigo-600 via-violet-600 to-purple-600", badge: "bg-indigo-50 text-indigo-900 border-indigo-200" };
+      case "blouses":
+        return { icon: "👚", label: "Designer Blouses", strip: "from-pink-600 via-rose-500 to-fuchsia-600", badge: "bg-pink-50 text-pink-900 border-pink-200" };
       case "lehengas":
         return { icon: "👗", label: "Bridal & Lehengas", strip: "from-rose-600 via-crimson-600 to-pink-600", badge: "bg-rose-50 text-rose-900 border-rose-200" };
       case "kidswear":
@@ -3752,6 +3755,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 {[
                   { id: "all", label: "All Items", count: products.length },
                   { id: "sarees", label: "Kanjivaram & Banarasi Sarees", count: products.filter(p => p.category === "sarees").length },
+                  { id: "blouses", label: "Designer Blouses", count: products.filter(p => p.category === "blouses").length },
                   { id: "lehengas", label: "Bridal Lehengas & Gowns", count: products.filter(p => p.category === "lehengas").length },
                   { id: "kurtis", label: "Designer Kurtis & Suits", count: products.filter(p => p.category === "kurtis").length },
                   { id: "handbags", label: "Luxury Handbags & Purses", count: products.filter(p => p.category === "handbags").length },
@@ -3816,6 +3820,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     // Determine craft tag
                     const craftTag = prod.badge || (
                       prod.category === "sarees" ? "Pure Gold Zari" :
+                      prod.category === "blouses" ? "Designer Cut & Stitched" :
                       prod.category === "lehengas" ? "Hand Zardozi Work" :
                       prod.category === "kurtis" ? "Mukaish Detailing" :
                       prod.category === "handbags" ? "Genuine Leather" :
@@ -3856,7 +3861,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <span className="font-serif font-black text-xl text-[#5a1e2d]">
-                                {prod.category === "sarees" ? "🥻" : prod.category === "lehengas" ? "👗" : prod.category === "kurtis" ? "👚" : "✨"}
+                                {prod.category === "sarees" ? "🥻" : prod.category === "blouses" ? "👚" : prod.category === "lehengas" ? "👗" : prod.category === "kurtis" ? "👘" : "✨"}
                               </span>
                             )}
                           </div>
@@ -4146,7 +4151,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="w-9 h-9 rounded-lg bg-[#fdc9af]/60 flex items-center justify-center text-[#5a1e2d] font-black text-xs shrink-0 font-serif">
-                                  {item.product.category === "sarees" ? "🥻" : item.product.category === "lehengas" ? "👗" : "✨"}
+                                  {item.product.category === "sarees" ? "🥻" : item.product.category === "blouses" ? "👚" : item.product.category === "lehengas" ? "👗" : "✨"}
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                   <span className="font-bold text-[#1d1b1b] truncate text-xs">
@@ -4849,8 +4854,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         <span className="text-[11px] text-[#857275] font-bold mr-1">Category:</span>
                         {[
                           { id: "all", label: `All Garments (${products.length})` },
-                          { id: "lehengas", label: `Bridal Heavy (${products.filter(p => p.category === "lehengas").length})` },
                           { id: "sarees", label: `Heritage Sarees (${products.filter(p => p.category === "sarees").length})` },
+                          { id: "blouses", label: `Designer Blouses (${products.filter(p => p.category === "blouses").length})` },
+                          { id: "lehengas", label: `Bridal Heavy (${products.filter(p => p.category === "lehengas").length})` },
                           { id: "kurtis", label: `Designer Kurtis (${products.filter(p => p.category === "kurtis").length})` },
                           { id: "handbags", label: `Luxury Handbags (${products.filter(p => p.category === "handbags").length})` },
                           { id: "jewellery", label: `Jewellery (${products.filter(p => p.category === "jewellery").length})` },
@@ -8670,6 +8676,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <option value="bangles">💫 Bangles &amp; Kada (RJ-BNG)</option>
                     <option value="earrings">💎 Earrings &amp; Jhumkas (RJ-EAR)</option>
                     <option value="sarees">🥻 Sarees (RJ-SAR)</option>
+                    <option value="blouses">👚 Designer Blouses (RJ-BLS)</option>
                     <option value="lehengas">👗 Lehengas &amp; Gowns (RJ-LHG)</option>
                     <option value="kurtis">👚 Kurtis &amp; Suits (RJ-KRT)</option>
                     <option value="jewellery">💍 Jewellery &amp; Sets (RJ-JWL)</option>
@@ -8896,6 +8903,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { name: "Saree Fall & Pico", cat: "sarees", price: 80 },
+                  { name: "Ready-made Designer Blouse", cat: "blouses", price: 450 },
                   { name: "Alteration / Fitting", cat: "kurtis", price: 100 },
                   { name: "Matching Latkan / Tassels", cat: "lehengas", price: 150 },
                   { name: "Matching Dupatta", cat: "kurtis", price: 250 },
@@ -8989,6 +8997,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     className="w-full px-2.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:outline-none cursor-pointer"
                   >
                     <option value="sarees">👗 Sarees &amp; Falls</option>
+                    <option value="blouses">👚 Designer Blouses &amp; Crops</option>
                     <option value="lehengas">✨ Lehengas &amp; Latkans</option>
                     <option value="kurtis">👘 Kurtis &amp; Suits</option>
                     <option value="kidswear">👶 Kids Wear</option>
