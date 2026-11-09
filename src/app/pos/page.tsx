@@ -193,16 +193,16 @@ export default function RajnandiniPosPage() {
   const [editStaffCompany, setEditStaffCompany] = useState<string>("");
   const [staffCategoryFilter, setStaffCategoryFilter] = useState<"all" | "staff" | "outsource">("all");
 
-  // Owner Security PIN / OTP Verification (1458 / Indu@123 / 7898 / Rolling OTP)
+  // Owner Security PIN / OTP Verification (Protected)
   const verifyOwnerSecurityPin = useCallback((actionDescription: string): boolean => {
     const entered = window.prompt(
-      `🔐 OWNER SECURITY AUTHORIZATION REQUIRED\n\nAction: ${actionDescription}\n\nPlease enter Owner PIN (1458) or live OTP from Owner Mobile to authorize:`
+      `🔐 OWNER SECURITY AUTHORIZATION REQUIRED\n\nAction: ${actionDescription}\n\nPlease enter Owner Security PIN or live OTP from Owner Mobile to authorize:`
     );
     if (!entered) return false;
     if (verifyOwnerOtp(entered)) {
       return true;
     }
-    alert("❌ Invalid Owner Security PIN / OTP!\n\nOnly Showroom Owner (Indu Sharma) can authorize staff additions, rate edits & garment deductions.\nUse PIN: 1458 or live OTP from Owner mobile.");
+    alert("❌ Access Denied: Invalid Owner Security PIN / OTP!\n\nOnly Showroom Owner (Indu Sharma) can authorize this action.");
     return false;
   }, []);
 
@@ -1430,19 +1430,19 @@ export default function RajnandiniPosPage() {
   };
 
   // Item-level negotiation handlers
-  // Owner Override Toggle with Security PIN 1458
+  // Owner Override Toggle with Security PIN
   const handleToggleOwnerOverride = () => {
     if (ownerOverrideActive) {
       setOwnerOverrideActive(false);
     } else {
-      const enteredPin = window.prompt("🔐 Enter Owner Security PIN (1458) to activate Owner Override:");
+      const enteredPin = window.prompt("🔐 Enter Owner Security PIN to activate Owner Override:");
       if (!enteredPin) return;
       const clean = enteredPin.trim();
       if (clean === "1458" || clean === "Indu@123" || clean === "7898") {
         setOwnerOverrideActive(true);
-        alert("✅ Owner Override Activated (PIN 1458 Verified)!\nFloor price loss guard unlocked for special customer bargain.");
+        alert("✅ Owner Override Activated!\nFloor price loss guard unlocked for special customer bargain.");
       } else {
-        alert("❌ Galat Security PIN! Keval Showroom Owner (PIN 1458) hi override on kar sakte hain.");
+        alert("❌ Galat Security PIN! Keval Showroom Owner hi override on kar sakte hain.");
       }
     }
   };
@@ -1471,14 +1471,14 @@ export default function RajnandiniPosPage() {
           `-----------------------------------------------------\n` +
           `• Minimum Floor Price: ₹${minFloorPrice}\n\n` +
           `Boutique loss se bachne ke liye minimum rate ₹${minFloorPrice} hai.\n` +
-          `Kya aap Owner Security PIN (1458) enter karke is discount ko approve karna chahte hain?`
+          `Kya aap Owner Security PIN enter karke is discount ko approve karna chahte hain?`
         );
         if (wantsPin) {
-          const pin = window.prompt("🔐 Enter Owner Security PIN (1458):");
+          const pin = window.prompt("🔐 Enter Owner Security PIN:");
           const clean = pin ? pin.trim() : "";
           if (clean === "1458" || clean === "Indu@123" || clean === "7898") {
             setOwnerOverrideActive(true);
-            alert("✅ Owner PIN 1458 Verified! Special rate approved.");
+            alert("✅ Owner Security Verified! Special rate approved.");
           } else {
             alert("❌ Galat PIN! Rate apply nahi kiya gaya.");
             return;
@@ -4360,7 +4360,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         <button
                           type="button"
                           onClick={handleToggleOwnerOverride}
-                          title={ownerOverrideActive ? "Click to lock / turn off Owner Override" : "Enter PIN 1458 to turn on Owner Override"}
+                          title={ownerOverrideActive ? "Click to lock / turn off Owner Override" : "Enter Owner Security PIN to turn on Owner Override"}
                           className={`w-7 h-4 rounded-full relative flex items-center p-0.5 transition cursor-pointer ${
                             ownerOverrideActive ? "bg-[#5a1e2d]" : "bg-[#ded9d8]"
                           }`}
@@ -4392,7 +4392,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           type="button"
                           onClick={handleToggleOwnerOverride}
                           className="shrink-0 flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-[10px] font-bold border border-emerald-300 transition cursor-pointer"
-                          title="Owner Override is Active (PIN 1458 Verified). Click to lock again."
+                          title="Owner Override is Active. Click to lock again."
                         >
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
                           <span>PIN Verified</span>
@@ -4402,7 +4402,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           type="button"
                           onClick={handleToggleOwnerOverride}
                           className="shrink-0 flex items-center gap-1 bg-[#ede7e6] hover:bg-amber-100 text-[#534345] hover:text-amber-900 px-2 py-1 rounded text-[10px] font-bold border border-transparent hover:border-amber-300 transition cursor-pointer"
-                          title="Click to enter PIN 1458 and unlock Owner Override"
+                          title="Click to enter Owner Security PIN and unlock Owner Override"
                         >
                           <Lock className="w-3.5 h-3.5 text-[#5a1e2d]" />
                           <span>PIN Locked</span>
@@ -4562,7 +4562,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                           ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
                           : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
                       }`}
-                      title="Staff/Partner taking garment - deduct from salary or service fees (Requires Owner PIN 1458)"
+                      title="Staff/Partner taking garment - deduct from salary or service fees (Requires Owner Security PIN)"
                     >
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="font-sans font-medium">Salary / Fee Cut</span>
@@ -7099,7 +7099,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         Staff &amp; Outsource Partner Khata
                       </h2>
                       <p className="text-xs text-[#534345] font-medium">
-                        Showroom staff &amp; external vendors taking products • Auto salary &amp; service fees deductions • Owner PIN Protected (1458)
+                        Showroom staff &amp; external vendors taking products • Auto salary &amp; service fees deductions • Owner Security Protected
                       </p>
                     </div>
                   </div>
@@ -8258,7 +8258,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 type="button"
                 onClick={() => handleDeleteStaff(editingStaffMember.id, editingStaffMember.name)}
                 className="px-3 py-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                title="Remove member (Requires Owner PIN 1458)"
+                title="Remove member (Requires Owner Security PIN)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Remove</span>
@@ -9934,7 +9934,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                         setOwnerOtpInput(e.target.value);
                         setOwnerAuthError("");
                       }}
-                      placeholder="e.g. 884655 or 7898"
+                      placeholder="Enter 6-digit OTP or Owner PIN"
                       className="flex-1 px-4 py-2.5 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono font-black text-center text-base tracking-widest focus:outline-hidden focus:border-amber-500"
                     />
                     <button
@@ -9946,7 +9946,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
                     </button>
                   </div>
                   <p className="text-[11px] text-stone-400 text-center">
-                    👉 Phone screen par dikh raha 6-digit OTP ya Master PIN (<strong className="text-amber-300">7898</strong>) daal kar Unlock karein.
+                    👉 Phone screen par dikh raha 6-digit OTP ya Owner Security PIN daal kar Unlock karein.
                   </p>
                 </div>
               </div>

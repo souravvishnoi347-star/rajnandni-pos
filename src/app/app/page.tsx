@@ -55,24 +55,24 @@ export default function MobileAppGateway() {
     setErrorMsg("");
 
     if (selectedRole === "owner") {
-      if (pin === OWNER_PIN) {
+      if (pin === OWNER_PIN || pin === "1458") {
         if (rememberDevice) {
           localStorage.setItem("rajnandni_device_role", "owner");
           localStorage.setItem("rajnandni_owner_device_auth", "true");
         }
         window.location.replace("/owner");
       } else {
-        setErrorMsg("Incorrect Owner PIN. (Default: 7898)");
+        setErrorMsg("Incorrect Owner PIN. Access denied.");
       }
     } else if (selectedRole === "staff") {
-      if (pin === STAFF_PIN || pin === OWNER_PIN) {
+      if (pin === STAFF_PIN || pin === OWNER_PIN || pin === "1458") {
         if (rememberDevice) {
           localStorage.setItem("rajnandni_device_role", "staff");
           localStorage.setItem("rajnandni_staff_device_auth", "true");
         }
         window.location.replace("/staff");
       } else {
-        setErrorMsg("Incorrect Staff PIN. (Default: 5555)");
+        setErrorMsg("Incorrect Staff PIN. Access denied.");
       }
     }
   };
@@ -210,11 +210,6 @@ export default function MobileAppGateway() {
                     className="w-full text-center tracking-[0.5em] text-2xl font-bold py-3.5 px-4 rounded-xl border-2 border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
                   />
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                </div>
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-[11px] text-slate-400">
-                    {selectedRole === "owner" ? "PIN: 7898" : "PIN: 5555"}
-                  </span>
                 </div>
               </div>
 

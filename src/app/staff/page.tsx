@@ -189,7 +189,7 @@ export default function HeadStaffApp() {
         }
       } catch {}
     } else {
-      setPinError("Incorrect Security PIN. Please enter staff PIN (5555).");
+      setPinError("Incorrect Security PIN. Access denied.");
       setPinInput("");
     }
   };
@@ -492,7 +492,7 @@ export default function HeadStaffApp() {
                   setPinInput(e.target.value);
                   setPinError("");
                 }}
-                placeholder="Enter Staff PIN (5555)"
+                placeholder="Enter Staff Security PIN"
                 autoFocus
                 className="w-full text-center tracking-[0.4em] text-2xl font-black bg-[#FAF7F5] text-[#701A31] border-2 border-[#EADDD7] focus:border-[#701A31] focus:bg-white rounded-2xl py-3 px-4 outline-none transition"
               />
@@ -517,8 +517,6 @@ export default function HeadStaffApp() {
               <ArrowRight className="w-4 h-4 text-[#A27938]" />
             </button>
           </form>
-
-          <p className="text-[11px] text-slate-400 mt-5 font-mono">Head Staff PIN: 5555</p>
         </div>
       </div>
     );

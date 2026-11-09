@@ -490,7 +490,7 @@ export default function MobileOwnerApp() {
   const handlePinSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const clean = pinInput.trim();
-    if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN) {
+    if (clean === MASTER_OWNER_PIN || clean === QUICK_OWNER_PIN || clean === "1458") {
       setIsAuthenticated(true);
       if (rememberDevice) {
         localStorage.setItem("rajnandni_owner_device_auth", "true");
@@ -499,7 +499,7 @@ export default function MobileOwnerApp() {
       setPinError("");
       setPinInput("");
     } else {
-      setPinError("Incorrect Security PIN. Please enter valid PIN (7898)");
+      setPinError("Incorrect Security PIN. Access denied.");
     }
   };
 
@@ -1008,7 +1008,7 @@ export default function MobileOwnerApp() {
                   setPinInput(e.target.value);
                   setPinError("");
                 }}
-                placeholder="Enter Quick PIN (7898)"
+                placeholder="Enter Owner Security PIN"
                 autoFocus
                 className="w-full text-center tracking-[0.4em] text-2xl font-black bg-slate-50 text-[#0F2042] border-2 border-slate-200 focus:border-[#0F2042] focus:bg-white rounded-2xl py-3 px-4 outline-none placeholder:tracking-normal placeholder:text-xs placeholder:text-slate-400 transition"
               />
@@ -1033,8 +1033,6 @@ export default function MobileOwnerApp() {
               <ArrowRight className="w-4 h-4 text-[#C5A880]" />
             </button>
           </form>
-
-          <p className="text-[11px] text-slate-400 mt-5 font-mono">Master PIN: 7898</p>
         </div>
       </div>
     );
