@@ -179,6 +179,8 @@ export default function RajnandiniPosPage() {
   const [newStaffPhone, setNewStaffPhone] = useState<string>("");
   const [newStaffRole, setNewStaffRole] = useState<string>("Showroom Sales Executive");
   const [newStaffSalary, setNewStaffSalary] = useState<string>("15000");
+  const [newStaffType, setNewStaffType] = useState<"staff" | "outsource">("staff");
+  const [newStaffCompany, setNewStaffCompany] = useState<string>("");
 
   // Edit Staff & Salary Modal State
   const [editingStaffMember, setEditingStaffMember] = useState<StaffMember | null>(null);
@@ -187,6 +189,22 @@ export default function RajnandiniPosPage() {
   const [editStaffRole, setEditStaffRole] = useState<string>("Sales Executive");
   const [editStaffSalary, setEditStaffSalary] = useState<string>("0");
   const [editStaffIsActive, setEditStaffIsActive] = useState<boolean>(true);
+  const [editStaffType, setEditStaffType] = useState<"staff" | "outsource">("staff");
+  const [editStaffCompany, setEditStaffCompany] = useState<string>("");
+  const [staffCategoryFilter, setStaffCategoryFilter] = useState<"all" | "staff" | "outsource">("all");
+
+  // Owner Security PIN / OTP Verification (1458 / Indu@123 / 7898 / Rolling OTP)
+  const verifyOwnerSecurityPin = useCallback((actionDescription: string): boolean => {
+    const entered = window.prompt(
+      `🔐 OWNER SECURITY AUTHORIZATION REQUIRED\n\nAction: ${actionDescription}\n\nPlease enter Owner PIN (1458) or live OTP from Owner Mobile to authorize:`
+    );
+    if (!entered) return false;
+    if (verifyOwnerOtp(entered)) {
+      return true;
+    }
+    alert("❌ Invalid Owner Security PIN / OTP!\n\nOnly Showroom Owner (Indu Sharma) can authorize staff additions, rate edits & garment deductions.\nUse PIN: 1458 or live OTP from Owner mobile.");
+    return false;
+  }, []);
 
   const issFilteredProducts = useMemo(() => {
     if (!issProductSearch.trim()) return products.slice(0, 12);
@@ -2754,7 +2772,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   // =========================================================
   // STAFF KHATA, SALARY DEDUCTIONS & CASH/UPI DEPOSITS HELPERS
   // =========================================================
-  const getStaffSummary = (staffId: string, baseSalary: number) => {
+  const getStaffSummary = (staffId: string, baseSalary: number, memberType?: "staff" | "outsource") => {
     const purchases = staffPurchases.filter(p => p.staffId === staffId);
     const deposits = staffDeposits.filter(d => d.staffId === staffId);
     const advances = staffAdvances.filter(a => a.staffId === staffId);
@@ -2764,7 +2782,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const advanceTotal = advances.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 
     const netDeduction = (garmentTotal + advanceTotal) - depositTotal;
-    const netPayable = Math.max(0, baseSalary - netDeduction);
+    const isOutsource = memberType === "outsource";
+    const netPayable = isOutsource
+      ? netDeduction
+      : Math.max(0, baseSalary - netDeduction);
 
     return {
       purchases,
@@ -2775,6 +2796,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       advanceTotal,
       netDeduction,
       netPayable,
+      isOutsource,
     };
   };
 
@@ -2801,11 +2823,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       setShowStaffDepositModal(false);
       setDepAmount("");
       setDepNote("");
-      alert(`✅ Deposit of ₹${num.toLocaleString("en-IN")} recorded for ${staffName}! Net salary deduction updated.`);
+      alert(`✅ Deposit of ₹${num.toLocaleString("en-IN")} recorded for ${staffName}! Net salary/fees deduction updated.`);
     }
   };
 
   const handleDeleteStaffDeposit = async (dep: StaffDepositRecord) => {
+    if (!verifyOwnerSecurityPin(`Delete deposit of ₹${dep.amount.toLocaleString("en-IN")} from ${dep.staffName}`)) return;
     if (!confirm(`Delete deposit of ₹${dep.amount.toLocaleString("en-IN")} received from ${dep.staffName}?`)) return;
     await StaffExpenseService.deleteStaffDeposit(dep.id, dep.tokenNumber);
     setStaffDeposits(prev => prev.filter(d => d.id !== dep.id && (!dep.tokenNumber || d.tokenNumber !== dep.tokenNumber)));
@@ -2822,6 +2845,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     const staff = staffMembers.find(s => s.id === issStaffId);
     const staffName = staff?.name || "Staff Member";
+    const isOutsource = staff?.memberType === "outsource";
 
     // Deduct local product stock
     const updatedProducts = products.map(p => {
@@ -2848,7 +2872,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       quantity: qty,
       price: prc,
       totalAmount: total,
-      note: issNote.trim() || "Direct Garment Issue (Salary Cut)",
+      note: issNote.trim() || (isOutsource ? "Direct Garment Issue (IT/Outsource Fees Cut)" : "Direct Garment Issue (Salary Cut)"),
     });
 
     if (rec) {
@@ -2859,12 +2883,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       setIssQty(1);
       setIssPrice("");
       setIssNote("");
-      alert(`✅ ${issSelectedProduct.name} (₹${total.toLocaleString("en-IN")}) issued to ${staffName}! Salary deduction booked.`);
+      alert(`✅ ${issSelectedProduct.name} (₹${total.toLocaleString("en-IN")}) issued to ${staffName}! ${isOutsource ? "Vendor fees deduction" : "Salary deduction"} booked.`);
     }
   };
 
   const handleDeleteStaffPurchase = async (pur: StaffProductPurchase) => {
-    if (!confirm(`Remove garment purchase "${pur.productName}" (₹${pur.totalAmount.toLocaleString("en-IN")}) from ${pur.staffName}'s salary deduction?`)) return;
+    if (!verifyOwnerSecurityPin(`Remove garment purchase "${pur.productName}" (₹${pur.totalAmount.toLocaleString("en-IN")}) from ${pur.staffName}`)) return;
+    if (!confirm(`Remove garment purchase "${pur.productName}" (₹${pur.totalAmount.toLocaleString("en-IN")}) from ${pur.staffName}'s deduction ledger?`)) return;
     await StaffExpenseService.deleteStaffPurchase(pur.id, pur.tokenNumber);
     setStaffPurchases(prev => prev.filter(p => p.id !== pur.id && (!pur.tokenNumber || p.tokenNumber !== pur.tokenNumber)));
   };
@@ -2872,11 +2897,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
   // Handlers for Adding, Editing Salary & Managing Staff Members
   const handleSaveNewStaff = async () => {
     if (!newStaffName.trim()) {
-      alert("Please enter staff member's full name");
+      alert("Please enter full name");
       return;
     }
     const salaryNum = Number(newStaffSalary);
-    if (isNaN(salaryNum) || salaryNum < 0) {
+    if (newStaffType === "staff" && (isNaN(salaryNum) || salaryNum < 0)) {
       alert("Please enter a valid monthly salary in ₹");
       return;
     }
@@ -2884,8 +2909,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const created = await StaffExpenseService.addStaffMember({
       name: newStaffName.trim(),
       phone: newStaffPhone.trim() || "NA",
-      role: newStaffRole.trim() || "Showroom Sales Executive",
-      monthlySalary: salaryNum,
+      role: newStaffRole.trim() || (newStaffType === "outsource" ? "Outsource Vendor / Partner" : "Showroom Sales Executive"),
+      monthlySalary: newStaffType === "outsource" ? 0 : (isNaN(salaryNum) ? 0 : salaryNum),
+      memberType: newStaffType,
+      companyName: newStaffCompany.trim(),
+      feeBalance: newStaffType === "outsource" ? (isNaN(salaryNum) ? 0 : salaryNum) : 0,
     });
 
     setStaffMembers(prev => [...prev.filter(s => s.id !== created.id), created]);
@@ -2894,7 +2922,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     setNewStaffPhone("");
     setNewStaffRole("Showroom Sales Executive");
     setNewStaffSalary("15000");
-    alert(`🎉 Staff member "${created.name}" added successfully with monthly salary ₹${created.monthlySalary.toLocaleString("en-IN")}!`);
+    setNewStaffType("staff");
+    setNewStaffCompany("");
+    alert(`🎉 ${created.memberType === "outsource" ? "Outsource Partner" : "Staff Member"} "${created.name}" added successfully!`);
   };
 
   const handleOpenEditStaffModal = (staff: StaffMember) => {
@@ -2904,26 +2934,26 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     setEditStaffRole(staff.role || "Sales Executive");
     setEditStaffSalary(String(staff.monthlySalary || 0));
     setEditStaffIsActive(staff.isActive !== false);
+    setEditStaffType(staff.memberType || "staff");
+    setEditStaffCompany(staff.companyName || "");
   };
 
   const handleSaveEditStaff = async () => {
     if (!editingStaffMember) return;
     if (!editStaffName.trim()) {
-      alert("Please enter staff member's name");
+      alert("Please enter name");
       return;
     }
     const salaryNum = Number(editStaffSalary);
-    if (isNaN(salaryNum) || salaryNum < 0) {
-      alert("Please enter a valid monthly salary in ₹");
-      return;
-    }
 
-    const updates = {
+    const updates: Partial<Omit<StaffMember, "id">> = {
       name: editStaffName.trim(),
       phone: editStaffPhone.trim() || "NA",
-      role: editStaffRole.trim() || "Sales Executive",
-      monthlySalary: salaryNum,
+      role: editStaffRole.trim() || (editStaffType === "outsource" ? "Outsource Partner" : "Sales Executive"),
+      monthlySalary: editStaffType === "outsource" ? 0 : (isNaN(salaryNum) ? 0 : salaryNum),
       isActive: editStaffIsActive,
+      memberType: editStaffType,
+      companyName: editStaffCompany.trim(),
     };
 
     await StaffExpenseService.updateStaffMember(editingStaffMember.id, updates);
@@ -2932,17 +2962,18 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       prev.map(s => (s.id === editingStaffMember.id ? { ...s, ...updates } : s))
     );
     setEditingStaffMember(null);
-    alert(`✅ Staff "${updates.name}" updated successfully! New monthly salary is ₹${updates.monthlySalary.toLocaleString("en-IN")}.`);
+    alert(`✅ Member "${updates.name}" updated successfully!`);
   };
 
   const handleDeleteStaff = async (staffId: string, staffName: string) => {
-    const ok = confirm(`Are you sure you want to remove staff member "${staffName}"?\n\nTheir past bill and deposit records will be preserved in records.`);
+    if (!verifyOwnerSecurityPin(`Permanently remove member "${staffName}"`)) return;
+    const ok = confirm(`Are you sure you want to remove member "${staffName}"?\n\nTheir past bill and deposit records will be preserved in records.`);
     if (!ok) return;
 
     await StaffExpenseService.deleteStaffMember(staffId);
     setStaffMembers(prev => prev.filter(s => s.id !== staffId));
     setEditingStaffMember(null);
-    alert(`Staff member "${staffName}" has been removed.`);
+    alert(`Member "${staffName}" has been removed.`);
   };
 
   // Advanced Filtered Completed Bills for Sales Report Tab
@@ -4518,16 +4549,21 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
                     <button
                       type="button"
-                      onClick={() => setPaymentMode("staff_salary")}
+                      onClick={() => {
+                        if (paymentMode !== "staff_salary") {
+                          if (!verifyOwnerSecurityPin("Authorizing Cart as Staff Salary or Outsource Fees Deduction")) return;
+                        }
+                        setPaymentMode("staff_salary");
+                      }}
                       className={`p-2 rounded-xl border flex flex-col text-left transition cursor-pointer ${
                         paymentMode === "staff_salary"
                           ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
                           : "bg-[#f8f2f2] text-[#1d1b1b] border-[#ede7e6] hover:bg-[#ede7e6]"
                       }`}
-                      title="Staff taking garment - deduct from monthly salary"
+                      title="Staff/Partner taking garment - deduct from salary or service fees (Requires Owner PIN 1458)"
                     >
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-sans font-medium">Salary Cut</span>
+                        <span className="font-sans font-medium">Salary / Fee Cut</span>
                         <UserCheck className="w-3.5 h-3.5 text-amber-500" />
                       </div>
                       <span className="font-black text-xs mt-1">
@@ -4542,10 +4578,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-bold text-amber-950 flex items-center gap-1">
                           <UserCheck className="w-3.5 h-3.5 text-amber-800" />
-                          Select Staff Taking Garment:
+                          Select Staff / Partner:
                         </span>
                         <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100 px-1.5 py-0.5 rounded">
-                          Salary Deduction
+                          Salary / Fee Deduction
                         </span>
                       </div>
                       <select
@@ -4555,12 +4591,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       >
                         {staffMembers.filter(s => s.isActive).map(s => (
                           <option key={s.id} value={s.id}>
-                            {s.name} ({s.role}) - Base Salary: ₹{s.monthlySalary.toLocaleString("en-IN")}/mo
+                            {s.name} ({s.role}) {s.memberType === "outsource" ? "• 💼 Outsource Partner" : `• Base: ₹${s.monthlySalary.toLocaleString("en-IN")}/mo`}
                           </option>
                         ))}
                       </select>
                       <p className="text-[10.5px] text-amber-900/90 leading-tight">
-                        💡 ₹{grandTotal.toLocaleString("en-IN")} will be cut from {staffMembers.find(s => s.id === selectedStaffBuyerId)?.name || "staff"}&apos;s salary and tracked in <strong>Staff Khata</strong>.
+                        💡 ₹{grandTotal.toLocaleString("en-IN")} will be cut from {staffMembers.find(s => s.id === selectedStaffBuyerId)?.name || "selected member"}&apos;s {staffMembers.find(s => s.id === selectedStaffBuyerId)?.memberType === "outsource" ? "service/contract fees" : "salary"} and tracked in <strong>Staff Khata</strong>.
                       </p>
                     </div>
                   )}
@@ -7058,10 +7094,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </span>
                     <div>
                       <h2 className="font-serif font-black text-xl text-[#3f0819] uppercase tracking-wide">
-                        Staff Khata &amp; Monthly Salary Deductions
+                        Staff &amp; Outsource Partner Khata
                       </h2>
                       <p className="text-xs text-[#534345] font-medium">
-                        Showroom staff taking products &amp; garments • Auto salary deductions • Cash into counter galla &amp; Online UPI repayments
+                        Showroom staff &amp; external vendors taking products • Auto salary &amp; service fees deductions • Owner PIN Protected (1458)
                       </p>
                     </div>
                   </div>
@@ -7070,7 +7106,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
-                      setDepStaffId(staffMembers[0]?.id || "staff-1");
+                      setDepStaffId(staffMembers[0]?.id || "");
                       setDepAmount("");
                       setDepNote("");
                       setShowStaffDepositModal(true);
@@ -7078,12 +7114,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <Banknote className="w-4 h-4 text-emerald-200" />
-                    <span>+ Record Staff Deposit (Cash / UPI)</span>
+                    <span>+ Record Deposit (Cash / UPI)</span>
                   </button>
 
                   <button
                     onClick={() => {
-                      setIssStaffId(staffMembers[0]?.id || "staff-1");
+                      if (!verifyOwnerSecurityPin("Issue Garment directly against Salary or Service Fees")) return;
+                      setIssStaffId(staffMembers[0]?.id || "");
                       setIssSelectedProduct(null);
                       setIssProductSearch("");
                       setIssQty(1);
@@ -7094,25 +7131,30 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     className="px-4 py-2.5 rounded-xl bg-[#5a1e2d] hover:bg-[#3f0819] text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <ShoppingBag className="w-4 h-4 text-amber-300" />
-                    <span>+ Issue Garment (Salary Cut)</span>
+                    <span>+ Issue Garment (Salary/Fee Cut)</span>
                   </button>
 
                   <button
                     onClick={() => {
+                      if (!verifyOwnerSecurityPin("Add New Staff Member or Outsource Partner")) return;
                       setNewStaffName("");
                       setNewStaffPhone("");
                       setNewStaffRole("Showroom Sales Executive");
                       setNewStaffSalary("15000");
+                      setNewStaffType("staff");
+                      setNewStaffCompany("");
                       setShowAddStaffModal(true);
                     }}
                     className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4 text-stone-950" />
-                    <span>+ Add New Staff</span>
+                    <span>+ Add New Staff / Partner</span>
                   </button>
 
                   <button
                     onClick={async () => {
+                      const sm = await StaffExpenseService.fetchStaffMembers();
+                      if (sm) setStaffMembers(sm);
                       const sp = await StaffExpenseService.fetchStaffPurchases();
                       if (sp) setStaffPurchases(sp);
                       const sd = await StaffExpenseService.fetchStaffDeposits();
@@ -7129,23 +7171,66 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 </div>
               </div>
 
+              {/* Category Filter Tabs */}
+              <div className="flex items-center gap-2 border-b border-[#ede7e6] pb-3">
+                <button
+                  type="button"
+                  onClick={() => setStaffCategoryFilter("all")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    staffCategoryFilter === "all"
+                      ? "bg-[#5a1e2d] text-white shadow-2xs"
+                      : "bg-white text-stone-600 border border-[#ede7e6] hover:bg-stone-50"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>All Members ({staffMembers.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStaffCategoryFilter("staff")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    staffCategoryFilter === "staff"
+                      ? "bg-[#5a1e2d] text-white shadow-2xs"
+                      : "bg-white text-stone-600 border border-[#ede7e6] hover:bg-stone-50"
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>In-Store Staff ({staffMembers.filter(s => s.memberType !== "outsource").length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStaffCategoryFilter("outsource")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    staffCategoryFilter === "outsource"
+                      ? "bg-purple-900 text-white shadow-2xs"
+                      : "bg-white text-purple-900 border border-purple-200 hover:bg-purple-50"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Outsource &amp; Vendors ({staffMembers.filter(s => s.memberType === "outsource").length})</span>
+                </button>
+              </div>
+
               {/* KPI Metrics Summary Grid */}
               {(() => {
                 const totalGarmentsAmount = staffPurchases.reduce((s, p) => s + (Number(p.totalAmount) || 0), 0);
                 const totalDepositsAmount = staffDeposits.reduce((s, d) => s + (Number(d.amount) || 0), 0);
                 const totalAdvancesAmount = staffAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
                 const netPendingDeductions = (totalGarmentsAmount + totalAdvancesAmount) - totalDepositsAmount;
-                const totalBaseSalaries = staffMembers.filter(s => s.isActive).reduce((s, m) => s + m.monthlySalary, 0);
+                const activeEmployees = staffMembers.filter(s => s.isActive && s.memberType !== "outsource");
+                const totalBaseSalaries = activeEmployees.reduce((s, m) => s + m.monthlySalary, 0);
 
                 return (
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
                     <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-2xs">
-                      <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider block">Total Active Staff</span>
+                      <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider block">Total Members</span>
                       <span className="text-xl font-black text-[#1d1b1b] mt-1 block">
-                        {staffMembers.filter(s => s.isActive).length} Members
+                        {staffMembers.filter(s => s.isActive).length} Active
                       </span>
                       <span className="text-[10px] text-[#534345] mt-0.5 block">
-                        Base: ₹{totalBaseSalaries.toLocaleString("en-IN")}/mo
+                        Staff Base: ₹{totalBaseSalaries.toLocaleString("en-IN")}/mo
                       </span>
                     </div>
 
@@ -7180,12 +7265,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     </div>
 
                     <div className="bg-gradient-to-br from-[#5a1e2d] to-[#3f0819] text-white p-4 rounded-2xl shadow-sm col-span-2 lg:col-span-1">
-                      <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider block">Net Pending Deductions</span>
+                      <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider block">Net Deductions</span>
                       <span className="text-xl font-black text-white font-mono mt-1 block">
                         ₹{Math.max(0, netPendingDeductions).toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-amber-200/80 mt-0.5 block">
-                        To be cut across all payrolls
+                        Payroll &amp; Vendor balance cuts
                       </span>
                     </div>
                   </div>
@@ -7196,130 +7281,157 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-serif font-bold text-base text-[#3f0819] uppercase tracking-wide">
-                    Showroom Staff Passbooks &amp; Net Salary Payable
+                    Ledger Passbooks &amp; Net Settlements
                   </h3>
                   <span className="text-xs text-[#534345]">
-                    Click any staff card to expand itemized ledger &amp; repayment history
+                    Click any card to expand itemized bills &amp; repayment history
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {staffMembers.map((staff) => {
-                    const summary = getStaffSummary(staff.id, staff.monthlySalary);
-                    const isExpanded = expandedStaffId === staff.id;
+                  {staffMembers
+                    .filter((s) => {
+                      if (staffCategoryFilter === "staff") return s.memberType !== "outsource";
+                      if (staffCategoryFilter === "outsource") return s.memberType === "outsource";
+                      return true;
+                    })
+                    .map((staff) => {
+                      const isOutsource = staff.memberType === "outsource";
+                      const summary = getStaffSummary(staff.id, staff.monthlySalary, staff.memberType);
+                      const isExpanded = expandedStaffId === staff.id;
 
-                    return (
-                      <div
-                        key={staff.id}
-                        className="bg-white rounded-2xl border border-[#ede7e6] shadow-xs overflow-hidden transition"
-                      >
-                        {/* Main Staff Header Row */}
-                        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gradient-to-r from-white via-[#fef8f7] to-white">
-                          <div className="flex items-start sm:items-center gap-3">
-                            <div className="w-11 h-11 rounded-2xl bg-[#5a1e2d] text-white font-black flex items-center justify-center text-base shrink-0 shadow-xs">
-                              {staff.name.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-stone-900 text-base">
-                                  {staff.name}
-                                </h4>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#fdc9af]/40 text-[#7c5641] border border-[#c99a82]/30">
-                                  {staff.role}
-                                </span>
-                                {!staff.isActive && (
-                                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-gray-100 text-gray-500">
-                                    Inactive
+                      return (
+                        <div
+                          key={staff.id}
+                          className="bg-white rounded-2xl border border-[#ede7e6] shadow-xs overflow-hidden transition"
+                        >
+                          {/* Main Staff Header Row */}
+                          <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gradient-to-r from-white via-[#fef8f7] to-white">
+                            <div className="flex items-start sm:items-center gap-3">
+                              <div className={`w-11 h-11 rounded-2xl text-white font-black flex items-center justify-center text-base shrink-0 shadow-xs ${
+                                isOutsource ? "bg-purple-800" : "bg-[#5a1e2d]"
+                              }`}>
+                                {staff.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-stone-900 text-base">
+                                    {staff.name}
+                                  </h4>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                    isOutsource
+                                      ? "bg-purple-100 text-purple-900 border-purple-200"
+                                      : "bg-[#fdc9af]/40 text-[#7c5641] border-[#c99a82]/30"
+                                  }`}>
+                                    {isOutsource ? `💼 Outsource: ${staff.role}` : staff.role}
                                   </span>
-                                )}
+                                  {!staff.isActive && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-gray-100 text-gray-500">
+                                      Inactive
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-[#534345] mt-1">
+                                  <span>📞 {staff.phone}</span>
+                                  {isOutsource ? (
+                                    <span>• Outsource Partner Ledger • <strong>Fee Deduction Offset</strong></span>
+                                  ) : (
+                                    <span>• Base Salary: <strong>₹{staff.monthlySalary.toLocaleString("en-IN")}/mo</strong></span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-[#534345] mt-1">
-                                <span>📞 {staff.phone}</span>
-                                <span>• Base Salary: <strong>₹{staff.monthlySalary.toLocaleString("en-IN")}/mo</strong></span>
+                            </div>
+
+                            {/* Financial Summary Badges */}
+                            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
+                              <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950">
+                                <span className="text-[10px] uppercase font-bold text-amber-800 block">Garments Taken</span>
+                                <span className="font-mono font-black text-sm">₹{summary.garmentTotal.toLocaleString("en-IN")}</span>
+                                <span className="text-[9.5px] text-amber-800 ml-1">({summary.purchases.length} pcs)</span>
+                              </div>
+
+                              <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950">
+                                <span className="text-[10px] uppercase font-bold text-emerald-800 block">Repaid (Cash/UPI)</span>
+                                <span className="font-mono font-black text-sm">₹{summary.depositTotal.toLocaleString("en-IN")}</span>
+                              </div>
+
+                              {summary.advanceTotal > 0 && (
+                                <div className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-950">
+                                  <span className="text-[10px] uppercase font-bold text-purple-800 block">Advance</span>
+                                  <span className="font-mono font-black text-sm">₹{summary.advanceTotal.toLocaleString("en-IN")}</span>
+                                </div>
+                              )}
+
+                              <div className={`px-3.5 py-1.5 rounded-xl text-white shadow-xs ${
+                                isOutsource ? "bg-purple-950" : "bg-stone-900"
+                              }`}>
+                                <span className="text-[10px] uppercase font-bold text-amber-400 block">
+                                  {isOutsource ? "Net Fees Deducted" : "Net Salary Payable"}
+                                </span>
+                                <span className="font-mono font-black text-base text-white">
+                                  ₹{summary.netPayable.toLocaleString("en-IN")}
+                                </span>
+                              </div>
+
+                              {/* Actions on Staff Card */}
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <button
+                                  onClick={() => {
+                                    setDepStaffId(staff.id);
+                                    setDepAmount("");
+                                    setDepNote("");
+                                    setShowStaffDepositModal(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                  title="Paid cash into counter galla or UPI"
+                                >
+                                  <Banknote className="w-3.5 h-3.5" />
+                                  <span>Repay</span>
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (!verifyOwnerSecurityPin(`Issue Garment directly to ${staff.name}`)) return;
+                                    setIssStaffId(staff.id);
+                                    setIssSelectedProduct(null);
+                                    setIssProductSearch("");
+                                    setIssQty(1);
+                                    setIssPrice("");
+                                    setIssNote("");
+                                    setShowStaffIssueModal(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                  title="Issue a garment directly to this member"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                  <span>{isOutsource ? "+ Garment (Fee Cut)" : "+ Garment"}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (!verifyOwnerSecurityPin(`Edit rates & payroll for ${staff.name}`)) return;
+                                    handleOpenEditStaffModal(staff);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                                  title="Edit member's rates, role & details"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-stone-600" />
+                                  <span>{isOutsource ? "Edit Rates" : "Edit Salary"}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => setExpandedStaffId(isExpanded ? null : staff.id)}
+                                  className={`px-3 py-1.5 rounded-lg font-bold text-[11px] border transition cursor-pointer flex items-center gap-1 ${
+                                    isExpanded
+                                      ? "bg-[#5a1e2d] text-white border-[#5a1e2d]"
+                                      : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+                                  }`}
+                                >
+                                  <span>{isExpanded ? "Hide Passbook ▲" : `Passbook (${summary.purchases.length + summary.deposits.length}) ▼`}</span>
+                                </button>
                               </div>
                             </div>
                           </div>
-
-                          {/* Financial Summary Badges */}
-                          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
-                            <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950">
-                              <span className="text-[10px] uppercase font-bold text-amber-800 block">Garments Taken</span>
-                              <span className="font-mono font-black text-sm">₹{summary.garmentTotal.toLocaleString("en-IN")}</span>
-                              <span className="text-[9.5px] text-amber-800 ml-1">({summary.purchases.length} pcs)</span>
-                            </div>
-
-                            <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950">
-                              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Repaid (Cash/UPI)</span>
-                              <span className="font-mono font-black text-sm">₹{summary.depositTotal.toLocaleString("en-IN")}</span>
-                            </div>
-
-                            {summary.advanceTotal > 0 && (
-                              <div className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-950">
-                                <span className="text-[10px] uppercase font-bold text-purple-800 block">Advance</span>
-                                <span className="font-mono font-black text-sm">₹{summary.advanceTotal.toLocaleString("en-IN")}</span>
-                              </div>
-                            )}
-
-                            <div className="px-3.5 py-1.5 rounded-xl bg-stone-900 text-white shadow-xs">
-                              <span className="text-[10px] uppercase font-bold text-amber-400 block">Net Salary Payable</span>
-                              <span className="font-mono font-black text-base text-white">₹{summary.netPayable.toLocaleString("en-IN")}</span>
-                            </div>
-
-                            {/* Actions on Staff Card */}
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <button
-                                onClick={() => {
-                                  setDepStaffId(staff.id);
-                                  setDepAmount("");
-                                  setDepNote("");
-                                  setShowStaffDepositModal(true);
-                                }}
-                                className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
-                                title="Staff paid cash into galla or UPI"
-                              >
-                                <Banknote className="w-3.5 h-3.5" />
-                                <span>Repay</span>
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setIssStaffId(staff.id);
-                                  setIssSelectedProduct(null);
-                                  setIssProductSearch("");
-                                  setIssQty(1);
-                                  setIssPrice("");
-                                  setIssNote("");
-                                  setShowStaffIssueModal(true);
-                                }}
-                                className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
-                                title="Issue a garment directly to this staff member"
-                              >
-                                <Tag className="w-3.5 h-3.5" />
-                                <span>+ Garment</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleOpenEditStaffModal(staff)}
-                                className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                                title="Edit staff member's salary, role & details"
-                              >
-                                <Edit3 className="w-3.5 h-3.5 text-stone-600" />
-                                <span>Edit Salary</span>
-                              </button>
-
-                              <button
-                                onClick={() => setExpandedStaffId(isExpanded ? null : staff.id)}
-                                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] border transition cursor-pointer flex items-center gap-1 ${
-                                  isExpanded
-                                    ? "bg-[#5a1e2d] text-white border-[#5a1e2d]"
-                                    : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
-                                }`}
-                              >
-                                <span>{isExpanded ? "Hide Passbook ▲" : `Passbook (${summary.purchases.length + summary.deposits.length}) ▼`}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
 
                         {/* Expandable Itemized Passbook */}
                         {isExpanded && (
@@ -7758,7 +7870,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       )}
 
       {/* =========================================================
-          MODAL: ADD NEW SHOWROOM STAFF MEMBER
+          MODAL: ADD NEW SHOWROOM STAFF OR OUTSOURCE PARTNER
           ========================================================= */}
       {showAddStaffModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -7769,8 +7881,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <UserPlus className="w-5 h-5 text-amber-300" />
                 </span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-base">Add New Staff Member</h3>
-                  <span className="text-xs text-stone-500">Showroom employee profile &amp; monthly base salary</span>
+                  <h3 className="font-bold text-stone-900 text-base">
+                    {newStaffType === "outsource" ? "Add Outsource / Vendor Partner" : "Add New Staff Member"}
+                  </h3>
+                  <span className="text-xs text-stone-500">
+                    {newStaffType === "outsource" ? "External contractor, IT, agency or vendor" : "Showroom employee & monthly payroll"}
+                  </span>
                 </div>
               </div>
               <button
@@ -7779,6 +7895,46 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Type Switcher: Staff vs Outsource */}
+            <div>
+              <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                Member Classification *
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewStaffType("staff");
+                    setNewStaffRole("Showroom Sales Executive");
+                  }}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    newStaffType === "staff"
+                      ? "bg-[#5a1e2d] text-white border-[#5a1e2d] shadow-2xs"
+                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>🏬 In-Store Staff</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewStaffType("outsource");
+                    setNewStaffRole("IT & Software Partner");
+                  }}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    newStaffType === "outsource"
+                      ? "bg-purple-900 text-white border-purple-900 shadow-2xs"
+                      : "bg-stone-50 text-purple-900 border-stone-200 hover:bg-purple-50"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>💼 Outsource Partner</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -7790,7 +7946,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   type="text"
                   value={newStaffName}
                   onChange={(e) => setNewStaffName(e.target.value)}
-                  placeholder="e.g. Simran Kaur"
+                  placeholder={newStaffType === "outsource" ? "e.g. Sourabh Sharma" : "e.g. Simran Kaur"}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-semibold focus:outline-hidden focus:border-[#5a1e2d]"
                   autoFocus
                 />
@@ -7805,14 +7961,29 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   maxLength={10}
                   value={newStaffPhone}
                   onChange={(e) => setNewStaffPhone(e.target.value)}
-                  placeholder="e.g. 9897123456"
+                  placeholder="e.g. 8979505639"
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono focus:outline-hidden focus:border-[#5a1e2d]"
                 />
               </div>
 
+              {newStaffType === "outsource" && (
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Company / Firm Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newStaffCompany}
+                    onChange={(e) => setNewStaffCompany(e.target.value)}
+                    placeholder="e.g. Hostbolt / Tech Studio"
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
-                  Role / Designation *
+                  Role / Specialization *
                 </label>
                 <div className="space-y-1.5">
                   <select
@@ -7820,19 +7991,32 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     onChange={(e) => setNewStaffRole(e.target.value)}
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-medium focus:outline-hidden focus:border-[#5a1e2d]"
                   >
-                    <option value="Showroom Sales Executive">Showroom Sales Executive</option>
-                    <option value="Senior Sales Executive">Senior Sales Executive</option>
-                    <option value="Store Manager">Store Manager</option>
-                    <option value="Saree & Bridal Specialist">Saree &amp; Bridal Specialist</option>
-                    <option value="Tailor & Alteration Master">Tailor &amp; Alteration Master</option>
-                    <option value="Counter Cashier & Billing">Counter Cashier &amp; Billing</option>
-                    <option value="Showroom Helper & Inventory">Showroom Helper &amp; Inventory</option>
-                    <option value="Custom">Other (Type Custom Role)</option>
+                    {newStaffType === "staff" ? (
+                      <>
+                        <option value="Showroom Sales Executive">Showroom Sales Executive</option>
+                        <option value="Senior Sales Executive">Senior Sales Executive</option>
+                        <option value="Store Manager">Store Manager</option>
+                        <option value="Saree & Bridal Specialist">Saree &amp; Bridal Specialist</option>
+                        <option value="Tailor & Alteration Master">Tailor &amp; Alteration Master</option>
+                        <option value="Counter Cashier & Billing">Counter Cashier &amp; Billing</option>
+                        <option value="Showroom Helper & Inventory">Showroom Helper &amp; Inventory</option>
+                        <option value="Custom">Other (Type Custom Role)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="IT & Software Partner">IT &amp; Software Partner</option>
+                        <option value="Digital Marketing & Social Media">Digital Marketing &amp; Social Media</option>
+                        <option value="External Master Tailor / Karigar">External Master Tailor / Karigar</option>
+                        <option value="Product Photography & Video">Product Photography &amp; Video</option>
+                        <option value="Boutique Designer Consultant">Boutique Designer Consultant</option>
+                        <option value="Custom">Other Outsource Service</option>
+                      </>
+                    )}
                   </select>
                   {newStaffRole === "Custom" && (
                     <input
                       type="text"
-                      placeholder="Enter custom role title..."
+                      placeholder="Enter custom role..."
                       onChange={(e) => setNewStaffRole(e.target.value)}
                       className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
                     />
@@ -7842,7 +8026,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
-                  Monthly Base Salary (₹) *
+                  {newStaffType === "outsource" ? "Service / Project Retainer Fees (₹) (Optional)" : "Monthly Base Salary (₹) *"}
                 </label>
                 <input
                   type="number"
@@ -7850,11 +8034,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   step="500"
                   value={newStaffSalary}
                   onChange={(e) => setNewStaffSalary(e.target.value)}
-                  placeholder="e.g. 18000"
+                  placeholder={newStaffType === "outsource" ? "e.g. 5000" : "e.g. 15000"}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono font-bold text-base focus:outline-hidden focus:border-[#5a1e2d]"
                 />
                 <span className="text-[10px] text-stone-500 mt-1 block">
-                  Garment purchases and advances will be deducted from this base salary.
+                  {newStaffType === "outsource"
+                    ? "Garments taken will be offset & deducted from their professional service invoice fees."
+                    : "Garment purchases and advances will be deducted from this base salary."}
                 </span>
               </div>
             </div>
@@ -7872,7 +8058,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 onClick={handleSaveNewStaff}
                 className="px-5 py-2 bg-[#5a1e2d] hover:bg-[#3f0819] text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition"
               >
-                Save Staff Member
+                Save {newStaffType === "outsource" ? "Partner" : "Staff Member"}
               </button>
             </div>
           </div>
@@ -7880,7 +8066,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       )}
 
       {/* =========================================================
-          MODAL: EDIT STAFF DETAILS & UPDATE MONTHLY SALARY
+          MODAL: EDIT STAFF DETAILS & UPDATE MONTHLY SALARY / RATES
           ========================================================= */}
       {editingStaffMember && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -7891,8 +8077,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   <Edit3 className="w-5 h-5 text-amber-300" />
                 </span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-base">Edit Staff &amp; Salary</h3>
-                  <span className="text-xs text-stone-500">Update salary, role, contact info or status</span>
+                  <h3 className="font-bold text-stone-900 text-base">
+                    Edit {editStaffType === "outsource" ? "Outsource Partner" : "Staff Member"}
+                  </h3>
+                  <span className="text-xs text-stone-500">Update rates, role, contact info or status</span>
                 </div>
               </div>
               <button
@@ -7931,6 +8119,51 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  Classification
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditStaffType("staff")}
+                    className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                      editStaffType === "staff"
+                        ? "bg-[#5a1e2d] text-white border-[#5a1e2d]"
+                        : "bg-stone-50 text-stone-700 border-stone-200"
+                    }`}
+                  >
+                    <span>🏬 In-Store Staff</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditStaffType("outsource")}
+                    className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                      editStaffType === "outsource"
+                        ? "bg-purple-900 text-white border-purple-900"
+                        : "bg-stone-50 text-purple-900 border-stone-200"
+                    }`}
+                  >
+                    <span>💼 Outsource</span>
+                  </button>
+                </div>
+              </div>
+
+              {editStaffType === "outsource" && (
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
+                    Company / Firm Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editStaffCompany}
+                    onChange={(e) => setEditStaffCompany(e.target.value)}
+                    placeholder="e.g. Hostbolt / Tech Studio"
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:outline-hidden focus:border-[#5a1e2d]"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1">
                   Role / Designation
                 </label>
                 <input
@@ -7943,7 +8176,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
                 <label className="block text-[11px] font-bold text-amber-950 uppercase tracking-wider">
-                  Monthly Base Salary (₹) *
+                  {editStaffType === "outsource" ? "Service / Retainer Fees (₹)" : "Monthly Base Salary (₹) *"}
                 </label>
                 <input
                   type="number"
@@ -7954,7 +8187,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-stone-900 font-mono font-black text-lg focus:outline-hidden focus:border-amber-600"
                 />
                 <span className="text-[10px] text-amber-900/80 block leading-tight">
-                  💡 Updating salary will immediately recalculate this month&apos;s Net Salary Payable.
+                  {editStaffType === "outsource"
+                    ? "💡 Garment purchases are offset against these external service fees."
+                    : "💡 Updating salary will immediately recalculate this month's Net Salary Payable."}
                 </span>
               </div>
 
@@ -7996,7 +8231,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                 type="button"
                 onClick={() => handleDeleteStaff(editingStaffMember.id, editingStaffMember.name)}
                 className="px-3 py-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                title="Remove staff member"
+                title="Remove member (Requires Owner PIN 1458)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Remove</span>

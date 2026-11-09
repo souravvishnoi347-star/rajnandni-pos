@@ -50,6 +50,9 @@ export interface StaffMember {
   role: string;
   monthlySalary: number;
   isActive: boolean;
+  memberType?: "staff" | "outsource";
+  feeBalance?: number;
+  companyName?: string;
 }
 
 export interface StaffProductPurchase {
@@ -82,13 +85,7 @@ export interface StaffDepositRecord {
   createdAt: string;
 }
 
-export const DEFAULT_STAFF_MEMBERS: StaffMember[] = [
-  { id: "staff-1", name: "Ramesh Kumar", phone: "9897123456", role: "Head Staff / Store Manager", monthlySalary: 25000, isActive: true },
-  { id: "staff-2", name: "Priya Sharma", phone: "9897654321", role: "Senior Sales Executive", monthlySalary: 18000, isActive: true },
-  { id: "staff-3", name: "Pooja Verma", phone: "9756123789", role: "Saree & Bridal Specialist", monthlySalary: 16000, isActive: true },
-  { id: "staff-4", name: "Rohit Negi", phone: "9412345678", role: "Counter & Inventory Helper", monthlySalary: 14000, isActive: true },
-  { id: "staff-5", name: "Suman Rawat", phone: "9634567890", role: "Sales & Alteration Assistant", monthlySalary: 13000, isActive: true },
-];
+export const DEFAULT_STAFF_MEMBERS: StaffMember[] = [];
 
 const LOCAL_STORAGE_KEYS = {
   EXPENSES: "rajnandni_store_expenses",
@@ -677,8 +674,11 @@ export const StaffExpenseService = {
               name: row.item_name || "Staff Member",
               phone: row.customer_phone || "",
               role: row.tailor_name || "Showroom Staff",
-              monthlySalary: Number(details.monthlySalary) || 15000,
+              monthlySalary: Number(details.monthlySalary) || 0,
               isActive: row.status === "active",
+              memberType: (details.memberType || "staff") as "staff" | "outsource",
+              feeBalance: Number(details.feeBalance) || 0,
+              companyName: details.companyName || "",
             };
           });
         }
@@ -696,27 +696,30 @@ export const StaffExpenseService = {
       return cloudList;
     }
 
-    // Check localStorage or seed defaults
+    // Check localStorage or return empty
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.STAFF);
         if (raw) return JSON.parse(raw);
-        localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(DEFAULT_STAFF_MEMBERS));
       } catch {}
     }
-    return DEFAULT_STAFF_MEMBERS;
+    return [];
   },
 
   async addStaffMember(member: Omit<StaffMember, "id" | "isActive">): Promise<StaffMember> {
-    const id = "staff-" + Date.now();
+    const prefix = member.memberType === "outsource" ? "outsource-" : "staff-";
+    const id = prefix + Date.now();
     const token = "STAFF-" + id;
     const newStaff: StaffMember = {
       id,
       name: member.name.trim(),
       phone: member.phone.trim(),
       role: member.role.trim(),
-      monthlySalary: member.monthlySalary,
+      monthlySalary: member.monthlySalary || 0,
       isActive: true,
+      memberType: member.memberType || "staff",
+      feeBalance: member.feeBalance || 0,
+      companyName: member.companyName || "",
     };
 
     if (supabase) {
@@ -726,7 +729,12 @@ export const StaffExpenseService = {
           customer_name: "STAFF_MEMBER",
           customer_phone: member.phone.trim(),
           item_name: member.name.trim(),
-          instructions: JSON.stringify({ monthlySalary: member.monthlySalary }),
+          instructions: JSON.stringify({
+            monthlySalary: member.monthlySalary || 0,
+            memberType: member.memberType || "staff",
+            feeBalance: member.feeBalance || 0,
+            companyName: member.companyName || "",
+          }),
           tailor_name: member.role.trim(),
           status: "active",
         });
@@ -738,7 +746,7 @@ export const StaffExpenseService = {
     if (typeof window !== "undefined") {
       try {
         const current = await this.fetchStaffMembers();
-        const updated = [...current, newStaff];
+        const updated = [...current.filter((s) => s.id !== id), newStaff];
         localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(updated));
       } catch {}
     }
@@ -753,12 +761,31 @@ export const StaffExpenseService = {
         if (updates.name !== undefined) payload.item_name = updates.name.trim();
         if (updates.phone !== undefined) payload.customer_phone = updates.phone.trim();
         if (updates.role !== undefined) payload.tailor_name = updates.role.trim();
-        if (updates.monthlySalary !== undefined) {
-          payload.instructions = JSON.stringify({ monthlySalary: updates.monthlySalary });
-        }
         if (updates.isActive !== undefined) {
           payload.status = updates.isActive ? "active" : "inactive";
         }
+
+        // Fetch existing instructions to preserve custom fields
+        const { data: existingRows } = await supabase
+          .from("alterations")
+          .select("instructions")
+          .eq("customer_name", "STAFF_MEMBER")
+          .or(`token_number.eq.${token},token_number.eq.${id},id.eq.${id}`)
+          .limit(1);
+
+        let details: any = {};
+        if (existingRows && existingRows[0]?.instructions) {
+          try {
+            details = JSON.parse(existingRows[0].instructions);
+          } catch {}
+        }
+
+        if (updates.monthlySalary !== undefined) details.monthlySalary = updates.monthlySalary;
+        if (updates.memberType !== undefined) details.memberType = updates.memberType;
+        if (updates.feeBalance !== undefined) details.feeBalance = updates.feeBalance;
+        if (updates.companyName !== undefined) details.companyName = updates.companyName;
+
+        payload.instructions = JSON.stringify(details);
 
         const { error } = await supabase
           .from("alterations")
@@ -777,7 +804,7 @@ export const StaffExpenseService = {
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEYS.STAFF);
-        const list: StaffMember[] = raw ? JSON.parse(raw) : DEFAULT_STAFF_MEMBERS;
+        const list: StaffMember[] = raw ? JSON.parse(raw) : [];
         const updated = list.map((s) => (s.id === id ? { ...s, ...updates } : s));
         localStorage.setItem(LOCAL_STORAGE_KEYS.STAFF, JSON.stringify(updated));
       } catch {}
