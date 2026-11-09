@@ -2327,6 +2327,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     type ProductSalesStats = {
       qty: number;
       revenue: number;
+      grossRevenue: number;
       firstDate: number;
       lastDate: number;
       count: number;
@@ -2342,6 +2343,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       statsMap.set(p.id, {
         qty: 0,
         revenue: 0,
+        grossRevenue: 0,
         firstDate: 0,
         lastDate: 0,
         count: 0
@@ -2387,10 +2389,17 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
           matchedProdId = byName.get(itNorm)!;
         }
 
+        const billSub = Number(bill.subtotal) || (qty * price) || 1;
+        const billNet = Number(bill.grandTotal || (bill as any).total) || billSub;
+        const ratio = billSub > 0 ? Math.min(1, Math.max(0, billNet / billSub)) : 1;
+        const grossAmount = qty * price;
+        const netAmount = Math.round(grossAmount * ratio);
+
         if (matchedProdId && statsMap.has(matchedProdId)) {
           const st = statsMap.get(matchedProdId)!;
           st.qty += qty;
-          st.revenue += qty * price;
+          st.grossRevenue += grossAmount;
+          st.revenue += netAmount;
           st.count += 1;
           if (billTime > 0) {
             if (st.firstDate === 0 || billTime < st.firstDate) st.firstDate = billTime;
@@ -2401,9 +2410,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     });
 
     return products.filter(p => !p.isService).map(p => {
-      const st = statsMap.get(p.id) || { qty: 0, revenue: 0, firstDate: 0, lastDate: 0, count: 0 };
+      const st = statsMap.get(p.id) || { qty: 0, revenue: 0, grossRevenue: 0, firstDate: 0, lastDate: 0, count: 0 };
       const totalQtySold = st.qty;
       const totalRevenue = st.revenue;
+      const grossRevenue = st.grossRevenue;
       const firstDate = st.firstDate || now;
       const lastDate = st.lastDate || now;
       const billCount = st.count;
@@ -2432,6 +2442,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
         product: p,
         totalQtySold,
         totalRevenue,
+        grossRevenue,
         unitsPerDay,
         daysSpan,
         isOutOfStock,
@@ -2457,6 +2468,10 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
   const topMoversTotalRevenue = useMemo(() => {
     return productVelocityAnalytics.reduce((sum, v) => sum + v.totalRevenue, 0);
+  }, [productVelocityAnalytics]);
+
+  const topMoversGrossRevenue = useMemo(() => {
+    return productVelocityAnalytics.reduce((sum, v) => sum + (v.grossRevenue || v.totalRevenue), 0);
   }, [productVelocityAnalytics]);
 
   // Fast lookup map for sold quantity of every product across showroom bills
@@ -5173,9 +5188,11 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
                 <div className="bg-white p-4 rounded-2xl border border-emerald-200/90 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-[10.5px] font-bold text-emerald-600 uppercase tracking-wider">Top Movers Revenue</span>
+                    <span className="text-[10.5px] font-bold text-emerald-600 uppercase tracking-wider">Top Movers Net Sales</span>
                     <p className="text-2xl font-black text-emerald-700 font-mono mt-0.5">₹{topMoversTotalRevenue.toLocaleString("en-IN")}</p>
-                    <span className="text-[10px] text-stone-500 font-semibold">From completed bill history</span>
+                    <span className="text-[10px] text-stone-500 font-semibold block">
+                      Net Realized Sales (Catalog Tag: ₹{topMoversGrossRevenue.toLocaleString("en-IN")})
+                    </span>
                   </div>
                   <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
                     <TrendingUp className="w-5 h-5" />
