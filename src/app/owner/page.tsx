@@ -287,7 +287,7 @@ export default function MobileOwnerApp() {
                   category: it.category || "sarees",
                   price: Number(it.price) || 0,
                   mrp: Number(it.mrp || it.price) || 0,
-                  purchaseCost: Number(it.purchaseCost || it.purchase_cost || 0),
+                  purchaseCost: Number(it.product?.purchaseCost || it.product?.purchase_cost || it.purchaseCost || it.purchase_cost || 0),
                   stock: 1,
                 },
                 quantity: it.quantity || 1,
@@ -372,7 +372,7 @@ export default function MobileOwnerApp() {
                           category: it.category || "sarees",
                           price: Number(it.price) || 0,
                           mrp: Number(it.mrp || it.price) || 0,
-                          purchaseCost: Number(it.purchaseCost || it.purchase_cost || 0),
+                          purchaseCost: Number(it.product?.purchaseCost || it.product?.purchase_cost || it.purchaseCost || it.purchase_cost || 0),
                           stock: 1,
                         },
                         quantity: it.quantity || 1,
@@ -558,6 +558,8 @@ export default function MobileOwnerApp() {
     let discount = 0;
     let cashTotal = 0;
     let upiTotal = 0;
+    let khataTotal = 0;
+    let staffSalaryTotal = 0;
     let itemsCount = 0;
     let wholesaleCost = 0;
 
@@ -566,6 +568,12 @@ export default function MobileOwnerApp() {
       discount += b.discount || 0;
       if (b.paymentMode === "cash") {
         cashTotal += b.grandTotal;
+      } else if (b.paymentMode === "upi" || b.paymentMode === "card") {
+        upiTotal += b.grandTotal;
+      } else if (b.paymentMode === "khata") {
+        khataTotal += b.grandTotal;
+      } else if (b.paymentMode === "staff_salary") {
+        staffSalaryTotal += b.grandTotal;
       } else {
         upiTotal += b.grandTotal;
       }
@@ -573,15 +581,22 @@ export default function MobileOwnerApp() {
       (b.items || []).forEach((it) => {
         const qty = it.quantity || 1;
         itemsCount += qty;
-        const pSku = (it.product?.sku || "").toLowerCase();
-        const pId = (it.product?.id || "").toLowerCase();
-        const pName = (it.product?.name || "").trim().toLowerCase();
-        const cost =
-          Number(it.product?.purchaseCost) ||
-          (pSku && productCostMap.get(pSku)) ||
-          (pId && productCostMap.get(pId)) ||
-          (pName && productCostMap.get(pName)) ||
-          0;
+        let cost = Number(it.product?.purchaseCost) || 0;
+        if (cost <= 0) {
+          const itAny = it as any;
+          if (itAny.purchaseCost) cost = Number(itAny.purchaseCost);
+          else if (itAny.purchase_cost) cost = Number(itAny.purchase_cost);
+        }
+        if (cost <= 0) {
+          const pSku = (it.product?.sku || (it as any).sku || "").toLowerCase();
+          const pId = (it.product?.id || (it as any).id || "").toLowerCase();
+          const pName = (it.product?.name || (it as any).name || "").trim().toLowerCase();
+          cost =
+            (pSku && productCostMap.get(pSku)) ||
+            (pId && productCostMap.get(pId)) ||
+            (pName && productCostMap.get(pName)) ||
+            0;
+        }
         wholesaleCost += cost * qty;
       });
     });
@@ -595,6 +610,9 @@ export default function MobileOwnerApp() {
       discount,
       cashTotal,
       upiTotal,
+      khataTotal,
+      staffSalaryTotal,
+      creditTotal: khataTotal + staffSalaryTotal,
       itemsCount,
       wholesaleCost,
       grossProfit,

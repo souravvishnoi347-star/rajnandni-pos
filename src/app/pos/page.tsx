@@ -3017,6 +3017,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     const totalUpi = list.filter(b => b.paymentMode === "upi").reduce((s, b) => s + b.grandTotal, 0);
     const totalCard = list.filter(b => b.paymentMode === "card").reduce((s, b) => s + b.grandTotal, 0);
     const totalKhata = list.filter(b => b.paymentMode === "khata").reduce((s, b) => s + b.grandTotal, 0);
+    const totalStaffSalary = list.filter(b => (b.paymentMode as any) === "staff_salary").reduce((s, b) => s + b.grandTotal, 0);
+    const totalCreditKhata = totalKhata + totalStaffSalary;
+    const khataBillCount = list.filter(b => b.paymentMode === "khata" || (b.paymentMode as any) === "staff_salary").length;
     const totalDiscounts = list.reduce((s, b) => s + (b.totalSavings || b.discount || 0), 0);
     const totalItemsSold = list.reduce((s, b) => s + b.items.reduce((is, it) => is + it.quantity, 0), 0);
     const avgBillValue = list.length > 0 ? Math.round(totalRev / list.length) : 0;
@@ -3062,6 +3065,9 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       totalUpi,
       totalCard,
       totalKhata,
+      totalStaffSalary,
+      totalCreditKhata,
+      khataBillCount,
       totalDiscounts,
       totalItemsSold,
       avgBillValue,
@@ -5880,9 +5886,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <div className="text-2xl lg:text-3xl text-[#1d1b1b] tracking-tight font-bold font-mono">
                       ₹{(reportAnalytics.totalUpi + reportAnalytics.totalCard).toLocaleString("en-IN")}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1.5 text-[#534345] text-xs font-mono">
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[#534345] text-xs font-mono flex-wrap">
                       <span>UPI: ₹{reportAnalytics.totalUpi.toLocaleString("en-IN")}</span>
                       <span>• Card: ₹{reportAnalytics.totalCard.toLocaleString("en-IN")}</span>
+                      {reportAnalytics.totalCreditKhata > 0 && (
+                        <span className="text-[#854d0e] font-bold bg-[#fef3c7] px-1.5 py-0.2 rounded">
+                          • Khata/Staff: ₹{reportAnalytics.totalCreditKhata.toLocaleString("en-IN")}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -5916,6 +5927,16 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <span className="font-bold font-mono">{exchangesList.length}</span>
                     <span className="text-[#857275]">(Clean Audit)</span>
                   </div>
+                  {reportAnalytics.totalCreditKhata > 0 && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#fef3c7] text-[#92400e] font-medium border border-[#fde68a]">
+                      <BookOpen className="w-3.5 h-3.5 text-[#b45309]" />
+                      <span>Khata &amp; Staff Deduct:</span>
+                      <span className="font-bold font-mono">
+                        ₹{reportAnalytics.totalCreditKhata.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[#92400e]">({reportAnalytics.khataBillCount} Bills)</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
