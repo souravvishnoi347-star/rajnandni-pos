@@ -178,7 +178,7 @@ export default function RajnandiniPosPage() {
   const [newStaffName, setNewStaffName] = useState<string>("");
   const [newStaffPhone, setNewStaffPhone] = useState<string>("");
   const [newStaffRole, setNewStaffRole] = useState<string>("Showroom Sales Executive");
-  const [newStaffSalary, setNewStaffSalary] = useState<string>("15000");
+  const [newStaffSalary, setNewStaffSalary] = useState<string>("0");
   const [newStaffType, setNewStaffType] = useState<"staff" | "outsource">("staff");
   const [newStaffCompany, setNewStaffCompany] = useState<string>("");
 
@@ -2783,7 +2783,8 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
     const netDeduction = (garmentTotal + advanceTotal) - depositTotal;
     const isOutsource = memberType === "outsource";
-    const netPayable = isOutsource
+    const hasBaseSalary = Number(baseSalary) > 0;
+    const netPayable = (isOutsource || !hasBaseSalary)
       ? netDeduction
       : Math.max(0, baseSalary - netDeduction);
 
@@ -2797,6 +2798,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
       netDeduction,
       netPayable,
       isOutsource,
+      hasBaseSalary,
     };
   };
 
@@ -2921,7 +2923,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
     setNewStaffName("");
     setNewStaffPhone("");
     setNewStaffRole("Showroom Sales Executive");
-    setNewStaffSalary("15000");
+    setNewStaffSalary("0");
     setNewStaffType("staff");
     setNewStaffCompany("");
     alert(`🎉 ${created.memberType === "outsource" ? "Outsource Partner" : "Staff Member"} "${created.name}" added successfully!`);
@@ -7140,7 +7142,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                       setNewStaffName("");
                       setNewStaffPhone("");
                       setNewStaffRole("Showroom Sales Executive");
-                      setNewStaffSalary("15000");
+                      setNewStaffSalary("0");
                       setNewStaffType("staff");
                       setNewStaffCompany("");
                       setShowAddStaffModal(true);
@@ -7351,11 +7353,13 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                                   )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-[#534345] mt-1">
-                                  <span>📞 {staff.phone}</span>
+                                  <span>📞 {staff.phone || "NA"}</span>
                                   {isOutsource ? (
                                     <span>• Outsource Partner Ledger • <strong>Fee Deduction Offset</strong></span>
-                                  ) : (
+                                  ) : staff.monthlySalary > 0 ? (
                                     <span>• Base Salary: <strong>₹{staff.monthlySalary.toLocaleString("en-IN")}/mo</strong></span>
+                                  ) : (
+                                    <span className="text-amber-800 font-semibold">• Monthly Salary: <em>Not decided yet (TBD)</em></span>
                                   )}
                                 </div>
                               </div>
@@ -7382,10 +7386,14 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                               )}
 
                               <div className={`px-3.5 py-1.5 rounded-xl text-white shadow-xs ${
-                                isOutsource ? "bg-purple-950" : "bg-stone-900"
+                                isOutsource ? "bg-purple-950" : staff.monthlySalary > 0 ? "bg-stone-900" : "bg-[#5a1e2d]"
                               }`}>
                                 <span className="text-[10px] uppercase font-bold text-amber-400 block">
-                                  {isOutsource ? "Net Fees Deducted" : "Net Salary Payable"}
+                                  {isOutsource
+                                    ? "Net Fees Deducted"
+                                    : staff.monthlySalary > 0
+                                    ? "Net Salary Payable"
+                                    : "Net Dues (Garments Cut)"}
                                 </span>
                                 <span className="font-mono font-black text-base text-white">
                                   ₹{summary.netPayable.toLocaleString("en-IN")}
