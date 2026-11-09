@@ -7215,11 +7215,28 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
 
               {/* KPI Metrics Summary Grid */}
               {(() => {
-                const totalGarmentsAmount = staffPurchases.reduce((s, p) => s + (Number(p.totalAmount) || 0), 0);
-                const totalDepositsAmount = staffDeposits.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-                const totalAdvancesAmount = staffAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+                const targetMembers = staffMembers.filter((s) => {
+                  if (staffCategoryFilter === "staff") return s.memberType !== "outsource";
+                  if (staffCategoryFilter === "outsource") return s.memberType === "outsource";
+                  return true;
+                });
+                const targetMemberIds = new Set(targetMembers.map((m) => m.id));
+
+                const filteredPurchases = staffCategoryFilter === "all"
+                  ? staffPurchases
+                  : staffPurchases.filter((p) => targetMemberIds.has(p.staffId));
+                const filteredDeposits = staffCategoryFilter === "all"
+                  ? staffDeposits
+                  : staffDeposits.filter((d) => targetMemberIds.has(d.staffId));
+                const filteredAdvances = staffCategoryFilter === "all"
+                  ? staffAdvances
+                  : staffAdvances.filter((a) => targetMemberIds.has(a.staffId));
+
+                const totalGarmentsAmount = filteredPurchases.reduce((s, p) => s + (Number(p.totalAmount) || 0), 0);
+                const totalDepositsAmount = filteredDeposits.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+                const totalAdvancesAmount = filteredAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
                 const netPendingDeductions = (totalGarmentsAmount + totalAdvancesAmount) - totalDepositsAmount;
-                const activeEmployees = staffMembers.filter(s => s.isActive && s.memberType !== "outsource");
+                const activeEmployees = targetMembers.filter(s => s.isActive && s.memberType !== "outsource");
                 const totalBaseSalaries = activeEmployees.reduce((s, m) => s + m.monthlySalary, 0);
 
                 return (
@@ -7227,10 +7244,12 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                     <div className="bg-white p-4 rounded-2xl border border-[#ede7e6] shadow-2xs">
                       <span className="text-[10px] uppercase font-bold text-[#857275] tracking-wider block">Total Members</span>
                       <span className="text-xl font-black text-[#1d1b1b] mt-1 block">
-                        {staffMembers.filter(s => s.isActive).length} Active
+                        {targetMembers.filter(s => s.isActive).length} Active
                       </span>
                       <span className="text-[10px] text-[#534345] mt-0.5 block">
-                        Staff Base: ₹{totalBaseSalaries.toLocaleString("en-IN")}/mo
+                        {staffCategoryFilter === "outsource"
+                          ? "Outsource / Vendor Partners"
+                          : `Staff Base: ₹${totalBaseSalaries.toLocaleString("en-IN")}/mo`}
                       </span>
                     </div>
 
@@ -7240,7 +7259,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         ₹{totalGarmentsAmount.toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-[#534345] mt-0.5 block">
-                        {staffPurchases.length} items logged
+                        {filteredPurchases.length} items logged
                       </span>
                     </div>
 
@@ -7250,7 +7269,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         ₹{totalDepositsAmount.toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-emerald-800/80 mt-0.5 block">
-                        {staffDeposits.length} deposits recorded
+                        {filteredDeposits.length} deposits recorded
                       </span>
                     </div>
 
@@ -7260,7 +7279,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         ₹{totalAdvancesAmount.toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-[#534345] mt-0.5 block">
-                        {staffAdvances.length} salary advances
+                        {filteredAdvances.length} salary advances
                       </span>
                     </div>
 
@@ -7270,7 +7289,7 @@ _Sarees · Suits · Lehengas · Fashion & Accessories_`;
                         ₹{Math.max(0, netPendingDeductions).toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-amber-200/80 mt-0.5 block">
-                        Payroll &amp; Vendor balance cuts
+                        {staffCategoryFilter === "outsource" ? "Pending fees cut" : "Payroll & vendor cuts"}
                       </span>
                     </div>
                   </div>
